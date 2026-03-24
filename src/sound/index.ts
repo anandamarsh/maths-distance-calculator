@@ -1,4 +1,5 @@
 let ctx: AudioContext | null = null;
+let footToggle = false;
 
 function ac(): AudioContext {
   if (!ctx) ctx = new AudioContext();
@@ -22,7 +23,9 @@ function tone(freq: number, start: number, dur: number, vol = 0.08, type: Oscill
 
 export function playStep() {
   const t = ac().currentTime;
-  tone(523.25, t, 0.08, 0.06, "square");
+  footToggle = !footToggle;
+  tone(footToggle ? 180 : 220, t, 0.045, 0.045, "square");
+  tone(footToggle ? 110 : 135, t + 0.015, 0.035, 0.02, "triangle");
 }
 
 export function playCorrect() {
@@ -48,17 +51,23 @@ export function playSnap() {
   tone(1108.7, t + 0.05, 0.08, 0.06, "square");
 }
 
+export function playButton() {
+  const t = ac().currentTime;
+  tone(659.25, t, 0.05, 0.06, "square");
+  tone(783.99, t + 0.04, 0.05, 0.045, "square");
+}
+
 // Background music
 let bgTimer: ReturnType<typeof setTimeout> | null = null;
 let musicOn = false;
 
 const MELODY = [
-  392, 329.63, 392, 440, 392, 349.23, 329.63, 261.63,
-  293.66, 261.63, 293.66, 329.63, 261.63, 293.66, 349.23, 392,
+  659.25, 659.25, 0, 523.25, 659.25, 0, 783.99, 0,
+  392, 0, 523.25, 0, 392, 329.63, 440, 493.88,
 ];
 const BASS = [
-  130.81, 0, 164.81, 0, 130.81, 0, 164.81, 0,
-  98.0, 0, 123.47, 0, 98.0, 0, 123.47, 0,
+  130.81, 0, 130.81, 0, 98.0, 0, 146.83, 0,
+  98.0, 0, 82.41, 0, 110.0, 0, 123.47, 0,
 ];
 let step = 0;
 const BPM = 140;
