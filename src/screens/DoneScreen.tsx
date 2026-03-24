@@ -1,51 +1,81 @@
-import { Box, Button, Divider, Stack, Typography } from "@mui/material";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import type { AnalysisData } from "../types";
 
 interface Props {
   data: AnalysisData;
+  totalStars: number;
+  maxStars: number;
 }
 
-export default function DoneScreen({ data }: Props) {
+export default function DoneScreen({ data, totalStars, maxStars }: Props) {
+  const childName = data.summary.split(" ")[0];
+  const pct = Math.round((totalStars / maxStars) * 100);
+  const medal = pct === 100 ? "🥇" : pct >= 75 ? "🥈" : "🥉";
+
   return (
-    <Box sx={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", p: 2, bgcolor: "#f5f7fa" }}>
-      <Box sx={{ maxWidth: 520, width: "100%", bgcolor: "white", borderRadius: 3, p: 4, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <EmojiEventsIcon sx={{ fontSize: 56, color: "#f9a825", mb: 1 }} />
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Lesson complete!</Typography>
-          <Typography variant="body1" sx={{ color: "#555" }}>
-            You've reviewed all {data.incorrect.length} topics. Now go back to IXL and try again — you've got this.
-          </Typography>
-        </Box>
+    <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-100 via-sky-50 to-emerald-100 p-4">
+      <div className="max-w-md w-full">
+        {/* Hero */}
+        <div className="text-center mb-6">
+          <div className="text-8xl animate-float mb-2">{medal}</div>
+          <div className="text-3xl font-black text-slate-800">
+            {pct === 100 ? "Legendary!" : pct >= 75 ? "Awesome!" : "Great effort!"}
+          </div>
+          <div className="text-slate-500 mt-1">
+            {childName} has completed the Dino Island Adventure
+          </div>
+        </div>
 
-        {data.glossary.length > 0 && (
-          <>
-            <Divider sx={{ my: 3 }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#888", mb: 2, textTransform: "uppercase", letterSpacing: 0.8 }}>
-              Key terms to remember
-            </Typography>
-            <Stack spacing={1.5}>
-              {data.glossary.map((item) => (
-                <Box key={item.term}>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{item.term}</Typography>
-                  <Typography variant="body2" sx={{ color: "#555" }}>{item.explanation}</Typography>
-                </Box>
+        {/* Score card */}
+        <div className="bg-white rounded-3xl shadow border border-slate-100 p-6 mb-5">
+          <div className="text-center mb-4">
+            <div className="text-2xl mb-1">
+              {Array.from({ length: totalStars }).map((_, i) => (
+                <span key={i} className="animate-star inline-block" style={{ animationDelay: `${i * 0.05}s` }}>⭐</span>
               ))}
-            </Stack>
-          </>
-        )}
+            </div>
+            <div className="text-slate-500 text-sm font-medium">{totalStars} / {maxStars} stars</div>
+          </div>
 
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          href="https://www.ixl.com"
-          target="_blank"
-          sx={{ mt: 4, borderRadius: 2, py: 1.5, fontSize: 16, fontWeight: 700, textTransform: "none", bgcolor: "#2e7d32" }}
+          <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-400 to-blue-400 transition-all duration-1000"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="text-right text-xs text-slate-400 mt-1">{pct}%</div>
+
+          <div className="mt-4 space-y-2">
+            {[
+              { emoji: "🦕", label: "Trace the Trail", desc: "Follow the whole path before adding" },
+              { emoji: "🗺️", label: "Missing Map Piece", desc: "Subtract known pieces from the total" },
+              { emoji: "⚡", label: "Route Race", desc: "Find BOTH totals before comparing" },
+              { emoji: "🏆", label: "Shortest Shortcut", desc: "Calculate ALL routes, then choose smallest" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-2 text-sm">
+                <span>{item.emoji}</span>
+                <div>
+                  <span className="font-bold text-slate-700">{item.label}: </span>
+                  <span className="text-slate-500">{item.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.open("https://www.ixl.com", "_blank")}
+          className="w-full bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-black text-xl py-4 rounded-2xl shadow transition-all"
         >
-          Go to IXL →
-        </Button>
-      </Box>
-    </Box>
+          Now try IXL! 🚀
+        </button>
+
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full mt-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-2xl transition-all"
+        >
+          Play again 🔄
+        </button>
+      </div>
+    </div>
   );
 }

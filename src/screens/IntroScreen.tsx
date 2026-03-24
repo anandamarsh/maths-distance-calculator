@@ -1,5 +1,3 @@
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
-import SchoolIcon from "@mui/icons-material/School";
 import type { AnalysisData } from "../types";
 
 interface Props {
@@ -8,44 +6,56 @@ interface Props {
 }
 
 export default function IntroScreen({ data, onStart }: Props) {
-  const topicLabel = data.id.split("-").slice(2).join(" ").replace(/_/g, " ");
-  const incorrectCount = data.incorrect.reduce((s, c) => s + c.questionCount, 0);
-  const correctCount = data.correct.reduce((s, c) => s + c.questionCount, 0);
+  const childName = data.summary.split(" ")[0];
 
   return (
-    <Box sx={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", p: 2, bgcolor: "#f5f7fa" }}>
-      <Box sx={{ maxWidth: 520, width: "100%", bgcolor: "white", borderRadius: 3, p: 4, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
-          <Box sx={{ bgcolor: "#e8f4fd", borderRadius: 2, p: 1.2, display: "flex" }}>
-            <SchoolIcon sx={{ color: "#1976d2", fontSize: 28 }} />
-          </Box>
-          <Box>
-            <Typography variant="overline" sx={{ color: "#888", lineHeight: 1 }}>Let's practise</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2, textTransform: "capitalize" }}>
-              {topicLabel}
-            </Typography>
-          </Box>
-        </Box>
+    <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-emerald-100 via-sky-50 to-purple-100 p-4">
+      <div className="max-w-md w-full">
+        {/* Dino hero */}
+        <div className="text-center mb-6">
+          <div className="text-8xl animate-float mb-2">🦕</div>
+          <div className="text-4xl font-black text-slate-800 tracking-tight">
+            Dino Island Adventure
+          </div>
+          <div className="text-slate-500 mt-1 text-sm font-medium uppercase tracking-widest">
+            A maths quest for {childName}
+          </div>
+        </div>
 
-        <Typography variant="body1" sx={{ color: "#444", lineHeight: 1.7, mb: 3 }}>
-          {data.summary}
-        </Typography>
+        {/* Mission card */}
+        <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 mb-5">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="text-3xl">📜</span>
+            <div>
+              <div className="font-bold text-slate-800 text-lg">Your Mission</div>
+              <p className="text-slate-600 text-sm mt-1 leading-relaxed">
+                Help Rex the dinosaur navigate between prehistoric islands by calculating map distances. Master 4 challenges to earn your place in the Dino Hall of Fame!
+              </p>
+            </div>
+          </div>
 
-        <Stack direction="row" spacing={1.5} sx={{ mb: 4 }}>
-          <Chip label={`${correctCount} correct`} sx={{ bgcolor: "#e8f5e9", color: "#2e7d32", fontWeight: 600 }} />
-          <Chip label={`${incorrectCount} to work on`} sx={{ bgcolor: "#fff3e0", color: "#e65100", fontWeight: 600 }} />
-        </Stack>
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            {[
+              { emoji: "🦕", label: "Trace the Trail" },
+              { emoji: "🗺️", label: "Missing Map Piece" },
+              { emoji: "⚡", label: "Route Race" },
+              { emoji: "🏆", label: "Shortest Shortcut" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
+                <span className="text-xl">{item.emoji}</span>
+                <span className="text-xs font-semibold text-slate-600">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
+        <button
           onClick={onStart}
-          sx={{ borderRadius: 2, py: 1.5, fontSize: 16, fontWeight: 700, textTransform: "none", bgcolor: "#1976d2" }}
+          className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition-all"
         >
-          Start lesson →
-        </Button>
-      </Box>
-    </Box>
+          Start Adventure! 🚀
+        </button>
+      </div>
+    </div>
   );
 }
