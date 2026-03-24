@@ -1,4 +1,5 @@
 import type { AnalysisData } from "../types";
+import { startMusic } from "../sound";
 
 interface Props {
   data: AnalysisData;
@@ -50,7 +51,7 @@ export default function IntroScreen({ data, onStart }: Props) {
         </div>
 
         <button
-          onClick={onStart}
+          onClick={() => { startMusic(); onStart(); }}
           className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition-all"
         >
           Start Adventure! 🚀

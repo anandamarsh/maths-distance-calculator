@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import type { Level } from "../data/gameData";
+import { playLevelComplete } from "../sound";
 
 interface Props {
   level: Level;
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export default function LevelCompleteScreen({ level, stars, onNext, isLastLevel }: Props) {
+  useEffect(() => { playLevelComplete(); }, []);
   return (
     <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-yellow-50 to-orange-50 p-4">
       <div className="max-w-sm w-full text-center">
