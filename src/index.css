@@ -1,124 +1,88 @@
-@import "tailwindcss";
-
-:root {
-  font-family: "Courier New", "Lucida Console", monospace;
-  color: #f8fafc;
-  background: #020617;
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
 }
 
 body {
-  margin: 0;
+  min-height: 100vh;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(78, 205, 196, 0.18), transparent 38%),
+    linear-gradient(180deg, #08131f 0%, #0d1b2a 100%);
+  color: #f8fafc;
 }
 
-#root {
-  min-height: 100svh;
+a {
+  color: inherit;
 }
 
-@keyframes bounce-in {
-  0% { transform: scale(0.3); opacity: 0; }
-  50% { transform: scale(1.08); }
-  100% { transform: scale(1); opacity: 1; }
-}
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-6px); }
-  80% { transform: translateX(6px); }
-}
-@keyframes pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.18); }
-  100% { transform: scale(1); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-}
-@keyframes star-spin {
-  0% { transform: rotate(0deg) scale(0); opacity: 0; }
-  60% { transform: rotate(360deg) scale(1.2); opacity: 1; }
-  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+.shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
 }
 
-@keyframes floatUp {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-16px) scale(1.3); opacity: 0; }
+.panel {
+  width: min(100%, 680px);
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  padding: 40px;
+  background: rgba(8, 15, 28, 0.82);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
 }
 
-.animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.36,0.07,0.19,0.97); }
-.animate-shake { animation: shake 0.4s ease-in-out; }
-.animate-pop { animation: pop 0.3s ease-in-out; }
-.animate-float { animation: float 3s ease-in-out infinite; }
-.animate-star { animation: star-spin 0.5s cubic-bezier(0.36,0.07,0.19,0.97) forwards; }
-
-@keyframes walk-bob {
-  0%   { transform: translateY(0px) rotate(0deg); }
-  20%  { transform: translateY(-7px) rotate(-2deg); }
-  40%  { transform: translateY(-2px) rotate(1deg); }
-  60%  { transform: translateY(-7px) rotate(-1deg); }
-  80%  { transform: translateY(-2px) rotate(2deg); }
-  100% { transform: translateY(0px) rotate(0deg); }
-}
-
-.font-arcade {
-  font-family: "Courier New", "Lucida Console", monospace;
-  letter-spacing: 0.06em;
-}
-
-.arcade-grid {
-  background-image:
-    linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-.arcade-panel {
-  border: 4px solid rgba(255,255,255,0.7);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.78);
-  box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.8), 0 18px 40px rgba(0, 0, 0, 0.3);
-}
-
-.arcade-strip {
-  border: 3px solid rgba(34, 211, 238, 0.65);
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.7);
-  box-shadow: inset 0 0 18px rgba(34, 211, 238, 0.18);
-}
-
-.arcade-meter {
-  border: 4px solid rgba(125, 211, 252, 0.9);
-  border-radius: 16px;
-  background: rgba(2, 6, 23, 0.92);
-  box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.22), 0 0 24px rgba(14, 165, 233, 0.2);
-}
-
-.digital-meter {
-  font-family: "Courier New", "Lucida Console", monospace;
-  font-weight: 900;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
-  text-shadow: 0 0 12px rgba(103, 232, 249, 0.5);
-  font-variant-numeric: tabular-nums lining-nums;
-}
-
-.arcade-button {
-  border: 3px solid #fef08a;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #f97316, #ea580c);
-  box-shadow: 0 5px 0 #9a3412;
-  color: white;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
+  color: #7dd3fc;
 }
 
-.arcade-button:active {
-  transform: translateY(3px);
-  box-shadow: 0 2px 0 #9a3412;
+h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
 }
 
-.dino-walk {
-  animation: walk-bob 0.18s linear infinite;
+.copy {
+  margin: 20px 0 0;
+  max-width: 42ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 28px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cta:hover {
+  background: #dbeafe;
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding: 20px;
+  }
+
+  .panel {
+    padding: 28px;
+  }
 }
