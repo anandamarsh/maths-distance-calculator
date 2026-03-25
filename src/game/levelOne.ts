@@ -55,23 +55,27 @@ const PLACE_POOL = [
 
 const PALETTES: TrailConfig["palette"][] = [
   {
+    // Dark indigo — yellow forward, bright magenta backward
     bg: "#111827", bgGlow: "#312e81", panel: "#1f2937",
-    trail: "#22d3ee", visited: "#facc15", repeated: "#f472b6",
+    trail: "#22d3ee", visited: "#facc15", repeated: "#e879f9",
     node: "#fb7185", text: "#fef3c7", accent: "#34d399",
   },
   {
+    // Deep blue — lime green forward, hot orange backward
     bg: "#172554", bgGlow: "#1d4ed8", panel: "#1e3a8a",
-    trail: "#60a5fa", visited: "#f97316", repeated: "#f43f5e",
+    trail: "#60a5fa", visited: "#4ade80", repeated: "#fb923c",
     node: "#facc15", text: "#f8fafc", accent: "#22c55e",
   },
   {
+    // Dark red — bright yellow forward, sky blue backward
     bg: "#3f0d12", bgGlow: "#7c2d12", panel: "#5b1220",
     trail: "#fb7185", visited: "#fde047", repeated: "#38bdf8",
     node: "#f59e0b", text: "#fff7ed", accent: "#4ade80",
   },
   {
+    // Dark green — amber forward, bright violet backward
     bg: "#0f1a10", bgGlow: "#14532d", panel: "#1a2e1b",
-    trail: "#4ade80", visited: "#fbbf24", repeated: "#c084fc",
+    trail: "#4ade80", visited: "#fbbf24", repeated: "#a78bfa",
     node: "#34d399", text: "#f0fdf4", accent: "#86efac",
   },
 ];
