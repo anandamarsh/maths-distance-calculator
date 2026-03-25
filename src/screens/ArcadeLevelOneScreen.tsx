@@ -80,6 +80,8 @@ function inNodeZone(config: TrailConfig, svgX: number, svgY: number) {
   return config.stops.some((s) => Math.hypot(svgX - s.x, svgY - s.y) < NODE_ZONE_PX);
 }
 
+const IS_DEV = import.meta.env.DEV;
+
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
 function makeQuestions(config: TrailConfig, level: number): TrailQuestion[] {
@@ -156,6 +158,7 @@ function StopMarker({
 
 export default function ArcadeLevelOneScreen() {
   const [level, setLevel] = useState<1 | 2 | 3>(1);
+  const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(1);
   const [run, setRun] = useState(() => createRun(1));
   const [screen, setScreen] = useState<"playing" | "failed" | "won">("playing");
   const [qIndex, setQIndex] = useState(0);
@@ -295,7 +298,12 @@ export default function ArcadeLevelOneScreen() {
         if (Math.abs(g - currentQ.subAnswers[i]) >= 0.11) { playWrong(); setScreen("failed"); return; }
       }
       playCorrect();
-      if (qIndex === questions.length - 1) { playLevelComplete(); setScreen("won"); return; }
+      if (qIndex === questions.length - 1) {
+        playLevelComplete();
+        if (!IS_DEV && level < 3) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
+        setScreen("won");
+        return;
+      }
       showFlash("Correct!", true);
       setQIndex((i) => i + 1);
       resetPosition();
@@ -306,7 +314,12 @@ export default function ArcadeLevelOneScreen() {
     if (isNaN(guess)) { showFlash("Type a number!", false); return; }
     if (Math.abs(guess - currentQ.answer) < 0.11) {
       playCorrect();
-      if (qIndex === questions.length - 1) { playLevelComplete(); setScreen("won"); return; }
+      if (qIndex === questions.length - 1) {
+        playLevelComplete();
+        if (!IS_DEV && level < 3) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
+        setScreen("won");
+        return;
+      }
       showFlash("Correct!", true);
       setQIndex((i) => i + 1);
       resetPosition();
@@ -336,20 +349,27 @@ export default function ArcadeLevelOneScreen() {
         {/* level selector — centred in the bar */}
         <div className="flex flex-col items-center gap-0.5">
           <div className="flex items-center gap-1.5">
-            {([1, 2, 3] as const).map((lv) => (
-              <button
-                key={lv}
-                onClick={() => beginNewRun(lv)}
-                className="w-8 h-7 rounded text-xs font-black border-2 transition-colors"
-                style={{
-                  background: level === lv ? "#0ea5e9" : "#1e293b",
-                  borderColor: level === lv ? "#38bdf8" : "#475569",
-                  color: level === lv ? "white" : "#64748b",
-                }}
-              >
-                {lv}
-              </button>
-            ))}
+            {([1, 2, 3] as const).map((lv) => {
+              const locked = !IS_DEV && lv > unlockedLevel;
+              return (
+                <button
+                  key={lv}
+                  onClick={() => !locked && beginNewRun(lv)}
+                  disabled={locked}
+                  title={locked ? `Complete Level ${lv - 1} first` : undefined}
+                  className="w-8 h-7 rounded text-xs font-black border-2 transition-colors"
+                  style={{
+                    background: locked ? "#0f172a" : level === lv ? "#0ea5e9" : "#1e293b",
+                    borderColor: locked ? "#1e293b" : level === lv ? "#38bdf8" : "#475569",
+                    color: locked ? "#334155" : level === lv ? "white" : "#64748b",
+                    cursor: locked ? "not-allowed" : "pointer",
+                    opacity: locked ? 0.5 : 1,
+                  }}
+                >
+                  {locked ? "🔒" : lv}
+                </button>
+              );
+            })}
           </div>
           <div className="w-full h-2 rounded-full bg-slate-700 overflow-hidden mt-0.5">
             <div
@@ -527,7 +547,22 @@ export default function ArcadeLevelOneScreen() {
           <div className="arcade-panel p-10 text-center">
             <div className="text-4xl font-black uppercase tracking-[0.18em] text-emerald-400 md:text-5xl">Level {level} Clear!</div>
             <div className="mt-2 text-xl text-yellow-300">★ 5 in a row ★</div>
-            <button onClick={() => beginNewRun()} className="arcade-button mt-8 px-8 py-4 text-base md:text-lg">New Run</button>
+            <div className="mt-8 flex flex-col items-center gap-3">
+              {level < 3 && (
+                <button
+                  onClick={() => beginNewRun((level + 1) as 1 | 2 | 3)}
+                  className="arcade-button px-8 py-4 text-base md:text-lg"
+                >
+                  Next Level →
+                </button>
+              )}
+              <button
+                onClick={() => beginNewRun()}
+                className="text-slate-400 underline text-sm"
+              >
+                Play again
+              </button>
+            </div>
           </div>
         </div>
       )}
