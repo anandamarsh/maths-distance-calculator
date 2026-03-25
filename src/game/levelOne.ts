@@ -122,7 +122,8 @@ function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
 
 function buildRoundTripRoute(stopCount: number): number[] {
   const start = randomInt(0, Math.floor(stopCount / 2));
-  const out = randomInt(2, Math.min(3, stopCount - 1 - start));
+  const maxOut = Math.min(3, stopCount - 1 - start);
+  const out = randomInt(Math.min(2, maxOut), maxOut);
   const end = start + out;
   const fwd: number[] = [];
   for (let i = start; i <= end; i++) fwd.push(i);
