@@ -257,3 +257,121 @@ export function stopMusic() {
 export function isMusicOn() {
   return musicOn;
 }
+
+// ─── Monster Round music & SFX ────────────────────────────────────────────────
+
+const MONSTER_MUSIC_PATTERNS: MusicPattern[] = [
+  {
+    // Boss battle — heavy, minor key
+    melody: [
+      220, 0, 220, 246.94, 220, 0, 196, 0,
+      196, 0, 174.61, 0, 196, 0, 220, 0,
+    ],
+    bass: [
+      55, 0, 55, 0, 73.42, 0, 55, 0,
+      49, 0, 43.65, 0, 49, 0, 55, 0,
+    ],
+    bpm: 160,
+    melodyVol: 0.08,
+    bassVol: 0.065,
+    melodyType: "sawtooth",
+    bassType: "square",
+  },
+  {
+    // Ominous creep
+    melody: [
+      146.83, 0, 164.81, 155.56, 146.83, 0, 130.81, 0,
+      123.47, 0, 130.81, 0, 146.83, 164.81, 0, 0,
+    ],
+    bass: [
+      73.42, 0, 0, 0, 73.42, 0, 61.74, 0,
+      61.74, 0, 65.41, 0, 73.42, 0, 0, 0,
+    ],
+    bpm: 125,
+    melodyVol: 0.07,
+    bassVol: 0.08,
+    melodyType: "square",
+    bassType: "sawtooth",
+  },
+  {
+    // Jurassic rampage
+    melody: [
+      329.63, 0, 349.23, 0, 329.63, 293.66, 261.63, 0,
+      261.63, 293.66, 329.63, 0, 349.23, 329.63, 293.66, 0,
+    ],
+    bass: [
+      82.41, 0, 82.41, 0, 73.42, 0, 65.41, 0,
+      65.41, 0, 73.42, 0, 82.41, 0, 87.31, 0,
+    ],
+    bpm: 155,
+    melodyVol: 0.075,
+    bassVol: 0.06,
+    melodyType: "sawtooth",
+    bassType: "triangle",
+  },
+];
+
+export function switchToMonsterMusic() {
+  currentPattern = MONSTER_MUSIC_PATTERNS[Math.floor(Math.random() * MONSTER_MUSIC_PATTERNS.length)];
+  step = 0;
+}
+
+/** Dramatic sting played when Monster Round begins. */
+export function playMonsterStart() {
+  const t = ac().currentTime;
+  tone(55,      t,       0.18, 0.28, "sawtooth");
+  tone(110,     t + 0.06, 0.15, 0.22, "sawtooth");
+  tone(392,     t + 0.18, 0.14, 0.14, "square");
+  tone(349.23,  t + 0.34, 0.14, 0.13, "square");
+  tone(329.63,  t + 0.50, 0.14, 0.13, "square");
+  tone(261.63,  t + 0.66, 0.38, 0.17, "sawtooth");
+  noiseBurst(t + 0.66, 200, 0.15, 0.32);
+}
+
+/** Full celebration fanfare played when the Monster Round is beaten. */
+export function playMonsterVictory() {
+  const t = ac().currentTime;
+
+  // Clap rhythm — 4 sharp noise bursts
+  const clapTimes = [0, 0.22, 0.44, 0.58];
+  clapTimes.forEach((dt) => {
+    noiseBurst(t + dt, 1200, 0.35, 0.07);
+    noiseBurst(t + dt, 3500, 0.18, 0.05);
+  });
+
+  // Short triumphant fanfare after the claps
+  const fanfare: [number, number][] = [
+    [0.75,  523.25],
+    [0.9,   659.25],
+    [1.05,  783.99],
+    [1.2,   1046.5],
+    [1.35,  880],
+    [1.5,   1046.5],
+    [1.65,  1318.5],
+    [1.8,   1567.98],
+  ];
+  fanfare.forEach(([dt, freq]) => {
+    tone(freq, t + dt, 0.22, 0.11, "square");
+    tone(freq / 2, t + dt, 0.22, 0.06, "triangle");
+  });
+
+  // Second clap burst at the peak
+  noiseBurst(t + 1.8, 1200, 0.4, 0.08);
+  noiseBurst(t + 1.9, 3500, 0.22, 0.06);
+
+  // Final resolving chord
+  tone(1046.5, t + 2.1, 0.5, 0.10, "triangle");
+  tone(1318.5, t + 2.1, 0.5, 0.08, "triangle");
+  tone(1567.98, t + 2.1, 0.5, 0.07, "triangle");
+}
+
+/** Sparkly golden sound when a white egg turns golden in Monster Round. */
+export function playGoldenEgg() {
+  const t = ac().currentTime;
+  tone(880,    t,        0.08, 0.10, "square");
+  tone(1108.7, t + 0.07, 0.10, 0.10, "square");
+  tone(1318.5, t + 0.14, 0.12, 0.12, "triangle");
+  tone(1760,   t + 0.21, 0.18, 0.10, "triangle");
+  tone(2093,   t + 0.28, 0.22, 0.09, "triangle");
+  noiseBurst(t + 0.33, 3500, 0.07, 0.18);
+}
