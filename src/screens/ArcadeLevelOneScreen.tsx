@@ -898,9 +898,11 @@ export default function ArcadeLevelOneScreen() {
           const d2 = currentQ.subAnswers![1];
           const showBoth = subStep >= 2;
           const maxD = showBoth ? Math.max(d1, d2) : d1;
-          // Parse "Hub → Dest" into two parts
-          const [hub, dest1] = currentQ.promptLines![0].split(" → ");
-          const dest2 = currentQ.promptLines![1].split(" → ")[1];
+          // Derive station names directly from stored hubStop index
+          const hubIdx = currentQ.hubStop!;
+          const hub   = config.stops[hubIdx].label;
+          const dest1 = config.stops[hubIdx - 1].label;
+          const dest2 = config.stops[hubIdx + 1].label;
           // SVG layout constants
           const W = 380, PAD_L = 8, PAD_R = 8;
           const lineX0 = PAD_L + 6;

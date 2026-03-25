@@ -108,8 +108,8 @@ export function routeDistance(route: number[], edges: TrailEdge[]) {
 
 function buildPrompt(route: number[], stops: TrailStop[], dinoName: string) {
   const names = route.map((i) => stops[i].label);
-  if (names.length === 2) return `${dinoName} wants to go from ${names[0]} to ${names[1]}. How far?`;
-  return `${dinoName} goes from ${names.join(" → ")}. How far in total?`;
+  if (names.length === 2) return `${dinoName} wants to go from ${names[0]} to ${names[1]}. How far should ${dinoName} travel?`;
+  return `${dinoName} goes from ${names.join(" → ")}. How far should ${dinoName} travel in total?`;
 }
 
 function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
@@ -238,8 +238,8 @@ export function generateLevelThreeQuestions(config: TrailConfig, count = 5): Tra
       legA: edgeLeft,
       legB: edgeRight,
       promptLines: [
-        `${hubName} → ${leftName}`,
-        `${hubName} → ${rightName}`,
+        `How far is it from ${hubName} to ${leftName}?`,
+        `How far is it from ${hubName} to ${rightName}?`,
         `From ${hubName}, how much farther is it to ${farName} than to ${nearName}?`,
       ],
       subAnswers: [distA, distB, answer],
@@ -285,7 +285,7 @@ export function generateLevelTwoQuestions(config: TrailConfig, count = 5): Trail
     questions.push({
       id: `q2-${questions.length + 1}`,
       route,
-      prompt: `${from} → ${to} = ${total.toFixed(1)} ${config.unit} total. What is the missing leg from ${hidFrom} to ${hidTo}?`,
+      prompt: `The total distance from ${from} to ${to} is ${total.toFixed(1)} ${config.unit}. What is the missing distance from ${hidFrom} to ${hidTo}?`,
       answer: config.edges[hiddenEdge].distance,
       hiddenEdge,
       totalGiven: total,
