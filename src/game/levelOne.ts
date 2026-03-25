@@ -106,10 +106,10 @@ export function routeDistance(route: number[], edges: TrailEdge[]) {
   return Number(total.toFixed(1));
 }
 
-function buildPrompt(route: number[], stops: TrailStop[]) {
+function buildPrompt(route: number[], stops: TrailStop[], dinoName: string) {
   const names = route.map((i) => stops[i].label);
-  if (names.length === 2) return `Rex wants to go from ${names[0]} to ${names[1]}. How far?`;
-  return `Rex goes from ${names.join(" → ")}. How far in total?`;
+  if (names.length === 2) return `${dinoName} wants to go from ${names[0]} to ${names[1]}. How far?`;
+  return `${dinoName} goes from ${names.join(" → ")}. How far in total?`;
 }
 
 function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
@@ -136,8 +136,9 @@ function buildRoundTripRoute(stopCount: number): number[] {
   return [...fwd, ...back];
 }
 
-export function generateTrailConfig(): TrailConfig {
-  const stopCount = randomInt(3, 5);
+export function generateTrailConfig(level = 1): TrailConfig {
+  // Level 2 needs more stops so questions can span up to 5 segments.
+  const stopCount = level >= 2 ? randomInt(5, 6) : randomInt(3, 5);
   const labels = shuffle(PLACE_POOL).slice(0, stopCount);
   const palette = PALETTES[randomInt(0, PALETTES.length - 1)];
   const unit: "km" | "mi" = Math.random() > 0.45 ? "km" : "mi";
@@ -168,27 +169,38 @@ export function generateTrailConfig(): TrailConfig {
   };
 }
 
+// ─── Single-question generator (used after each correct/wrong answer) ────────
+
+export function makeOneQuestion(config: TrailConfig, level: number, dinoName = "Rex"): TrailQuestion {
+  if (level === 2) {
+    const q = generateLevelTwoQuestions(config, 1);
+    if (q.length) return q[0];
+  }
+  if (level === 3) {
+    const q = generateLevelThreeQuestions(config, 1);
+    if (q.length) return q[0];
+  }
+  return generateLevelOneQuestions(config, 1, dinoName)[0];
+}
+
 // ─── Level 1: find total distance ────────────────────────────────────────────
 
-export function generateLevelOneQuestions(config: TrailConfig, count = 5): TrailQuestion[] {
+export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoName = "Rex"): TrailQuestion[] {
   const questions: TrailQuestion[] = [];
   const seen = new Set<string>();
-  const hopPattern = [1, 2, 2, 3];
   let attempts = 0;
 
   while (questions.length < count && attempts < 300) {
     attempts++;
-    const isLast = questions.length === count - 1;
-    const route = isLast
-      ? buildRoundTripRoute(config.stops.length)
-      : buildQuestionRoute(config.stops.length, hopPattern[questions.length] ?? randomInt(1, 3));
+    const hops = randomInt(1, Math.min(3, config.stops.length - 1));
+    const route = buildQuestionRoute(config.stops.length, hops);
     const sig = route.join("-");
     if (seen.has(sig)) continue;
     seen.add(sig);
     questions.push({
       id: `q1-${questions.length + 1}`,
       route,
-      prompt: buildPrompt(route, config.stops),
+      prompt: buildPrompt(route, config.stops, dinoName),
       answer: routeDistance(route, config.edges),
     });
   }
@@ -258,8 +270,9 @@ export function generateLevelTwoQuestions(config: TrailConfig, count = 5): Trail
 
   while (questions.length < count && attempts < 300) {
     attempts++;
-    // Route must have ≥ 2 edges so there's still one visible leg after hiding one
-    const maxHops = Math.min(n - 1, 4);
+    // Route must have ≥ 2 edges so there's still one visible leg after hiding one.
+    // Allow up to 5 segments; trail is generated with 5-6 stops for Level 2.
+    const maxHops = Math.min(n - 1, 5);
     if (maxHops < 2) continue;
     const hopCount = randomInt(2, maxHops);
     const maxStart = n - 1 - hopCount;

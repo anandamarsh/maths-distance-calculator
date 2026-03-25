@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  generateLevelOneQuestions,
-  generateLevelThreeQuestions,
-  generateLevelTwoQuestions,
+  makeOneQuestion,
   generateTrailConfig,
   type TrailConfig,
   type TrailQuestion,
@@ -85,17 +83,12 @@ const IS_DEV = import.meta.env.DEV;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
-function makeQuestions(config: TrailConfig, level: number): TrailQuestion[] {
-  if (level === 2) return generateLevelTwoQuestions(config, 5);
-  if (level === 3) return generateLevelThreeQuestions(config, 5);
-  return generateLevelOneQuestions(config, 5);
-}
-
 function createRun(level: number) {
-  const config = generateTrailConfig();
+  const config = generateTrailConfig(level);
   const dino = randomDino();
   const dinoColor = DINO_COLORS[Math.floor(Math.random() * DINO_COLORS.length)];
-  return { config, questions: makeQuestions(config, level), dino, dinoColor };
+  const firstQ = makeOneQuestion(config, level, dino.nickname);
+  return { config, firstQ, dino, dinoColor };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -160,7 +153,7 @@ export default function ArcadeLevelOneScreen() {
   const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(1);
   const [run, setRun] = useState(() => createRun(1));
   const [screen, setScreen] = useState<"playing" | "won">("playing");
-  const [qIndex, setQIndex] = useState(0);
+  const [currentQ, setCurrentQ] = useState<TrailQuestion>(() => run.firstQ);
   const [eggsCollected, setEggsCollected] = useState(0);
   const [answer, setAnswer] = useState("");
   const [subAnswers, setSubAnswers] = useState<[string, string, string]>(["", "", ""]);
@@ -184,8 +177,7 @@ export default function ArcadeLevelOneScreen() {
   const odometerRef = useRef(0);
   const lastStepRef = useRef(0);
 
-  const { config, questions, dino, dinoColor } = run;
-  const currentQ: TrailQuestion = questions[qIndex];
+  const { config, dino, dinoColor } = run;
   const checkpoints = getCheckpoints(config);
 
   // Stable refs so the window pointer-listener closure never goes stale.
@@ -217,7 +209,7 @@ export default function ArcadeLevelOneScreen() {
     startMusic();
     setSoundMuted(isMuted());
     // Teleport dino to the first question's start stop on initial load
-    const firstStartKm = getCheckpoints(run.config)[run.questions[0].route[0]];
+    const firstStartKm = getCheckpoints(run.config)[run.firstQ.route[0]];
     posKmRef.current = firstStartKm;
     minKmRef.current = firstStartKm;
     maxKmRef.current = firstStartKm;
@@ -364,13 +356,12 @@ export default function ArcadeLevelOneScreen() {
     if (targetLevel) setLevel(targetLevel);
     setRun(next);
     setScreen("playing");
-    setQIndex(0);
+    setCurrentQ(next.firstQ);
     setEggsCollected(0);
     setFlash(null);
     setDragging(false);
     setFacingLeft(false);
-    const firstQ = next.questions[0];
-    const firstStartKm = getCheckpoints(next.config)[firstQ.route[0]];
+    const firstStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(firstStartKm);
   }
 
@@ -413,19 +404,26 @@ export default function ArcadeLevelOneScreen() {
       setFlash({ text: "", ok: true, icon: true });
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
+
+      // Correct answer → brand-new trail (new towns, edges, distances)
+      const next = createRun(level);
+      setRun(next);
+      setCurrentQ(next.firstQ);
+      const nextStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
+      resetPosition(nextStartKm);
     } else {
       playWrong();
       setEggsCollected((e) => Math.max(0, e - 1));
       setFlash({ text: "", ok: false, icon: true });
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
-    }
 
-    const nextIdx = (qIndex + 1) % questions.length;
-    setQIndex(nextIdx);
-    const nextQ = questions[nextIdx];
-    const nextStartKm = getCheckpoints(config)[nextQ.route[0]];
-    resetPosition(nextStartKm);
+      // Wrong answer → new question on the same trail
+      const nextQ = makeOneQuestion(config, level, dino.nickname);
+      setCurrentQ(nextQ);
+      const nextStartKm = getCheckpoints(config)[nextQ.route[0]];
+      resetPosition(nextStartKm);
+    }
   }
 
   const pal = config.palette;
@@ -540,8 +538,13 @@ export default function ArcadeLevelOneScreen() {
             const s = odomKm.toFixed(1);
             const font = s.length >= 5 ? "text-base" : "text-xl";
             return (
-              <button onClick={resetOdometer} title="Tap to reset" className="flex md:hidden arcade-meter items-center gap-2 px-3 py-1.5 active:scale-95 transition-transform cursor-pointer">
+              <button onClick={resetOdometer} title="Tap to reset" className="flex md:hidden arcade-meter flex-col items-center px-3 py-1.5 active:scale-95 transition-transform cursor-pointer">
                 <div className={`digital-meter ${font} leading-none text-white transition-all`}>{s}</div>
+                {currentQ.totalGiven != null && (
+                  <div className="text-[20px] text-white leading-none mt-0.5">
+                    Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                  </div>
+                )}
               </button>
             );
           })()}
@@ -555,6 +558,11 @@ export default function ArcadeLevelOneScreen() {
             <button onClick={resetOdometer} title="Tap to reset"
               className="hidden md:flex arcade-meter flex-col items-center px-5 py-2 text-center min-w-[120px] shrink-0 active:scale-95 transition-transform cursor-pointer">
               <div className={`digital-meter ${font} transition-all text-white`}>{s}</div>
+              {currentQ.totalGiven != null && (
+                <div className="text-2xl text-white mt-1 leading-none">
+                  Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                </div>
+              )}
             </button>
           );
         })()}
@@ -588,7 +596,8 @@ export default function ArcadeLevelOneScreen() {
             const showRepeat = maxKm > posKm + 0.05 && visitedToT > repFromT + 0.001;
 
             const mx = (A.x + B.x) / 2;
-            const my = (A.y + B.y) / 2 - 28;
+            const myCentre = (A.y + B.y) / 2;       // true midpoint on the track
+            const my = myCentre - 28;                // label above track (normal edges)
             const isHidden = currentQ.hiddenEdge === i;
             void edgeEnd;
 
@@ -626,12 +635,22 @@ export default function ArcadeLevelOneScreen() {
                 <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
                   stroke="rgba(255,255,255,0.22)" strokeWidth={3}
                   strokeDasharray="18 14" strokeLinecap="round" />
-                {/* distance label — "?" for hidden edge in Level 2 */}
-                <text x={mx} y={my} textAnchor="middle" fontSize="27" fontWeight="900"
-                  fill={isHidden ? pal.accent : pal.text}
-                  stroke="rgba(0,0,0,0.8)" strokeWidth={4} paintOrder="stroke">
-                  {isHidden ? "?" : `${edge.distance.toFixed(1)} ${config.unit}`}
-                </text>
+                {/* distance label — sits above track for normal edges */}
+                {!isHidden && (
+                  <text x={mx} y={my} textAnchor="middle" fontSize="27" fontWeight="900"
+                    fill={pal.text}
+                    stroke="rgba(0,0,0,0.8)" strokeWidth={4} paintOrder="stroke">
+                    {`${edge.distance.toFixed(1)} ${config.unit}`}
+                  </text>
+                )}
+                {isHidden && (
+                  <text x={mx} y={my + 10}
+                    textAnchor="middle" fontSize="54" fontWeight="900"
+                    fill={pal.accent}
+                    stroke="rgba(0,0,0,0.8)" strokeWidth={6} paintOrder="stroke">
+                    ?
+                  </text>
+                )}
               </g>
             );
           })}
@@ -656,29 +675,30 @@ export default function ArcadeLevelOneScreen() {
             onPointerDown={(e) => { e.stopPropagation(); startDrag(e); }}
             style={{ cursor: dragging ? "grabbing" : "grab" }}
           >
-            {/* glowing green ring — only shown while dragging */}
-            {dragging && (
-              <>
-                <circle cx={0} cy={-48} r={62}
-                  fill="none"
-                  stroke="#4ade80"
-                  strokeWidth={10}
-                  opacity={0.35}
-                />
-                <circle cx={0} cy={-48} r={62}
-                  fill="none"
-                  stroke="#4ade80"
-                  strokeWidth={4}
-                  style={{
-                    filter: "drop-shadow(0 0 6px #4ade80) drop-shadow(0 0 16px #22c55e) drop-shadow(0 0 32px #16a34a)",
-                  }}
-                />
-              </>
-            )}
             {/* generous transparent hit area */}
             <circle cx={0} cy={-10} r={80} fill="transparent" />
             <RexSprite dino={dino} dinoColor={dinoColor} walking={walking} facingLeft={facingLeft} />
           </g>
+
+          {/* Halo rendered last so it always paints above stop markers */}
+          {dragging && (
+            <g transform={`translate(${token.x}, ${token.y - 44})`} style={{ pointerEvents: "none" }}>
+              <circle cx={0} cy={-48} r={62}
+                fill="none"
+                stroke="#4ade80"
+                strokeWidth={10}
+                opacity={0.35}
+              />
+              <circle cx={0} cy={-48} r={62}
+                fill="none"
+                stroke="#4ade80"
+                strokeWidth={4}
+                style={{
+                  filter: "drop-shadow(0 0 6px #4ade80) drop-shadow(0 0 16px #22c55e) drop-shadow(0 0 32px #16a34a)",
+                }}
+              />
+            </g>
+          )}
         </svg>
       </div>
 

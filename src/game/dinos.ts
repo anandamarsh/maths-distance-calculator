@@ -4,6 +4,7 @@
 export interface DinoSprite {
   id: string;
   name: string;
+  nickname: string; // friendly in-game name used in question prompts
   author: string;
   license: string;
   url: string;
@@ -14,6 +15,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "velociraptor",
     name: "Velociraptor",
+    nickname: "Blaze",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/velociraptor.html",
@@ -22,6 +24,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "ninja-velociraptor",
     name: "Ninja Velociraptor",
+    nickname: "Shadow",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/ninja-velociraptor.html",
@@ -30,6 +33,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "diplodocus",
     name: "Diplodocus",
+    nickname: "Stretch",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/diplodocus.html",
@@ -38,6 +42,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "parasaurolophus",
     name: "Parasaurolophus",
+    nickname: "Crest",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/parasaurolophus.html",
@@ -46,6 +51,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "dimetrodon",
     name: "Dimetrodon",
+    nickname: "Spike",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/dimetrodon.html",
@@ -54,6 +60,7 @@ export const DINO_SPRITES: DinoSprite[] = [
   {
     id: "pterodactylus",
     name: "Pterodactylus",
+    nickname: "Talon",
     author: "Delapouite",
     license: "CC BY 3.0",
     url: "https://game-icons.net/1x1/delapouite/pterodactylus.html",
