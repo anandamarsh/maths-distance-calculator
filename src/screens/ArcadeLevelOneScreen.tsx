@@ -96,6 +96,20 @@ function createRun(level: number) {
 // Dino colours — one per sprite slot, cycles with palette
 const DINO_COLORS = ["#22c55e", "#34d399", "#4ade80", "#86efac", "#a3e635", "#facc15"];
 
+/** Renders text with numbers highlighted in a distinct accent colour. */
+function ColoredPrompt({ text, className = "" }: { text: string; className?: string }) {
+  const parts = text.split(/(\d+\.?\d*)/g);
+  return (
+    <span className={className}>
+      {parts.map((p, i) =>
+        /^\d+\.?\d*$/.test(p)
+          ? <span key={i} className="text-yellow-300 font-black">{p}</span>
+          : p
+      )}
+    </span>
+  );
+}
+
 function RexSprite({ dino, dinoColor, walking, facingLeft }: {
   dino: DinoSprite;
   dinoColor: string;
@@ -157,6 +171,7 @@ export default function ArcadeLevelOneScreen() {
   const [eggsCollected, setEggsCollected] = useState(0);
   const [answer, setAnswer] = useState("");
   const [subAnswers, setSubAnswers] = useState<[string, string, string]>(["", "", ""]);
+  const [subStep, setSubStep] = useState(0); // Level 3: which step (0/1/2) is active
   const [posKm, setPosKm] = useState(0);
   const [minKm, setMinKm] = useState(0);
   const [maxKm, setMaxKm] = useState(0);
@@ -165,6 +180,7 @@ export default function ArcadeLevelOneScreen() {
   const [dragging, setDragging] = useState(false);
   const [facingLeft, setFacingLeft] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
+  const [topPanel, setTopPanel] = useState<"map" | "question">("map");
   const [flash, setFlash] = useState<{ text: string; ok: boolean; icon?: boolean } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -325,6 +341,7 @@ export default function ArcadeLevelOneScreen() {
     setWalking(false);
     setAnswer("");
     setSubAnswers(["", "", ""]);
+    setSubStep(0);
   }
 
   function resetOdometer() {
@@ -371,59 +388,73 @@ export default function ArcadeLevelOneScreen() {
     flashTimerRef.current = window.setTimeout(() => setFlash(null), 1600);
   }
 
+  function earnEgg() {
+    const newEggs = eggsCollected + 1;
+    if (newEggs === 5) {
+      setEggsCollected(5);
+      playLevelComplete();
+      if (!IS_DEV && level < 3) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
+      setScreen("won");
+      return;
+    }
+    setEggsCollected(newEggs);
+    setFlash({ text: "", ok: true, icon: true });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
+    const next = createRun(level);
+    setRun(next);
+    setCurrentQ(next.firstQ);
+    resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+  }
+
+  function loseEgg() {
+    playWrong();
+    setEggsCollected((e) => Math.max(0, e - 1));
+    setFlash({ text: "", ok: false, icon: true });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
+    const nextQ = makeOneQuestion(config, level, dino.nickname);
+    setCurrentQ(nextQ);
+    resetPosition(getCheckpoints(config)[nextQ.route[0]]);
+  }
+
   function submitAnswer(e: React.FormEvent) {
     e.preventDefault();
     playButton();
 
-    let correct = false;
+    // ── Level 3: stepped one-at-a-time ──
+    if (currentQ.subAnswers && currentQ.promptLines) {
+      const g = parseFloat(subAnswers[subStep]);
+      if (isNaN(g)) { showFlash("Enter a number!", false); return; }
+      const ok = Math.abs(g - currentQ.subAnswers[subStep]) < 0.11;
 
-    if (currentQ.subAnswers) {
-      for (let i = 0; i < 3; i++) {
-        const g = parseFloat(subAnswers[i]);
-        if (isNaN(g)) { showFlash("Fill all 3!", false); return; }
-        if (Math.abs(g - currentQ.subAnswers[i]) >= 0.11) { correct = false; break; }
-        correct = true;
-      }
-    } else {
-      const guess = parseFloat(answer);
-      if (isNaN(guess)) { showFlash("Type a number!", false); return; }
-      correct = Math.abs(guess - currentQ.answer) < 0.11;
-    }
-
-    if (correct) {
-      playCorrect();
-      const newEggs = eggsCollected + 1;
-      if (newEggs === 5) {
-        setEggsCollected(5);
-        playLevelComplete();
-        if (!IS_DEV && level < 3) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
-        setScreen("won");
+      if (subStep < 2) {
+        if (ok) {
+          // Intermediate correct: advance to next step, no egg change
+          setSubStep((s) => s + 1);
+        } else {
+          // Intermediate wrong: flash only, no egg loss, stay on same step
+          playWrong();
+          showFlash("Try again!", false);
+          setSubAnswers((prev) => {
+            const next = [...prev] as [string, string, string];
+            next[subStep] = "";
+            return next;
+          });
+        }
         return;
       }
-      setEggsCollected(newEggs);
-      setFlash({ text: "", ok: true, icon: true });
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
 
-      // Correct answer → brand-new trail (new towns, edges, distances)
-      const next = createRun(level);
-      setRun(next);
-      setCurrentQ(next.firstQ);
-      const nextStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
-      resetPosition(nextStartKm);
-    } else {
-      playWrong();
-      setEggsCollected((e) => Math.max(0, e - 1));
-      setFlash({ text: "", ok: false, icon: true });
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
-
-      // Wrong answer → new question on the same trail
-      const nextQ = makeOneQuestion(config, level, dino.nickname);
-      setCurrentQ(nextQ);
-      const nextStartKm = getCheckpoints(config)[nextQ.route[0]];
-      resetPosition(nextStartKm);
+      // Final step (step 2)
+      if (ok) { playCorrect(); earnEgg(); } else { loseEgg(); }
+      return;
     }
+
+    // ── Level 1 / 2 ──
+    const guess = parseFloat(answer);
+    if (isNaN(guess)) { showFlash("Type a number!", false); return; }
+    const correct = Math.abs(guess - currentQ.answer) < 0.11;
+    if (correct) { playCorrect(); earnEgg(); } else { loseEgg(); }
   }
 
   const pal = config.palette;
@@ -481,7 +512,8 @@ export default function ArcadeLevelOneScreen() {
         <div className="flex-1 flex flex-col items-center gap-1.5 pt-1">
           <div className="flex items-center gap-1.5">
             {([1, 2, 3] as const).map((lv) => {
-              const locked = !IS_DEV && lv > unlockedLevel;
+              // Lit up if: dev mode, already playing this level or lower, or unlocked via progression
+              const locked = !IS_DEV && lv > unlockedLevel && lv > level;
               return (
                 <button
                   key={lv}
@@ -569,7 +601,10 @@ export default function ArcadeLevelOneScreen() {
       </div>
 
       {/* ── map ── */}
-      <div className="absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] z-30">
+      <div
+        className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
+        onClick={() => setTopPanel("map")}
+      >
         <svg
           ref={svgRef}
           viewBox={tightViewBox}
@@ -703,51 +738,152 @@ export default function ArcadeLevelOneScreen() {
       </div>
 
       {/* ── bottom bar ── */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 px-3 pb-3 md:px-5 md:pb-4">
+      <div
+        className={`absolute bottom-0 left-0 right-0 px-3 pb-3 md:px-5 md:pb-4 z-50`}
+        onClick={() => setTopPanel("question")}
+      >
+        {/* L3 distance comparison visual — appears after each step is confirmed */}
+        {currentQ.subAnswers && currentQ.promptLines && subStep >= 1 && (() => {
+          const d1 = currentQ.subAnswers![0];
+          const d2 = currentQ.subAnswers![1];
+          const showBoth = subStep >= 2;
+          const maxD = showBoth ? Math.max(d1, d2) : d1;
+          // Parse "Hub → Dest" into two parts
+          const [hub, dest1] = currentQ.promptLines![0].split(" → ");
+          const dest2 = currentQ.promptLines![1].split(" → ")[1];
+          // SVG layout constants
+          const W = 380, PAD_L = 8, PAD_R = 8;
+          const lineX0 = PAD_L + 6;
+          const lineX1max = W - PAD_R - 6;
+          const usableW = lineX1max - lineX0;
+          const x1end = lineX0 + (d1 / maxD) * usableW;        // line 1 end (proportional)
+          const x2end = lineX0 + (d2 / maxD) * usableW;        // line 2 end (proportional)
+          const xLong = Math.max(x1end, x2end);
+          const xShort = Math.min(x1end, x2end);
+          const bar1Color = "#4ade80";
+          const bar2Color = "#f472b6";
+          const diffColor = "#fde047";
+          const svgH = showBoth ? 112 : 50;
+          return (
+            <div className="arcade-panel mb-2 px-2 py-1.5">
+              <svg viewBox={`0 0 ${W} ${svgH}`} width="100%" height={svgH}
+                style={{ display: "block", overflow: "visible" }}>
+                {/* ── Segment 1 ── */}
+                <line x1={lineX0} y1={22} x2={x1end} y2={22}
+                  stroke={bar1Color} strokeWidth={5} strokeLinecap="round" />
+                <circle cx={lineX0} cy={22} r={6} fill={bar1Color} />
+                <circle cx={x1end} cy={22} r={6} fill={bar1Color} />
+                {/* hub label left-anchored at start */}
+                <text x={lineX0} y={42} fontSize={14} fill="#94a3b8" textAnchor="middle">{hub}</text>
+                {/* dest1 centred on endpoint dot */}
+                <text x={x1end} y={14} fontSize={14} fill={bar1Color} textAnchor="middle">{dest1}</text>
+                {/* dist1 — same colour as segment */}
+                <text x={x1end} y={42} fontSize={14} fill={bar1Color} fontWeight="bold" textAnchor="middle">
+                  {d1.toFixed(1)} {config.unit}
+                </text>
+
+                {showBoth && <>
+                  {/* ── Segment 2 ── */}
+                  <line x1={lineX0} y1={68} x2={x2end} y2={68}
+                    stroke={bar2Color} strokeWidth={5} strokeLinecap="round" />
+                  <circle cx={lineX0} cy={68} r={6} fill={bar2Color} />
+                  <circle cx={x2end} cy={68} r={6} fill={bar2Color} />
+                  {/* dest2 centred on endpoint dot */}
+                  <text x={x2end} y={60} fontSize={14} fill={bar2Color} textAnchor="middle">{dest2}</text>
+                  {/* dist2 — same colour as segment */}
+                  <text x={x2end} y={106} fontSize={14} fill={bar2Color} fontWeight="bold" textAnchor="middle">
+                    {d2.toFixed(1)} {config.unit}
+                  </text>
+
+                  {/* ── Difference bracket ──
+                      Anchored at the y-level of the shorter segment so it
+                      attaches to its endpoint and never overlaps any label. */}
+                  {(() => {
+                    const bY = d1 <= d2 ? 22 : 68;   // y of the shorter segment
+                    return (<>
+                      <line x1={xShort} y1={bY} x2={xLong} y2={bY}
+                        stroke={diffColor} strokeWidth={3} strokeLinecap="round" strokeDasharray="5 4" />
+                      <line x1={xShort} y1={bY - 8} x2={xShort} y2={bY + 8} stroke={diffColor} strokeWidth={2} />
+                      <line x1={xLong}  y1={bY - 8} x2={xLong}  y2={bY + 8} stroke={diffColor} strokeWidth={2} />
+                      {/* "?" below the bracket — always in clear space */}
+                      <text x={(xShort + xLong) / 2} y={bY + 16} fontSize={16} fill={diffColor}
+                        fontWeight="bold" textAnchor="middle">?</text>
+                    </>);
+                  })()}
+                </>}
+              </svg>
+            </div>
+          );
+        })()}
+
         <form onSubmit={submitAnswer} className="flex items-center gap-2 md:gap-3">
           {currentQ.promptLines && currentQ.subAnswers ? (
-            /* ── Level 3: three-row layout ── */
-            <div className="arcade-panel flex-1 flex flex-col gap-1.5 px-4 py-2.5">
-              {currentQ.promptLines.map((line, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className={`flex-1 text-sm leading-5 ${i === 2 ? "text-white font-bold" : "text-slate-300"}`}>
-                    {line}
-                  </span>
-                  <span className="text-slate-400 text-sm">=</span>
-                  <input
-                    value={subAnswers[i]}
-                    onChange={(e) => setSubAnswers((prev) => {
-                      const next = [...prev] as [string, string, string];
-                      next[i] = e.target.value;
-                      return next;
-                    })}
-                    inputMode="decimal"
-                    placeholder={config.unit}
-                    className="w-20 rounded-lg border-[3px] border-white/70 bg-slate-950 px-2 py-1 text-sm text-white outline-none placeholder:text-slate-500 text-right"
-                  />
-                </div>
-              ))}
+            /* ── Level 3: stepped one-at-a-time ── */
+            <div className="arcade-panel flex-1 flex flex-col gap-2 px-4 py-2.5">
+              {currentQ.promptLines.map((line, i) => {
+                const isDone    = i < subStep;
+                const isCurrent = i === subStep;
+                return (
+                  <div key={i} className={`flex items-center gap-2 transition-opacity duration-200 ${i > subStep ? "opacity-30" : ""}`}>
+                    <ColoredPrompt text={line}
+                      className={`flex-1 text-sm leading-5 font-bold ${i === 2 ? "text-white" : "text-slate-300"}`} />
+                    <span className="text-slate-400 text-sm">=</span>
+                    {isDone ? (
+                      /* completed step — confirmed value */
+                      <div className="w-20 flex items-center justify-end gap-1">
+                        <span className="text-green-400 text-sm font-bold">{subAnswers[i]} {config.unit}</span>
+                      </div>
+                    ) : isCurrent ? (
+                      <input
+                        autoFocus
+                        value={subAnswers[i]}
+                        onChange={(e) => setSubAnswers((prev) => {
+                          const next = [...prev] as [string, string, string];
+                          next[i] = e.target.value;
+                          return next;
+                        })}
+                        inputMode="decimal"
+                        placeholder={config.unit}
+                        className="w-20 rounded-lg border-[3px] border-white/70 bg-slate-950 px-2 py-1 text-sm text-white outline-none placeholder:text-slate-500 text-right"
+                      />
+                    ) : (
+                      /* future step — empty placeholder */
+                      <div className="w-20 h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40" />
+                    )}
+                    {/* tick button — always present, disabled unless current row */}
+                    <button type="submit" disabled={!isCurrent}
+                      className={`arcade-button shrink-0 h-8 w-8 flex items-center justify-center p-0 transition-opacity ${!isCurrent ? "opacity-30 cursor-not-allowed" : ""}`}>
+                      <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             /* ── Level 1 / 2: single row ── */
-            <div className="arcade-panel flex-1 flex items-center px-4 py-2 min-h-[60px] text-sm md:text-base leading-6 text-white">
-              {currentQ.prompt}
+            <div className="arcade-panel flex-1 flex items-center px-4 py-2 min-h-[60px] text-sm md:text-base leading-6 text-white font-bold">
+              <ColoredPrompt text={currentQ.prompt} />
             </div>
           )}
+          {/* Big submit button only for L1 / L2 */}
           {!currentQ.promptLines && (
-            <input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              inputMode="decimal"
-              placeholder={config.unit}
-              className="w-[96px] md:w-[120px] shrink-0 rounded-xl border-[3px] border-white/70 bg-slate-950 px-3 py-2.5 text-base md:text-lg text-white outline-none placeholder:text-slate-500"
-            />
+            <>
+              <input
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                inputMode="decimal"
+                placeholder={config.unit}
+                className="w-[96px] md:w-[120px] shrink-0 rounded-xl border-[3px] border-white/70 bg-slate-950 px-3 py-2.5 text-base md:text-lg text-white outline-none placeholder:text-slate-500"
+              />
+              <button type="submit" title="Submit" className="arcade-button shrink-0 rounded-full w-14 h-14 flex items-center justify-center p-0">
+                <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3"/>
+                </svg>
+              </button>
+            </>
           )}
-          <button type="submit" title="Submit" className="arcade-button shrink-0 rounded-full w-14 h-14 flex items-center justify-center p-0">
-            <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3"/>
-            </svg>
-          </button>
         </form>
       </div>
 

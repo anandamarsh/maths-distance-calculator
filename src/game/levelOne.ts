@@ -252,7 +252,7 @@ export function generateLevelThreeQuestions(config: TrailConfig, count = 5): Tra
       promptLines: [
         `${hubName} → ${leftName}`,
         `${hubName} → ${rightName}`,
-        `How much farther is it to ${farName} than to ${nearName}?`,
+        `From ${hubName}, how much farther is it to ${farName} than to ${nearName}?`,
       ],
       subAnswers: [distA, distB, answer],
     });
