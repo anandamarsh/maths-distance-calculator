@@ -1,6 +1,50 @@
-# How It Works — Trail Distance Calculator
+# Trail Distance Calculator
 
-A complete internal reference for recreating this game from scratch. Every design decision, data structure, algorithm, visual detail, and sound is documented here.
+> An arcade-style maths game where kids drag a dinosaur along a trail map and calculate distances.
+
+## What It Is
+
+Trail Distance Calculator is a drag-based, procedurally generated maths game built as a Progressive Web App. A dinosaur character lives on a randomly generated trail map connecting named towns. The child drags the dinosaur along the roads — an odometer counts the distance travelled — and answers questions about those distances.
+
+Every session generates a completely fresh map: new town names, new distances, new colours, new dinosaur. No two games are the same.
+
+## What It Teaches
+
+| Level | Skill |
+|---|---|
+| **Level 1** | Adding decimal distances across multiple road segments to find a total journey distance |
+| **Level 2** | Subtracting decimals — one road segment is hidden as `?`, child finds the missing leg given the total |
+| **Level 3** | Comparing two distances from a shared hub — "how much farther is A than B?" — with three scaffolded input steps |
+
+All arithmetic is grounded in a real-world map-distance context. Decimal numbers (km or miles) are used throughout.
+
+## How to Play
+
+1. Read the question — it tells you which towns the dinosaur needs to travel between.
+2. Drag the dinosaur along the trail. The odometer counts how far it has walked.
+3. Type your answer and press the tick button.
+4. **Correct** → earn a white egg. **Wrong** → lose an egg.
+5. Collect **5 eggs** to unlock the **Monster Round** — same questions, but the odometer is hidden. You must calculate in your head!
+6. Earn **5 golden eggs** in the Monster Round to complete the level.
+7. Clear all 3 levels for the grand finale. 🦕
+
+## Features
+
+- 🦕 **6 dinosaur characters** — Velociraptor (Blaze), Ninja Velociraptor (Shadow), Diplodocus (Stretch), Parasaurolophus (Crest), Dimetrodon (Spike), Pterodactylus (Talon) — one chosen randomly each game
+- 🎵 **9 original chiptune music tracks** — 6 normal, 3 dramatic Monster Round themes — all synthesised in real-time via Web Audio API (no audio files)
+- 🗺️ **Procedural maps** — fresh town names, distances, colours, and trail geometry every question
+- 📏 **Accurate odometer** — drag anywhere along the road; the distance counter updates as you move, including backtracking
+- 🥚 **Egg progression** → ⭐ **Monster Round** — a two-phase reward system per level
+- 📱 **Mobile + desktop** — tap-to-drag works on touchscreens; layout adapts to all screen sizes
+- 🔇 **Sound toggle** — mute button for classroom use
+
+---
+
+# How It Works — Internal Reference
+
+A complete technical reference for recreating this game from scratch. Every design decision, data structure, algorithm, visual detail, and sound is documented below.
+
+---
 
 ---
 
