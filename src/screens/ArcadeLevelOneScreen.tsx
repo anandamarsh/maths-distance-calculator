@@ -326,10 +326,10 @@ export default function ArcadeLevelOneScreen() {
       <div className="pointer-events-none absolute inset-0 arcade-grid opacity-20" />
 
       {/* ── top bar ── */}
-      <div className="absolute left-0 right-0 top-0 z-20 flex items-start justify-between px-4 pt-3 md:px-6 md:pt-4">
+      <div className="absolute left-0 right-0 top-0 z-20 flex items-start justify-between px-4 pt-2 md:px-6 md:pt-2">
 
         {/* restart */}
-        <button onClick={() => beginNewRun()} className="arcade-button px-3 py-2 text-2xl md:text-3xl leading-none">
+        <button onClick={() => beginNewRun()} className="arcade-button w-16 h-16 text-2xl flex items-center justify-center ml-[56px]">
           ↺
         </button>
 
