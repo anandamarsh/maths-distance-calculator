@@ -6,7 +6,7 @@ import {
   type TrailQuestion,
 } from "../game/levelOne";
 import { randomDino, type DinoSprite } from "../game/dinos";
-import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory } from "../sound";
+import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory, playGameComplete } from "../sound";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -178,7 +178,7 @@ export default function ArcadeLevelOneScreen() {
   const [level, setLevel] = useState<1 | 2 | 3>(1);
   const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(1);
   const [run, setRun] = useState(() => createRun(1));
-  const [screen, setScreen] = useState<"playing" | "won">("playing");
+  const [screen, setScreen] = useState<"playing" | "won" | "gameover">("playing");
   const [currentQ, setCurrentQ] = useState<TrailQuestion>(() => run.firstQ);
   const [eggsCollected, setEggsCollected] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -406,6 +406,27 @@ export default function ArcadeLevelOneScreen() {
     resetPosition(firstStartKm);
   }
 
+  /** DEV ONLY: jump straight to having i+1 eggs on the current level/phase. */
+  function devSetEggs(i: number) {
+    if (!IS_DEV) return;
+    const target = i + 1;
+    if (gamePhase === "monster") {
+      if (target === 5) { earnMonsterEgg(); }
+      else { setMonsterEggs(target); }
+      return;
+    }
+    if (target === 5) {
+      setEggsCollected(5);
+      startMonsterRound();
+    } else {
+      setEggsCollected(target);
+      const next = createRun(level);
+      setRun(next);
+      setCurrentQ(next.firstQ);
+      resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+    }
+  }
+
   function startMonsterRound() {
     const name = MONSTER_ROUND_NAMES[Math.floor(Math.random() * MONSTER_ROUND_NAMES.length)];
     setMonsterRoundName(name);
@@ -429,10 +450,16 @@ export default function ArcadeLevelOneScreen() {
     const newGolden = monsterEggs + 1;
     if (newGolden === 5) {
       setMonsterEggs(5);
-      playMonsterVictory();
-      if (!IS_DEV && level < 3) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
-      // gamePhase stays "monster" so won screen shows the right message
-      setScreen("won");
+      if (level === 3) {
+        // All levels complete — grand finale
+        playGameComplete();
+        setScreen("gameover");
+      } else {
+        playMonsterVictory();
+        if (!IS_DEV) setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
+        // gamePhase stays "monster" so won screen shows the right message
+        setScreen("won");
+      }
       return;
     }
     setMonsterEggs(newGolden);
@@ -647,13 +674,23 @@ export default function ArcadeLevelOneScreen() {
               const eggStroke = isMonster
                 ? (collected ? "#fbbf24" : "rgba(255,255,255,0.55)")
                 : (collected ? "white"   : "rgba(255,255,255,0.22)");
+              const isTarget  = IS_DEV && i === (isMonster ? monsterEggs : eggsCollected); // next egg to earn
               const eggGlow   = collected
                 ? isMonster
                   ? "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))"
                   : "drop-shadow(0 0 5px rgba(255,255,255,0.7))"
                 : "none";
               return (
-                <svg key={i} viewBox="0 0 512 512" width="20" height="20"
+                <span key={i}
+                  onClick={IS_DEV ? () => devSetEggs(i) : undefined}
+                  title={IS_DEV ? `DEV: set to ${i + 1} egg${i + 1 > 1 ? "s" : ""}` : undefined}
+                  style={{
+                    display: "inline-flex",
+                    cursor: IS_DEV ? "pointer" : "default",
+                    outline: isTarget ? "2px dashed rgba(255,255,255,0.4)" : undefined,
+                    borderRadius: isTarget ? "50%" : undefined,
+                  }}>
+                <svg viewBox="0 0 512 512" width="20" height="20"
                   style={{ filter: eggGlow, transition: "all 0.35s" }}>
                   <path
                     d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
@@ -668,6 +705,7 @@ export default function ArcadeLevelOneScreen() {
                       transform="rotate(-20 190 150)" />
                   )}
                 </svg>
+                </span>
               );
             })}
           </div>
@@ -875,7 +913,7 @@ export default function ArcadeLevelOneScreen() {
           const bar1Color = "#4ade80";
           const bar2Color = "#f472b6";
           const diffColor = "#fde047";
-          const svgH = showBoth ? 112 : 50;
+          const svgH = showBoth ? 100 : 50;
           return (
             <div className="arcade-panel mb-2 px-2 py-1.5">
               <svg viewBox={`0 0 ${W} ${svgH}`} width="100%" height={svgH}
@@ -889,8 +927,8 @@ export default function ArcadeLevelOneScreen() {
                 <text x={lineX0} y={42} fontSize={14} fill="#94a3b8" textAnchor="middle">{hub}</text>
                 {/* dest1 centred on endpoint dot */}
                 <text x={x1end} y={14} fontSize={14} fill={bar1Color} textAnchor="middle">{dest1}</text>
-                {/* dist1 — same colour as segment */}
-                <text x={x1end} y={42} fontSize={14} fill={bar1Color} fontWeight="bold" textAnchor="middle">
+                {/* dist1 — centred on the segment */}
+                <text x={(lineX0 + x1end) / 2} y={42} fontSize={14} fill={bar1Color} fontWeight="bold" textAnchor="middle">
                   {d1.toFixed(1)} {config.unit}
                 </text>
 
@@ -902,8 +940,8 @@ export default function ArcadeLevelOneScreen() {
                   <circle cx={x2end} cy={68} r={6} fill={bar2Color} />
                   {/* dest2 centred on endpoint dot */}
                   <text x={x2end} y={60} fontSize={14} fill={bar2Color} textAnchor="middle">{dest2}</text>
-                  {/* dist2 — same colour as segment */}
-                  <text x={x2end} y={106} fontSize={14} fill={bar2Color} fontWeight="bold" textAnchor="middle">
+                  {/* dist2 — centred on the segment */}
+                  <text x={(lineX0 + x2end) / 2} y={88} fontSize={14} fill={bar2Color} fontWeight="bold" textAnchor="middle">
                     {d2.toFixed(1)} {config.unit}
                   </text>
 
@@ -1078,6 +1116,52 @@ export default function ArcadeLevelOneScreen() {
             {flash.text}
           </div>
         )
+      )}
+
+      {/* ── Game Over / All Levels Complete ── */}
+      {screen === "gameover" && (
+        <div className="absolute inset-0 z-[80] flex items-center justify-center"
+          style={{ background: "radial-gradient(ellipse at center, rgba(88,28,135,0.97) 0%, rgba(5,2,18,0.99) 80%)" }}>
+          <div className="arcade-panel p-8 md:p-12 text-center mx-6 max-w-lg w-full"
+            style={{ boxShadow: "0 0 40px rgba(251,191,36,0.35), 0 0 80px rgba(109,40,217,0.3)" }}>
+
+            {/* Dino row */}
+            <div className="flex justify-center gap-3 text-4xl mb-4">
+              <span>🦕</span><span>🦖</span><span>🦕</span>
+            </div>
+
+            <div className="text-3xl md:text-4xl font-black uppercase tracking-widest text-yellow-300"
+              style={{ textShadow: "0 0 24px rgba(250,204,21,0.8), 0 0 48px rgba(250,204,21,0.35)" }}>
+              You Did It!
+            </div>
+            <div className="mt-2 text-base md:text-lg text-purple-200 font-bold tracking-wide">
+              All 3 Levels Mastered
+            </div>
+            <div className="mt-1 text-sm text-purple-400">
+              Including every Monster Round!
+            </div>
+
+            {/* 5 golden eggs */}
+            <div className="flex justify-center gap-2 mt-5">
+              {[0,1,2,3,4].map((i) => (
+                <svg key={i} viewBox="0 0 512 512" width="34" height="34"
+                  style={{ filter: "drop-shadow(0 0 8px rgba(250,204,21,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.55))" }}>
+                  <path d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                    fill="#facc15" stroke="#fbbf24" strokeWidth="18" />
+                  <ellipse cx="190" cy="150" rx="35" ry="60" fill="#fef08a" opacity="0.4" transform="rotate(-20 190 150)" />
+                </svg>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setUnlockedLevel(1); beginNewRun(1); }}
+              className="arcade-button mt-8 px-10 py-4 text-lg font-black uppercase tracking-wider w-full"
+              style={{ boxShadow: "0 0 16px rgba(251,191,36,0.4), 0 6px 0 #78350f", borderColor: "#fbbf24" }}
+            >
+              Play Again
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Monster Round entry announcement — full-screen dramatic overlay */}

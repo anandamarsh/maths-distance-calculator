@@ -328,6 +328,37 @@ export function playMonsterStart() {
   noiseBurst(t + 0.66, 200, 0.15, 0.32);
 }
 
+/** Grand finale played when all 3 levels are completed. */
+export function playGameComplete() {
+  const t = ac().currentTime;
+
+  // Extended clap sequence
+  [0, 0.18, 0.36, 0.54, 0.72, 0.90].forEach((dt) => {
+    noiseBurst(t + dt, 1200, 0.4,  0.07);
+    noiseBurst(t + dt, 3500, 0.22, 0.05);
+  });
+
+  // Grand two-octave rising fanfare
+  const notes: [number, number][] = [
+    [1.1,  523.25], [1.28, 659.25], [1.46, 783.99], [1.64, 1046.5],
+    [1.82, 1318.5], [2.0,  1567.98], [2.18, 2093],
+    [2.4,  1760],   [2.55, 2093],   [2.7,  2349.32], [2.85, 2637.02],
+  ];
+  notes.forEach(([dt, freq]) => {
+    tone(freq,     t + dt, 0.3,  0.12, "square");
+    tone(freq / 2, t + dt, 0.3,  0.07, "triangle");
+  });
+
+  // Big clap burst at peak
+  noiseBurst(t + 2.85, 1200, 0.5,  0.1);
+  noiseBurst(t + 2.97, 3500, 0.28, 0.07);
+
+  // Sustaining final chord
+  [1046.5, 1318.5, 1567.98, 2093].forEach((freq, i) => {
+    tone(freq, t + 3.1 + i * 0.06, 1.5, 0.09, "triangle");
+  });
+}
+
 /** Full celebration fanfare played when the Monster Round is beaten. */
 export function playMonsterVictory() {
   const t = ac().currentTime;
