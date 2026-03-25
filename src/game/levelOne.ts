@@ -124,18 +124,6 @@ function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
   return route;
 }
 
-function buildRoundTripRoute(stopCount: number): number[] {
-  const start = randomInt(0, Math.floor(stopCount / 2));
-  const maxOut = Math.min(3, stopCount - 1 - start);
-  const out = randomInt(Math.min(2, maxOut), maxOut);
-  const end = start + out;
-  const fwd: number[] = [];
-  for (let i = start; i <= end; i++) fwd.push(i);
-  const back: number[] = [];
-  for (let i = end - 1; i >= start; i--) back.push(i);
-  return [...fwd, ...back];
-}
-
 export function generateTrailConfig(level = 1): TrailConfig {
   // Level 2 needs more stops so questions can span up to 5 segments.
   const stopCount = level >= 2 ? randomInt(5, 6) : randomInt(3, 5);

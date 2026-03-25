@@ -6,7 +6,7 @@ import {
   type TrailQuestion,
 } from "../game/levelOne";
 import { randomDino, type DinoSprite } from "../game/dinos";
-import { playButton, playCorrect, playLevelComplete, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory } from "../sound";
+import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory } from "../sound";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -70,13 +70,6 @@ function projectToTrail(config: TrailConfig, svgX: number, svgY: number, checkpo
     }
   }
   return bestKm;
-}
-
-// Returns true if the SVG position is within the visual dead zone of any stop node.
-// Node radius is ~30px; we use 44px to give a comfortable margin.
-const NODE_ZONE_PX = 44;
-function inNodeZone(config: TrailConfig, svgX: number, svgY: number) {
-  return config.stops.some((s) => Math.hypot(svgX - s.x, svgY - s.y) < NODE_ZONE_PX);
 }
 
 const IS_DEV = import.meta.env.DEV;
