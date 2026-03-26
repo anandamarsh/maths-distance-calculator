@@ -172,6 +172,96 @@ function StopMarker({
   );
 }
 
+function NumericKeypad({
+  value,
+  onChange,
+  onSubmit,
+  canSubmit,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  canSubmit: boolean;
+}) {
+  function press(key: string) {
+    if (key === "⌫") {
+      onChange(value.slice(0, -1));
+      return;
+    }
+    if (key === "±") {
+      if (value.startsWith("-")) onChange(value.slice(1));
+      else if (value !== "" && value !== "0") onChange("-" + value);
+      return;
+    }
+    if (key === ".") {
+      if (!value.includes(".")) onChange(value === "" ? "0." : `${value}.`);
+      return;
+    }
+    onChange(value === "0" ? key : `${value}${key}`);
+  }
+
+  const display = value === "" ? "0" : value;
+  const rows = [
+    ["7", "8", "9", "⌫"],
+    ["4", "5", "6", "±"],
+    ["1", "2", "3", "."],
+  ];
+  const base = "rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 text-base md:text-sm h-11 md:h-8";
+  const digit = `${base} bg-slate-800 text-slate-100 border border-slate-600/60`;
+  const op = `${base} bg-slate-700/80 text-cyan-300 border border-slate-500/60`;
+
+  return (
+    <div
+      className="flex flex-col gap-1 rounded-xl p-1.5 shrink-0 w-40 md:w-44"
+      style={{
+        background: "rgba(2,6,23,0.97)",
+        border: "2px solid rgba(56,189,248,0.45)",
+        boxShadow: "0 0 18px rgba(56,189,248,0.12), inset 0 0 12px rgba(0,0,0,0.4)",
+      }}
+    >
+      <div
+        className="rounded-lg px-2 h-10 md:h-8 flex items-center justify-end overflow-hidden"
+        style={{
+          fontFamily: "'DSEG7Classic', 'Courier New', monospace",
+          fontWeight: 700,
+          fontSize: "1.05rem",
+          background: "rgba(0,8,4,0.95)",
+          border: "2px solid rgba(56,189,248,0.28)",
+          color: "#67e8f9",
+          textShadow: "0 0 10px rgba(103,232,249,0.85), 0 0 22px rgba(56,189,248,0.4)",
+          letterSpacing: "0.12em",
+        }}
+      >
+        {display}
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {rows.map((row, r) => (
+          <div key={r} className="grid grid-cols-4 gap-0.5">
+            {row.map((btn) => (
+              <button key={btn} type="button" onClick={() => press(btn)} className={/[0-9]/.test(btn) ? digit : op}>
+                {btn}
+              </button>
+            ))}
+          </div>
+        ))}
+        <div className="flex gap-0.5 mt-0.5">
+          <button type="button" onClick={() => press("0")} className={`${digit} flex-[2]`}>0</button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            className={`${base} flex-[2] arcade-button disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ArcadeLevelOneScreen() {
@@ -209,6 +299,9 @@ export default function ArcadeLevelOneScreen() {
   const odometerRef = useRef(0);
   const lastStepRef = useRef(0);
   const gamePhaseRef = useRef<"normal" | "monster">("normal");
+  const keypadValueRef = useRef("");
+  const handleKeypadChangeRef = useRef((_v: string) => {});
+  const submitAnswerRef = useRef(() => {});
 
   const { config, dino, dinoColor } = run;
   const checkpoints = getCheckpoints(config);
@@ -250,6 +343,44 @@ export default function ArcadeLevelOneScreen() {
     setPosKm(firstStartKm);
     setMinKm(firstStartKm);
     setMaxKm(firstStartKm);
+  }, []);
+
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (document.activeElement as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      const k = e.key;
+      if (k === "Enter") {
+        e.preventDefault();
+        submitAnswerRef.current();
+        return;
+      }
+
+      if (!/^[0-9]$/.test(k) && k !== "Backspace" && k !== "." && k !== "-") return;
+      e.preventDefault();
+
+      const val = keypadValueRef.current;
+      let next = val;
+      if (k === "Backspace") {
+        next = val.slice(0, -1);
+      } else if (k === "-") {
+        if (val.startsWith("-")) next = val.slice(1);
+        else if (val !== "" && val !== "0") next = `-${val}`;
+        else return;
+      } else if (k === ".") {
+        if (val.includes(".")) return;
+        next = val === "" ? "0." : `${val}.`;
+      } else {
+        next = val === "0" ? k : `${val}${k}`;
+      }
+      handleKeypadChangeRef.current(next);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   // ── Reliable native pointer drag listeners (bypasses React synthetic event quirks) ──
@@ -512,8 +643,7 @@ export default function ArcadeLevelOneScreen() {
     resetPosition(getCheckpoints(config)[nextQ.route[0]]);
   }
 
-  function submitAnswer(e: React.FormEvent) {
-    e.preventDefault();
+  function submitAnswer() {
     playButton();
 
     // ── Level 3: stepped one-at-a-time ──
@@ -551,8 +681,28 @@ export default function ArcadeLevelOneScreen() {
     if (correct) { playCorrect(); gamePhase === "monster" ? earnMonsterEgg() : earnEgg(); } else { loseEgg(); }
   }
 
+  function handleKeypadChange(v: string) {
+    if (currentQ.subAnswers && currentQ.promptLines) {
+      setSubAnswers((prev) => {
+        const next = [...prev] as [string, string, string];
+        next[subStep] = v;
+        return next;
+      });
+      return;
+    }
+
+    setAnswer(v);
+  }
+
   const pal = config.palette;
   const phaseBg = PHASE_BG[`${level}-${gamePhase}`] ?? { bg: pal.bg, glow: pal.bgGlow, tint: "transparent" };
+  const keypadValue = currentQ.promptLines ? subAnswers[subStep] : answer;
+  const canKeypadSubmit = currentQ.promptLines
+    ? !isNaN(parseFloat(subAnswers[subStep]))
+    : !isNaN(parseFloat(answer));
+  keypadValueRef.current = keypadValue;
+  handleKeypadChangeRef.current = handleKeypadChange;
+  submitAnswerRef.current = submitAnswer;
 
   return (
     <div
@@ -967,7 +1117,7 @@ export default function ArcadeLevelOneScreen() {
           );
         })()}
 
-        <form onSubmit={submitAnswer} className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-end gap-2 md:gap-3">
           {currentQ.promptLines && currentQ.subAnswers ? (
             /* ── Level 3: stepped one-at-a-time ── */
             <div className="arcade-panel flex-1 flex flex-col gap-2 px-4 py-2.5">
@@ -991,29 +1141,17 @@ export default function ArcadeLevelOneScreen() {
                         <span className="text-green-400 text-sm font-bold">{subAnswers[i]} {config.unit}</span>
                       </div>
                     ) : isCurrent ? (
-                      <input
-                        autoFocus
-                        value={subAnswers[i]}
-                        onChange={(e) => setSubAnswers((prev) => {
-                          const next = [...prev] as [string, string, string];
-                          next[i] = e.target.value;
-                          return next;
-                        })}
-                        inputMode="decimal"
-                        placeholder={config.unit}
-                        className="w-20 rounded-lg border-[3px] border-white/70 bg-slate-950 px-2 py-1 text-sm text-white outline-none placeholder:text-slate-500 text-right"
-                      />
+                      <div
+                        className="w-20 rounded-lg border-[3px] border-white/70 bg-slate-950 px-2 py-1 text-sm text-cyan-300 text-right digital-meter"
+                        aria-live="polite"
+                      >
+                        {subAnswers[i] || "0"}
+                      </div>
                     ) : (
                       /* future step — empty placeholder */
                       <div className="w-20 h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40" />
                     )}
-                    {/* tick button — always present, disabled unless current row */}
-                    <button type="submit" disabled={!isCurrent}
-                      className={`arcade-button shrink-0 h-8 w-8 flex items-center justify-center p-0 transition-opacity ${!isCurrent ? "opacity-30 cursor-not-allowed" : ""}`}>
-                      <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3"/>
-                      </svg>
-                    </button>
+                    <div className={`shrink-0 h-8 w-8 ${!isCurrent ? "opacity-30" : ""}`} />
                   </div>
                 );
               })}
@@ -1030,24 +1168,13 @@ export default function ArcadeLevelOneScreen() {
               )}
             </div>
           )}
-          {/* Big submit button only for L1 / L2 */}
-          {!currentQ.promptLines && (
-            <>
-              <input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                inputMode="decimal"
-                placeholder={config.unit}
-                className="w-[96px] md:w-[120px] shrink-0 rounded-xl border-[3px] border-white/70 bg-slate-950 px-3 py-2.5 text-base md:text-lg text-white outline-none placeholder:text-slate-500"
-              />
-              <button type="submit" title="Submit" className="arcade-button shrink-0 rounded-full w-14 h-14 flex items-center justify-center p-0">
-                <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 13 L9 18 L20 7" stroke="white" strokeWidth="3"/>
-                </svg>
-              </button>
-            </>
-          )}
-        </form>
+          <NumericKeypad
+            value={keypadValue}
+            onChange={handleKeypadChange}
+            onSubmit={submitAnswer}
+            canSubmit={canKeypadSubmit}
+          />
+        </div>
       </div>
 
       {/* dino name + attribution */}
