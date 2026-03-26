@@ -24,8 +24,8 @@ All arithmetic is grounded in a real-world map-distance context. Decimal numbers
 2. Drag the dinosaur along the trail. The odometer counts how far it has walked.
 3. Type your answer and press the tick button.
 4. **Correct** → earn a white egg. **Wrong** → lose an egg.
-5. Collect **5 eggs** to unlock the **Monster Round** — same questions, but the odometer is hidden. You must calculate in your head!
-6. Earn **5 golden eggs** in the Monster Round to complete the level.
+5. Collect **10 eggs** to unlock the **Monster Round** — same questions, but the odometer is hidden. You must calculate in your head!
+6. Earn **10 golden eggs** in the Monster Round to complete the level.
 7. Clear all 3 levels for the grand finale. 🦕
 
 ## Features
@@ -82,7 +82,7 @@ This is a single-screen, drag-based maths arcade game. A dinosaur character live
 2. A question is shown about distances on that map.
 3. The child drags the dino along the trail — an odometer counts distance travelled.
 4. The child types the answer and submits.
-5. Correct → earn a white egg. Wrong → lose an egg. Collect 5 eggs → **Monster Round**.
+5. Correct → earn a white egg. Wrong → lose an egg. Collect 10 eggs → **Monster Round**.
 6. Monster Round: same question types, but odometer is hidden. Child must calculate mentally. Earn 5 **golden** eggs → level complete.
 7. Three levels, each with its own question type. Completing Level 3's Monster Round → grand finale.
 
@@ -156,7 +156,7 @@ type Screen = "playing" | "won" | "gameover";
 type GamePhase = "normal" | "monster";
 ```
 
-Each level has two phases: **normal** (collect 5 white eggs) → **monster** (collect 5 golden eggs).
+Each level has two phases: **normal** (collect 10 white eggs) → **monster** (collect 10 golden eggs).
 
 ### Level progression
 
@@ -180,10 +180,10 @@ Start Level 1 (normal phase)
        ├─ Set gamePhase = "monster"
        └─ Generate fresh run
 
-  Monster Round (5 white eggs → turn golden)
+  Monster Round (10 white eggs → turn golden)
   └─ Each correct → earn golden egg, play sparkly sound
   └─ Each wrong → lose golden egg
-  └─ 5 golden eggs collected:
+  └─ 10 golden eggs collected:
        ├─ Level 1/2: playMonsterVictory() → setScreen("won") → "Next Level" button
        └─ Level 3: playGameComplete() → setScreen("gameover") → "Play Again" button
 
@@ -455,12 +455,12 @@ showRepeat = (maxKm > posKm + 0.05) && (visitedToT > repFromT + 0.001)
 ## 10. Egg Collection System
 
 **Normal phase:**
-- 5 egg slots displayed in the top bar
+- 10 egg slots displayed in the top bar (two rows of five)
 - Empty egg: transparent fill, faint white outline (`rgba(255,255,255,0.22)`)
 - Collected egg: white fill, white stroke, drop-shadow glow, inner gleam ellipse
 
 **Monster phase:**
-- All 5 eggs start as **white-filled** (pearly, clearly visible as "to be turned golden")
+- All 10 eggs start as **white-filled** (pearly, clearly visible as "to be turned golden")
 - Correct answer: egg turns **golden** (`#facc15` fill, `#fbbf24` stroke, golden drop-shadow)
 - Wrong answer: golden egg reverts to white
 - The gleam ellipse has `opacity=0.35` on golden eggs and `opacity=0.18` on white pending eggs
@@ -481,7 +481,7 @@ The egg shape is a custom rounded-bottom oval (not a stock circle). The inner el
 
 ### Trigger
 
-When `eggsCollected` reaches 5 in normal phase, `earnEgg()` calls `startMonsterRound()` instead of showing the won screen.
+When `eggsCollected` reaches 10 in normal phase, `earnEgg()` calls `startMonsterRound()` instead of showing the won screen.
 
 ### `startMonsterRound()`
 
@@ -500,7 +500,7 @@ Full-screen `z-[70]` overlay with:
 - Animated dino emoji
 - Round name in large yellow text with glowing text-shadow
 - "No odometer — solve it in your head!"
-- "Collect 5 Golden Eggs ✨"
+- "Collect 10 Golden Eggs ✨"
 - Auto-dismisses after 2.8 seconds
 
 ### Odometer in Monster Round
@@ -547,7 +547,7 @@ Completed levels (below current) always show gold: background `#78350f`, border 
 - Correct flash icon shown
 - New `createRun(level)` generated
 
-At 5 golden eggs:
+At 10 golden eggs:
 - Level 1 or 2: `playMonsterVictory()` → `setScreen("won")` (level complete overlay)
 - Level 3: `playGameComplete()` → `setScreen("gameover")` (grand finale)
 
@@ -845,12 +845,12 @@ A small yellow badge appears inline next to every question, showing the correct 
 ### Clickable eggs (jump to egg count)
 
 In dev mode, each egg in the top bar is clickable. Clicking egg `i` (0-indexed) calls `devSetEggs(i)`:
-- If `gamePhase === "normal"` and `i+1 === 5` → triggers Monster Round
-- If `gamePhase === "normal"` and `i+1 < 5` → sets `eggsCollected = i+1` and generates a new question
-- If `gamePhase === "monster"` and `i+1 === 5` → calls `earnMonsterEgg()` (completes round)
-- If `gamePhase === "monster"` and `i+1 < 5` → sets `monsterEggs = i+1`
+- If `gamePhase === "normal"` and `i+1 === 10` → triggers Monster Round
+- If `gamePhase === "normal"` and `i+1 < 10` → sets `eggsCollected = i+1` and generates a new question
+- If `gamePhase === "monster"` and `i+1 === 10` → calls `earnMonsterEgg()` (completes round)
+- If `gamePhase === "monster"` and `i+1 < 10` → sets `monsterEggs = i+1`
 
-A dashed ring outline highlights the "next" egg to earn. `title` attribute shows "DEV: set to N eggs".
+The next egg to earn is tinted **grey** (slate fill/stroke) instead of a ring. In dev, `title` shows "DEV: set to N eggs".
 
 ---
 

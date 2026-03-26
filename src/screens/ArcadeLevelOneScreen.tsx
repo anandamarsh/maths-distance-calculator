@@ -74,6 +74,10 @@ function projectToTrail(config: TrailConfig, svgX: number, svgY: number, checkpo
 
 const IS_DEV = import.meta.env.DEV;
 
+/** Eggs to collect per phase (normal white → Monster Round golden). */
+const EGGS_PER_LEVEL = 10;
+const EGG_INDICES = Array.from({ length: EGGS_PER_LEVEL }, (_, i) => i);
+
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
 function createRun(level: number) {
@@ -542,12 +546,12 @@ export default function ArcadeLevelOneScreen() {
     if (!IS_DEV) return;
     const target = i + 1;
     if (gamePhase === "monster") {
-      if (target === 5) { earnMonsterEgg(); }
+      if (target === EGGS_PER_LEVEL) { earnMonsterEgg(); }
       else { setMonsterEggs(target); }
       return;
     }
-    if (target === 5) {
-      setEggsCollected(5);
+    if (target === EGGS_PER_LEVEL) {
+      setEggsCollected(EGGS_PER_LEVEL);
       startMonsterRound();
     } else {
       setEggsCollected(target);
@@ -579,8 +583,8 @@ export default function ArcadeLevelOneScreen() {
 
   function earnMonsterEgg() {
     const newGolden = monsterEggs + 1;
-    if (newGolden === 5) {
-      setMonsterEggs(5);
+    if (newGolden === EGGS_PER_LEVEL) {
+      setMonsterEggs(EGGS_PER_LEVEL);
       if (level === 3) {
         // All levels complete — grand finale
         playGameComplete();
@@ -612,8 +616,8 @@ export default function ArcadeLevelOneScreen() {
 
   function earnEgg() {
     const newEggs = eggsCollected + 1;
-    if (newEggs === 5) {
-      setEggsCollected(5);
+    if (newEggs === EGGS_PER_LEVEL) {
+      setEggsCollected(EGGS_PER_LEVEL);
       // Trigger Monster Round instead of going straight to the won screen
       startMonsterRound();
       return;
@@ -809,54 +813,70 @@ export default function ArcadeLevelOneScreen() {
             </div>
           )}
 
-          {/* 5-egg collector — sbed / game-icons.net / CC BY 3.0 */}
-          <div className="flex items-center gap-1.5"
-            title={gamePhase === "monster" ? `${monsterEggs}/5 golden eggs` : `${eggsCollected}/5 eggs`}>
-            {[0, 1, 2, 3, 4].map((i) => {
-              const isMonster = gamePhase === "monster";
-              const collected = isMonster ? i < monsterEggs : i < eggsCollected;
-              // Monster: all eggs are white by default; collected ones turn golden.
-              // Normal: collected = white filled, uncollected = faint outline.
-              const eggFill   = isMonster
-                ? (collected ? "#facc15" : "white")
-                : (collected ? "white"   : "transparent");
-              const eggStroke = isMonster
-                ? (collected ? "#fbbf24" : "rgba(255,255,255,0.55)")
-                : (collected ? "white"   : "rgba(255,255,255,0.22)");
-              const isTarget  = IS_DEV && i === (isMonster ? monsterEggs : eggsCollected); // next egg to earn
-              const eggGlow   = collected
-                ? isMonster
-                  ? "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))"
-                  : "drop-shadow(0 0 5px rgba(255,255,255,0.7))"
-                : "none";
-              return (
-                <span key={i}
-                  onClick={IS_DEV ? () => devSetEggs(i) : undefined}
-                  title={IS_DEV ? `DEV: set to ${i + 1} egg${i + 1 > 1 ? "s" : ""}` : undefined}
-                  style={{
-                    display: "inline-flex",
-                    cursor: IS_DEV ? "pointer" : "default",
-                    outline: isTarget ? "2px dashed rgba(255,255,255,0.4)" : undefined,
-                    borderRadius: isTarget ? "50%" : undefined,
-                  }}>
-                <svg viewBox="0 0 512 512" width="20" height="20"
-                  style={{ filter: eggGlow, transition: "all 0.35s" }}>
-                  <path
-                    d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
-                    fill={eggFill}
-                    stroke={eggStroke}
-                    strokeWidth="18"
-                  />
-                  {(collected || isMonster) && (
-                    <ellipse cx="190" cy="150" rx="35" ry="60"
-                      fill={isMonster && collected ? "#fef08a" : "white"}
-                      opacity={isMonster && !collected ? 0.18 : 0.35}
-                      transform="rotate(-20 190 150)" />
-                  )}
-                </svg>
-                </span>
-              );
-            })}
+          {/* 10-egg collector — two rows of five — sbed / game-icons.net / CC BY 3.0 */}
+          <div className="flex flex-col gap-1 items-center"
+            title={gamePhase === "monster" ? `${monsterEggs}/${EGGS_PER_LEVEL} golden eggs` : `${eggsCollected}/${EGGS_PER_LEVEL} eggs`}>
+            {[0, 5].map((rowStart) => (
+              <div key={rowStart} className="flex items-center justify-center gap-1 md:gap-1.5">
+                {EGG_INDICES.slice(rowStart, rowStart + 5).map((i) => {
+                  const isMonster = gamePhase === "monster";
+                  const count = isMonster ? monsterEggs : eggsCollected;
+                  const collected = isMonster ? i < monsterEggs : i < eggsCollected;
+                  const isNext = i === count && count < EGGS_PER_LEVEL;
+
+                  let eggFill: string;
+                  let eggStroke: string;
+                  if (collected) {
+                    eggFill = isMonster ? "#facc15" : "white";
+                    eggStroke = isMonster ? "#fbbf24" : "white";
+                  } else if (isNext) {
+                    // Next egg to earn — grey (no dashed ring)
+                    eggFill = isMonster ? "#64748b" : "rgba(148, 163, 184, 0.22)";
+                    eggStroke = "#94a3b8";
+                  } else {
+                    eggFill = isMonster ? "white" : "transparent";
+                    eggStroke = isMonster ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.22)";
+                  }
+
+                  const eggGlow   = collected
+                    ? isMonster
+                      ? "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))"
+                      : "drop-shadow(0 0 5px rgba(255,255,255,0.7))"
+                    : "none";
+                  return (
+                    <span key={i}
+                      onClick={IS_DEV ? () => devSetEggs(i) : undefined}
+                      title={IS_DEV ? `DEV: set to ${i + 1} egg${i + 1 > 1 ? "s" : ""}` : undefined}
+                      style={{ display: "inline-flex", cursor: IS_DEV ? "pointer" : "default" }}>
+                      <svg viewBox="0 0 512 512" width="18" height="18" className="md:w-5 md:h-5"
+                        style={{ filter: eggGlow, transition: "all 0.35s" }}>
+                        <path
+                          d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                          fill={eggFill}
+                          stroke={eggStroke}
+                          strokeWidth="18"
+                        />
+                        {(collected || isMonster) && (
+                          <ellipse cx="190" cy="150" rx="35" ry="60"
+                            fill={
+                              isMonster && collected ? "#fef08a"
+                                : isNext ? "#cbd5e1"
+                                : "white"
+                            }
+                            opacity={
+                              isMonster && collected ? 0.35
+                                : isNext ? 0.22
+                                : isMonster && !collected ? 0.18
+                                : 0.35
+                            }
+                            transform="rotate(-20 190 150)" />
+                        )}
+                      </svg>
+                    </span>
+                  );
+                })}
+              </div>
+            ))}
           </div>
 
           {/* Mobile odometer — compact, centered under levels, hidden on desktop */}
@@ -1269,15 +1289,19 @@ export default function ArcadeLevelOneScreen() {
               Including every Monster Round!
             </div>
 
-            {/* 5 golden eggs */}
-            <div className="flex justify-center gap-2 mt-5">
-              {[0,1,2,3,4].map((i) => (
-                <svg key={i} viewBox="0 0 512 512" width="34" height="34"
-                  style={{ filter: "drop-shadow(0 0 8px rgba(250,204,21,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.55))" }}>
-                  <path d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
-                    fill="#facc15" stroke="#fbbf24" strokeWidth="18" />
-                  <ellipse cx="190" cy="150" rx="35" ry="60" fill="#fef08a" opacity="0.4" transform="rotate(-20 190 150)" />
-                </svg>
+            {/* 10 golden eggs — two rows */}
+            <div className="flex flex-col gap-2 items-center mt-5">
+              {[0, 5].map((rowStart) => (
+                <div key={rowStart} className="flex justify-center gap-1.5">
+                  {EGG_INDICES.slice(rowStart, rowStart + 5).map((i) => (
+                    <svg key={i} viewBox="0 0 512 512" width="30" height="30"
+                      style={{ filter: "drop-shadow(0 0 8px rgba(250,204,21,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.55))" }}>
+                      <path d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                        fill="#facc15" stroke="#fbbf24" strokeWidth="18" />
+                      <ellipse cx="190" cy="150" rx="35" ry="60" fill="#fef08a" opacity="0.4" transform="rotate(-20 190 150)" />
+                    </svg>
+                  ))}
+                </div>
               ))}
             </div>
 
@@ -1302,7 +1326,7 @@ export default function ArcadeLevelOneScreen() {
             {monsterRoundName}
           </div>
           <div className="mt-5 text-lg text-purple-200 tracking-wide">No odometer — solve it in your head!</div>
-          <div className="mt-2 text-xl text-yellow-400 font-black">Collect 5 Golden Eggs ✨</div>
+          <div className="mt-2 text-xl text-yellow-400 font-black">Collect {EGGS_PER_LEVEL} Golden Eggs ✨</div>
         </div>
       )}
 
@@ -1315,21 +1339,25 @@ export default function ArcadeLevelOneScreen() {
                   Level {level} Complete!
                 </div>
                 <div className="mt-1 text-lg text-purple-300 font-bold">🦕 Monster Round Crushed! 🦕</div>
-                <div className="mt-2 flex items-center justify-center gap-1.5">
-                  {[0,1,2,3,4].map((i) => (
-                    <svg key={i} viewBox="0 0 512 512" width="28" height="28"
-                      style={{ filter: "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))" }}>
-                      <path d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
-                        fill="#facc15" stroke="#fbbf24" strokeWidth="18" />
-                      <ellipse cx="190" cy="150" rx="35" ry="60" fill="#fef08a" opacity="0.4" transform="rotate(-20 190 150)" />
-                    </svg>
+                <div className="mt-2 flex flex-col gap-1.5 items-center">
+                  {[0, 5].map((rowStart) => (
+                    <div key={rowStart} className="flex items-center justify-center gap-1">
+                      {EGG_INDICES.slice(rowStart, rowStart + 5).map((i) => (
+                        <svg key={i} viewBox="0 0 512 512" width="24" height="24"
+                          style={{ filter: "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))" }}>
+                          <path d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                            fill="#facc15" stroke="#fbbf24" strokeWidth="18" />
+                          <ellipse cx="190" cy="150" rx="35" ry="60" fill="#fef08a" opacity="0.4" transform="rotate(-20 190 150)" />
+                        </svg>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </>
             ) : (
               <>
                 <div className="text-4xl font-black uppercase tracking-[0.18em] text-emerald-400 md:text-5xl">Level {level} Clear!</div>
-                <div className="mt-2 text-xl text-yellow-300">🥚🥚🥚🥚🥚 All eggs collected!</div>
+                <div className="mt-2 text-xl text-yellow-300">All {EGGS_PER_LEVEL} eggs collected!</div>
               </>
             )}
             <div className="mt-8 flex flex-col items-center gap-3">
