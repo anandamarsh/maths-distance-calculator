@@ -410,8 +410,6 @@ export default function ArcadeLevelOneScreen() {
 
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const bottomBarRef = useRef<HTMLDivElement>(null);
-  const [bottomBarHeight, setBottomBarHeight] = useState(86);
   const [odometerMapPos, setOdometerMapPos] = useState<{ left: number; top: number; anchor: 'above' | 'right' | 'left' } | null>(null);
   const draggingRef = useRef(false);
   const walkTimerRef = useRef<number | null>(null);
@@ -511,16 +509,6 @@ export default function ArcadeLevelOneScreen() {
       window.removeEventListener("resize", commit);
     };
   }, [token.x, token.y, tightViewBox]);
-
-  // Track bottom bar height so the map can dynamically avoid overlapping it on mobile landscape.
-  useLayoutEffect(() => {
-    const el = bottomBarRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setBottomBarHeight(el.offsetHeight));
-    ro.observe(el);
-    setBottomBarHeight(el.offsetHeight);
-    return () => ro.disconnect();
-  }, []);
 
   useEffect(() => {
     startMusic();
@@ -1190,7 +1178,7 @@ export default function ArcadeLevelOneScreen() {
       <div
         ref={mapContainerRef}
         className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
-        style={isMobileLandscape ? { bottom: bottomBarHeight } : undefined}
+        style={isMobileLandscape ? { bottom: 88 } : undefined}
         onClick={() => setTopPanel("map")}
       >
         <svg
@@ -1395,7 +1383,6 @@ export default function ArcadeLevelOneScreen() {
 
       {/* ── bottom bar ── */}
       <div
-        ref={bottomBarRef}
         className={`absolute bottom-0 left-0 right-0 px-3 pb-3 md:px-5 md:pb-4 z-50`}
         onClick={() => setTopPanel("question")}
       >
