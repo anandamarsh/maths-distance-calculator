@@ -951,8 +951,15 @@ export default function ArcadeLevelOneScreen() {
 
   return (
     <div
-      className="relative h-svh w-screen overflow-hidden font-arcade"
-      style={{ background: `radial-gradient(ellipse at top, ${phaseBg.glow} 0%, ${phaseBg.bg} 72%)` }}
+      className="relative w-screen overflow-hidden font-arcade"
+      style={{
+        height: "100dvh",
+        minHeight: "100svh",
+        boxSizing: "border-box",
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        background: `radial-gradient(ellipse at top, ${phaseBg.glow} 0%, ${phaseBg.bg} 72%)`,
+      }}
     >
       <div className="pointer-events-none absolute inset-0 arcade-grid opacity-20" />
       {/* Monster Round atmospheric tint overlay */}
