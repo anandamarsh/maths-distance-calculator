@@ -1054,7 +1054,7 @@ export default function ArcadeLevelOneScreen() {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); resetOdometer(); }}
             title="Tap to reset"
-            className="arcade-meter shrink-0 inline-flex w-max cursor-pointer flex-col items-stretch px-2 py-2 transition-transform active:scale-95 mt-[76px] md:mt-1 mx-3"
+            className="arcade-meter flex-1 max-w-[50%] min-w-0 cursor-pointer flex flex-col items-center justify-center py-1.5 px-3 transition-transform active:scale-95 mt-[76px] md:mt-0 ml-3"
           >
             {currentQ.totalGiven != null ? (
               <>
@@ -1078,7 +1078,7 @@ export default function ArcadeLevelOneScreen() {
         )}
 
         {/* Center: levels + eggs */}
-        <div className="flex-1 flex flex-col items-center gap-1.5 pt-1">
+        <div className={isMobileLandscape ? "absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pt-1" : "flex-1 flex flex-col items-center gap-1.5 pt-1"}>
           <div className="flex items-center gap-1.5">
             {([1, 2, 3] as const).map((lv) => {
               // Lit up if: dev mode, already playing this level or lower, or unlocked via progression
