@@ -1047,6 +1047,36 @@ export default function ArcadeLevelOneScreen() {
           </button>
         </div>
 
+        {/* Landscape-only static odometer — docked between left icons and center panel */}
+        {isMobileLandscape && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce && (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); resetOdometer(); }}
+            title="Tap to reset"
+            className="arcade-meter shrink-0 inline-flex w-max cursor-pointer flex-col items-stretch px-2 py-2 transition-transform active:scale-95 mt-[76px] md:mt-1 mx-3"
+          >
+            {currentQ.totalGiven != null ? (
+              <>
+                <div className="flex w-full justify-end">
+                  <div className="digital-meter leading-none text-white"
+                    style={{ width: ODOMETER_MAIN_WIDTH, minWidth: ODOMETER_MAIN_WIDTH, textAlign: "right", fontSize: KEYPAD_DISPLAY_FONT_SIZE, lineHeight: 1 }}>
+                    {odomKm.toFixed(1)}
+                  </div>
+                </div>
+                <div className="mt-2 w-full whitespace-nowrap text-center text-sm leading-none text-white">
+                  Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                </div>
+              </>
+            ) : (
+              <div className="digital-meter leading-none text-white"
+                style={{ width: ODOMETER_MAIN_WIDTH, minWidth: ODOMETER_MAIN_WIDTH, textAlign: "right", fontSize: KEYPAD_DISPLAY_FONT_SIZE, lineHeight: 1 }}>
+                {odomKm.toFixed(1)}
+              </div>
+            )}
+          </button>
+        )}
+
         {/* Center: levels + eggs */}
         <div className="flex-1 flex flex-col items-center gap-1.5 pt-1">
           <div className="flex items-center gap-1.5">
@@ -1311,6 +1341,7 @@ export default function ArcadeLevelOneScreen() {
         </svg>
 
         {odometerMapPos &&
+          !isMobileLandscape &&
           screen === "playing" &&
           gamePhase === "normal" &&
           !showMonsterAnnounce &&
