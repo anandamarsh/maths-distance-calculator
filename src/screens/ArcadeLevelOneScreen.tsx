@@ -1171,7 +1171,7 @@ export default function ArcadeLevelOneScreen() {
       <div
         ref={mapContainerRef}
         className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
-        style={isMobileLandscape ? { top: 0, bottom: 88 } : undefined}
+        style={isMobileLandscape ? { top: 64, bottom: 88 } : undefined}
         onClick={() => setTopPanel("map")}
       >
         <svg
