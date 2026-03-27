@@ -955,9 +955,6 @@ export default function ArcadeLevelOneScreen() {
       style={{
         height: "100dvh",
         minHeight: "100svh",
-        boxSizing: "border-box",
-        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
-        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
         background: `radial-gradient(ellipse at top, ${phaseBg.glow} 0%, ${phaseBg.bg} 72%)`,
       }}
     >
@@ -969,7 +966,10 @@ export default function ArcadeLevelOneScreen() {
       )}
 
       {/* ── top bar ── */}
-      <div className="absolute left-0 right-0 top-0 z-20 flex items-start px-3 pt-2 md:px-5 md:pt-2">
+      <div
+        className="absolute left-0 right-0 top-0 z-20 flex items-start px-3 md:px-5"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+      >
 
         {/* Left icon buttons — match shell home: w-10 h-10, arcade-button, p-2, SVG w-full h-full
             Mobile: flex-col below shell home; Desktop: flex-row, tight gap after 40px home */}
