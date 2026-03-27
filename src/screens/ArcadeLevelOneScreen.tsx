@@ -451,7 +451,7 @@ export default function ArcadeLevelOneScreen() {
   const xs = config.stops.map((s) => s.x);
   const ys = config.stops.map((s) => s.y);
   const padTop = 115;   // room for dino sprite above node
-  const padBottom = isMobileLandscape ? 100 : 60; // room for stop labels below node
+  const padBottom = isMobileLandscape ? 72 : 60; // room for stop labels below node
   const padSide = 80;   // room for label text either side
   const vbX = Math.min(...xs) - padSide;
   const vbY = Math.min(...ys) - padTop;
@@ -485,17 +485,10 @@ export default function ArcadeLevelOneScreen() {
       if (!pBase || !pCenter) return;
 
       const frac = pBase.left / map.clientWidth;
-      let anchor: 'above' | 'right' | 'left' = 'above';
-      if (frac < 0.40) anchor = 'right';
-      else if (frac > 0.60) anchor = 'left';
-
-      if (anchor === 'above') {
-        const edgePad = 88;
-        const clampedLeft = clamp(pAbove.left, edgePad, map.clientWidth - edgePad);
-        setOdometerMapPos({ left: clampedLeft, top: pAbove.top - 12, anchor: 'above' });
-      } else {
-        setOdometerMapPos({ left: pCenter.left, top: pCenter.top, anchor });
-      }
+      // On mobile landscape the odometer is always side-anchored — never above
+      // (avoids going off-screen vertically in the centre of the trail).
+      const anchor: 'above' | 'right' | 'left' = frac < 0.5 ? 'right' : 'left';
+      setOdometerMapPos({ left: pCenter.left, top: pCenter.top, anchor });
     }
 
     commit();
