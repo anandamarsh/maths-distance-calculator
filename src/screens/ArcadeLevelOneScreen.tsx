@@ -1054,7 +1054,7 @@ export default function ArcadeLevelOneScreen() {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); resetOdometer(); }}
             title="Tap to reset"
-            className="arcade-meter flex-1 max-w-[50%] min-w-0 cursor-pointer flex flex-col items-center justify-center py-1.5 px-3 transition-transform active:scale-95 mt-[76px] md:mt-0 ml-3"
+            className="arcade-meter shrink-0 w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95 mt-[76px] md:mt-1 ml-3"
           >
             {currentQ.totalGiven != null ? (
               <>
