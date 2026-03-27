@@ -227,7 +227,7 @@ function NumericKeypad({
 
   return (
     <div
-      className="flex flex-col gap-1 rounded-xl p-1.5 shrink-0 w-40 md:w-44"
+      className="flex flex-col h-full min-h-[60px] self-stretch gap-1 rounded-xl p-1.5 shrink-0 w-40 md:w-44"
       style={{
         background: "rgba(2,6,23,0.97)",
         border: "2px solid rgba(56,189,248,0.45)",
@@ -235,14 +235,18 @@ function NumericKeypad({
       }}
     >
       <div
-        className="rounded-lg px-2 h-10 md:h-8 flex items-center justify-end overflow-hidden cursor-pointer"
+        className={
+          minimized
+            ? "rounded-lg px-2 flex flex-1 min-h-0 items-center justify-end overflow-hidden cursor-pointer"
+            : "rounded-lg px-2 h-11 md:h-10 flex shrink-0 items-center justify-end overflow-hidden cursor-pointer"
+        }
         onClick={() => setMinimized((m) => !m)}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
           fontWeight: 700,
           fontSize: "1.05rem",
           background: "rgba(0,8,4,0.95)",
-          border: "2px solid rgba(56,189,248,0.28)",
+          border: minimized ? "none" : "2px solid rgba(56,189,248,0.28)",
           color: "#67e8f9",
           textShadow: "0 0 10px rgba(103,232,249,0.85), 0 0 22px rgba(56,189,248,0.4)",
           letterSpacing: "0.12em",
@@ -252,11 +256,13 @@ function NumericKeypad({
       </div>
       <div
         ref={keypadRef}
-        className="flex flex-col gap-0.5"
+        className="flex min-h-0 flex-1 flex-col gap-0.5"
         style={{
           overflow: "hidden",
           maxHeight: minimized ? "0px" : "300px",
           opacity: minimized ? 0 : 1,
+          flex: minimized ? "0 0 auto" : "1 1 auto",
+          pointerEvents: minimized ? "none" : "auto",
           transition: "max-height 0.4s ease-in-out, opacity 0.3s ease-in-out",
         }}
       >
@@ -1161,10 +1167,10 @@ export default function ArcadeLevelOneScreen() {
           );
         })()}
 
-        <div className="flex items-end gap-2 md:gap-3">
+        <div className="flex items-stretch gap-2 md:gap-3">
           {currentQ.promptLines && currentQ.subAnswers ? (
             /* ── Level 3: stepped one-at-a-time ── */
-            <div className="arcade-panel flex-1 flex flex-col gap-2 px-4 py-2.5">
+            <div className="arcade-panel flex-1 flex flex-col gap-2 px-4 py-2.5 self-stretch min-h-0">
               {currentQ.promptLines.map((line, i) => {
                 const isDone    = i < subStep;
                 const isCurrent = i === subStep;
@@ -1202,7 +1208,7 @@ export default function ArcadeLevelOneScreen() {
             </div>
           ) : (
             /* ── Level 1 / 2: single row ── */
-            <div className="arcade-panel flex-1 flex items-center gap-2 px-4 py-2 min-h-[60px] text-sm md:text-base leading-6 text-white font-bold">
+            <div className="arcade-panel flex-1 flex items-center gap-2 px-4 py-2 min-h-[60px] self-stretch text-sm md:text-base leading-6 text-white font-bold">
               <ColoredPrompt text={currentQ.prompt} />
               {IS_DEV && (
                 <span className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
