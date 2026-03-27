@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   makeOneQuestion,
   generateTrailConfig,
@@ -19,10 +19,34 @@ function toSVGPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   return { x: r.x, y: r.y };
 }
 
+/** Numeric keypad readout — odometer uses the same size for the main value. */
+const KEYPAD_DISPLAY_FONT_SIZE = "2.1rem";
+
+/** Map odometer: fixed width for main readout (tabular). */
+const ODOMETER_MAIN_WIDTH = "4ch";
+
+/** SVG user-space point → position inside a map overlay (same coords as `position:absolute` on the map div). */
+function svgUserToMapLocal(svg: SVGSVGElement, mapEl: HTMLElement, x: number, y: number) {
+  const pt = svg.createSVGPoint();
+  pt.x = x;
+  pt.y = y;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const screen = pt.matrixTransform(ctm);
+  const mr = mapEl.getBoundingClientRect();
+  return { left: screen.x - mr.left, top: screen.y - mr.top };
+}
+
 // ─── Trail geometry ───────────────────────────────────────────────────────────
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
+}
+
+/** `e.key` is layout-dependent (AZERTY etc.); `e.code` is the physical key. */
+function digitFromKeyCode(code: string): string | undefined {
+  const d = /^Digit(\d)$/.exec(code) ?? /^Numpad(\d)$/.exec(code);
+  return d?.[1];
 }
 
 function totalKm(config: TrailConfig) {
@@ -112,15 +136,44 @@ const PHASE_BG: Record<string, { bg: string; glow: string; tint: string }> = {
   "3-monster": { bg: "#1a0508", glow: "#7f1d1d", tint: "rgba(220,38,38,0.1)" },
 };
 
-/** Renders text with numbers highlighted in a distinct accent colour. */
-function ColoredPrompt({ text, className = "" }: { text: string; className?: string }) {
+/** Highlights decimal numbers; optional stop / node names from the map (yellow, distinct from numeric yellow-300). */
+function highlightPlaceNames(segment: string, labels: string[]) {
+  const sorted = [...labels].sort((a, b) => b.length - a.length);
+  if (!sorted.length) return segment;
+  const escaped = sorted.map((l) => l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const bits = segment.split(re);
+  return bits.map((bit, j) => {
+    const hit = sorted.find((l) => l.toLowerCase() === bit.toLowerCase());
+    return hit ? (
+      <span key={j} className="text-yellow-200 font-black">{bit}</span>
+    ) : (
+      bit
+    );
+  });
+}
+
+/** Renders text with numbers in yellow-300 and map node names in yellow-200. */
+function ColoredPrompt({
+  text,
+  className = "",
+  stopLabels,
+}: {
+  text: string;
+  className?: string;
+  stopLabels?: string[];
+}) {
   const parts = text.split(/(\d+\.?\d*)/g);
   return (
     <span className={className}>
       {parts.map((p, i) =>
-        /^\d+\.?\d*$/.test(p)
-          ? <span key={i} className="text-yellow-300 font-black">{p}</span>
-          : p
+        /^\d+\.?\d*$/.test(p) ? (
+          <span key={i} className="text-yellow-300 font-black">{p}</span>
+        ) : stopLabels?.length ? (
+          <span key={i}>{highlightPlaceNames(p, stopLabels)}</span>
+        ) : (
+          p
+        )
       )}
     </span>
   );
@@ -147,15 +200,19 @@ function RexSprite({ dino, dinoColor, walking, facingLeft }: {
 }
 
 function StopMarker({
-  stop, active, isFirst, isLast, palette,
+  stop, active, isFirst, isLast, palette, showEndpointLetters = true,
 }: {
   stop: TrailConfig["stops"][0];
   active: boolean;
   isFirst: boolean;
   isLast: boolean;
   palette: TrailConfig["palette"];
+  /** Level 3: hide S/F on route endpoints — use dot only. */
+  showEndpointLetters?: boolean;
 }) {
   const r = active ? 30 : 24;
+  const hubGlyph =
+    !showEndpointLetters ? "●" : isFirst ? "S" : isLast ? "F" : "●";
   return (
     <g>
       {active && <circle cx={stop.x} cy={stop.y} r={r + 14} fill={palette.accent} opacity={0.16} />}
@@ -166,7 +223,7 @@ function StopMarker({
         strokeWidth={active ? 5 : 3}
       />
       <text x={stop.x} y={stop.y + 8} textAnchor="middle" fontSize={r * 0.72} fontWeight="900" fill="white">
-        {isFirst ? "S" : isLast ? "F" : "●"}
+        {hubGlyph}
       </text>
       <text x={stop.x} y={stop.y + r + 22} textAnchor="middle" fontSize="21" fontWeight="800"
         fill={palette.text} stroke="rgba(0,0,0,0.8)" strokeWidth={3} paintOrder="stroke">
@@ -190,13 +247,28 @@ function NumericKeypad({
   roundKey?: number;
 }) {
   const [minimized, setMinimized] = useState(false);
-  const keypadRef = useRef<HTMLDivElement>(null);
+  const calculatorRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMinimized(false);
     const timer = window.setTimeout(() => setMinimized(true), 1800);
     return () => clearTimeout(timer);
   }, [roundKey]);
+
+  useEffect(() => {
+    if (minimized) return;
+
+    function onPointerDown(e: PointerEvent) {
+      const root = calculatorRootRef.current;
+      if (!root) return;
+      const t = e.target as Node | null;
+      if (t && root.contains(t)) return;
+      setMinimized(true);
+    }
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [minimized]);
 
   function press(key: string) {
     if (key === "⌫") {
@@ -227,35 +299,32 @@ function NumericKeypad({
 
   return (
     <div
-      className="flex flex-col h-full min-h-[60px] self-stretch gap-1 rounded-xl p-1.5 shrink-0 w-40 md:w-44"
+      ref={calculatorRootRef}
+      className="flex h-full min-h-[60px] min-w-0 w-40 shrink-0 flex-col gap-1 rounded-xl p-1.5 md:w-44"
       style={{
         background: "rgba(2,6,23,0.97)",
-        border: "2px solid rgba(56,189,248,0.45)",
+        border: "4px solid rgba(56,189,248,0.45)",
         boxShadow: "0 0 18px rgba(56,189,248,0.12), inset 0 0 12px rgba(0,0,0,0.4)",
       }}
     >
       <div
-        className={
-          minimized
-            ? "rounded-lg px-2 flex flex-1 min-h-0 items-center justify-end overflow-hidden cursor-pointer"
-            : "rounded-lg px-2 h-11 md:h-10 flex shrink-0 items-center justify-end overflow-hidden cursor-pointer"
-        }
+        className="rounded-lg px-3.5 flex h-14 md:h-12 shrink-0 items-center justify-end overflow-hidden cursor-pointer"
         onClick={() => setMinimized((m) => !m)}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
           fontWeight: 700,
-          fontSize: "1.05rem",
+          fontSize: KEYPAD_DISPLAY_FONT_SIZE,
+          lineHeight: 1,
           background: "rgba(0,8,4,0.95)",
           border: minimized ? "none" : "2px solid rgba(56,189,248,0.28)",
           color: "#67e8f9",
-          textShadow: "0 0 10px rgba(103,232,249,0.85), 0 0 22px rgba(56,189,248,0.4)",
-          letterSpacing: "0.12em",
+          textShadow: "0 0 12px rgba(103,232,249,0.85), 0 0 26px rgba(56,189,248,0.4)",
+          letterSpacing: "0.08em",
         }}
       >
         {display}
       </div>
       <div
-        ref={keypadRef}
         className="flex min-h-0 flex-1 flex-col gap-0.5"
         style={{
           overflow: "hidden",
@@ -319,9 +388,15 @@ export default function ArcadeLevelOneScreen() {
   const [monsterEggs, setMonsterEggs] = useState(0);
   const [monsterRoundName, setMonsterRoundName] = useState("");
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
+  /** After first wrong in L3 Extinction Event, show full 3-step scaffold + dino. */
+  const [extinctionL3ShowSteps, setExtinctionL3ShowSteps] = useState(false);
+  /** After a wrong direct-calculation attempt, finish the scaffold without earning that egg back. */
+  const [extinctionL3RecoveryMode, setExtinctionL3RecoveryMode] = useState(false);
   const [calcRoundKey, setCalcRoundKey] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [odometerMapPos, setOdometerMapPos] = useState<{ left: number; top: number } | null>(null);
   const draggingRef = useRef(false);
   const walkTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
@@ -350,6 +425,12 @@ export default function ArcadeLevelOneScreen() {
   checkpointsRef.current = checkpoints;
   const token = posAtKm(config, posKm, checkpoints);
   const routeStops = new Set(currentQ.route.map((i) => config.stops[i].id));
+  const stopLabels = useMemo(() => config.stops.map((s) => s.label), [config.id]);
+
+  /** Level 3 Monster rounds: start on final line only, no dino; after a wrong answer, reveal steps + dino. */
+  const isL3MonsterRound = level === 3 && gamePhase === "monster";
+  const l3ExtinctionSingleLineOnly = isL3MonsterRound && !extinctionL3ShowSteps;
+  const l3ExtinctionRevealedScaffold = isL3MonsterRound && extinctionL3ShowSteps;
 
   // Tight viewBox so the trail fills the full map area on every screen ratio
   const xs = config.stops.map((s) => s.x);
@@ -362,6 +443,31 @@ export default function ArcadeLevelOneScreen() {
   const vbW = Math.max(...xs) - Math.min(...xs) + padSide * 2;
   const vbH = Math.max(...ys) - Math.min(...ys) + padTop + padBottom;
   const tightViewBox = `${vbX} ${vbY} ${vbW} ${vbH}`;
+
+  // Odometer HTML overlay: same trail math as dino; SVG anchor just above the sprite (see RexSprite).
+  useLayoutEffect(() => {
+    const mapEl = mapContainerRef.current;
+    if (!svgRef.current || !mapEl) return;
+
+    function commit() {
+      const svg = svgRef.current;
+      const map = mapContainerRef.current;
+      if (!svg || !map) return;
+      const p = svgUserToMapLocal(svg, map, token.x, token.y - 152);
+      if (p) setOdometerMapPos({ left: p.left, top: p.top - 12 });
+    }
+
+    commit();
+    const raf = requestAnimationFrame(commit);
+    const ro = new ResizeObserver(commit);
+    ro.observe(mapEl);
+    window.addEventListener("resize", commit);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", commit);
+    };
+  }, [token.x, token.y, tightViewBox]);
 
   useEffect(() => {
     startMusic();
@@ -378,41 +484,65 @@ export default function ArcadeLevelOneScreen() {
   }, []);
 
   useEffect(() => {
-    if (!window.matchMedia("(pointer: fine)").matches) return;
-
     function onKeyDown(e: KeyboardEvent) {
-      const tag = (document.activeElement as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return;
 
       const k = e.key;
-      if (k === "Enter") {
+      const code = e.code;
+
+      if (k === "Enter" || code === "NumpadEnter") {
         e.preventDefault();
         submitAnswerRef.current();
         return;
       }
 
-      if (!/^[0-9]$/.test(k) && k !== "Backspace" && k !== "." && k !== "-") return;
-      e.preventDefault();
-
       const val = keypadValueRef.current;
-      let next = val;
-      if (k === "Backspace") {
-        next = val.slice(0, -1);
-      } else if (k === "-") {
+      let next: string;
+
+      const digit = digitFromKeyCode(code);
+      if (digit) {
+        e.preventDefault();
+        next = val === "0" ? digit : `${val}${digit}`;
+        handleKeypadChangeRef.current(next);
+        return;
+      }
+
+      if (code === "Backspace" || k === "Backspace") {
+        e.preventDefault();
+        handleKeypadChangeRef.current(val.slice(0, -1));
+        return;
+      }
+
+      if (code === "Minus" || code === "NumpadSubtract" || k === "-") {
+        e.preventDefault();
         if (val.startsWith("-")) next = val.slice(1);
         else if (val !== "" && val !== "0") next = `-${val}`;
         else return;
-      } else if (k === ".") {
+        handleKeypadChangeRef.current(next);
+        return;
+      }
+
+      if (code === "Period" || code === "NumpadDecimal" || k === "." || k === ",") {
+        e.preventDefault();
         if (val.includes(".")) return;
         next = val === "" ? "0." : `${val}.`;
-      } else {
-        next = val === "0" ? k : `${val}${k}`;
+        handleKeypadChangeRef.current(next);
+        return;
       }
-      handleKeypadChangeRef.current(next);
+
+      // Fallback when `code` is missing or nonstandard (some embedded browsers)
+      if (/^[0-9]$/.test(k)) {
+        e.preventDefault();
+        next = val === "0" ? k : `${val}${k}`;
+        handleKeypadChangeRef.current(next);
+      }
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, []);
 
   // ── Reliable native pointer drag listeners (bypasses React synthetic event quirks) ──
@@ -561,6 +691,8 @@ export default function ArcadeLevelOneScreen() {
     setCurrentQ(next.firstQ);
     setEggsCollected(0);
     setMonsterEggs(0);
+    setExtinctionL3ShowSteps(false);
+    setExtinctionL3RecoveryMode(false);
     setGamePhase("normal");
     setFlash(null);
     setDragging(false);
@@ -594,6 +726,8 @@ export default function ArcadeLevelOneScreen() {
   function startMonsterRound() {
     const name = MONSTER_ROUND_NAMES[Math.floor(Math.random() * MONSTER_ROUND_NAMES.length)];
     setMonsterRoundName(name);
+    setExtinctionL3ShowSteps(false);
+    setExtinctionL3RecoveryMode(false);
     setGamePhase("monster");
     setMonsterEggs(0);
     setShowMonsterAnnounce(true);
@@ -636,6 +770,21 @@ export default function ArcadeLevelOneScreen() {
     setRun(next);
     setCurrentQ(next.firstQ);
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+    // Next Extinction Event question starts on final line only (until another miss).
+    setExtinctionL3ShowSteps(false);
+    setExtinctionL3RecoveryMode(false);
+  }
+
+  function advanceMonsterQuestionWithoutEgg() {
+    setFlash({ text: "", ok: true, icon: true });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
+    const next = createRun(level);
+    setRun(next);
+    setCurrentQ(next.firstQ);
+    resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+    setExtinctionL3ShowSteps(false);
+    setExtinctionL3RecoveryMode(false);
   }
 
   function showFlash(text: string, ok: boolean) {
@@ -660,6 +809,7 @@ export default function ArcadeLevelOneScreen() {
     setRun(next);
     setCurrentQ(next.firstQ);
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+    setExtinctionL3RecoveryMode(false);
   }
 
   function loseEgg() {
@@ -673,8 +823,16 @@ export default function ArcadeLevelOneScreen() {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
     const nextQ = makeOneQuestion(config, level, dino.nickname);
+    if (level === 3 && gamePhase === "monster") {
+      setExtinctionL3ShowSteps(true);
+      setExtinctionL3RecoveryMode(true);
+      resetPosition(getCheckpoints(config)[currentQ.route[0]]);
+      setCalcRoundKey((k) => k + 1);
+      return;
+    }
     setCurrentQ(nextQ);
     resetPosition(getCheckpoints(config)[nextQ.route[0]]);
+    setExtinctionL3RecoveryMode(false);
   }
 
   function submitAnswer() {
@@ -682,6 +840,14 @@ export default function ArcadeLevelOneScreen() {
 
     // ── Level 3: stepped one-at-a-time ──
     if (currentQ.subAnswers && currentQ.promptLines) {
+      if (l3ExtinctionSingleLineOnly) {
+        const g = parseFloat(subAnswers[2]);
+        if (isNaN(g)) { showFlash("Enter a number!", false); return; }
+        const ok = Math.abs(g - currentQ.subAnswers[2]) < 0.11;
+        if (ok) { playCorrect(); earnMonsterEgg(); } else { loseEgg(); }
+        return;
+      }
+
       const g = parseFloat(subAnswers[subStep]);
       if (isNaN(g)) { showFlash("Enter a number!", false); return; }
       const ok = Math.abs(g - currentQ.subAnswers[subStep]) < 0.11;
@@ -704,7 +870,11 @@ export default function ArcadeLevelOneScreen() {
       }
 
       // Final step (step 2)
-      if (ok) { playCorrect(); gamePhase === "monster" ? earnMonsterEgg() : earnEgg(); } else { loseEgg(); }
+      if (ok) {
+        playCorrect();
+        if (extinctionL3RecoveryMode && gamePhase === "monster") advanceMonsterQuestionWithoutEgg();
+        else gamePhase === "monster" ? earnMonsterEgg() : earnEgg();
+      } else { loseEgg(); }
       return;
     }
 
@@ -717,9 +887,10 @@ export default function ArcadeLevelOneScreen() {
 
   function handleKeypadChange(v: string) {
     if (currentQ.subAnswers && currentQ.promptLines) {
+      const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
       setSubAnswers((prev) => {
         const next = [...prev] as [string, string, string];
-        next[subStep] = v;
+        next[idx] = v;
         return next;
       });
       return;
@@ -730,10 +901,17 @@ export default function ArcadeLevelOneScreen() {
 
   const pal = config.palette;
   const phaseBg = PHASE_BG[`${level}-${gamePhase}`] ?? { bg: pal.bg, glow: pal.bgGlow, tint: "transparent" };
-  const keypadValue = currentQ.promptLines ? subAnswers[subStep] : answer;
-  const canKeypadSubmit = currentQ.promptLines
-    ? !isNaN(parseFloat(subAnswers[subStep]))
-    : !isNaN(parseFloat(answer));
+  const l3KeypadIndex =
+    currentQ.promptLines && currentQ.subAnswers
+      ? l3ExtinctionSingleLineOnly
+        ? 2
+        : subStep
+      : null;
+  const keypadValue = l3KeypadIndex !== null ? subAnswers[l3KeypadIndex] : answer;
+  const canKeypadSubmit =
+    l3KeypadIndex !== null
+      ? !isNaN(parseFloat(subAnswers[l3KeypadIndex]))
+      : !isNaN(parseFloat(answer));
   keypadValueRef.current = keypadValue;
   handleKeypadChangeRef.current = handleKeypadChange;
   submitAnswerRef.current = submitAnswer;
@@ -791,7 +969,7 @@ export default function ArcadeLevelOneScreen() {
           </button>
         </div>
 
-        {/* Center: levels + progress bar + mobile-only odometer */}
+        {/* Center: levels + eggs */}
         <div className="flex-1 flex flex-col items-center gap-1.5 pt-1">
           <div className="flex items-center gap-1.5">
             {([1, 2, 3] as const).map((lv) => {
@@ -908,49 +1086,12 @@ export default function ArcadeLevelOneScreen() {
               </div>
             ))}
           </div>
-
-          {/* Mobile odometer — compact, centered under levels, hidden on desktop */}
-          {(() => {
-            const isMonster = gamePhase === "monster";
-            const s = isMonster ? "--.-" : odomKm.toFixed(1);
-            const font = s.length >= 5 ? "text-base" : "text-xl";
-            return (
-              <button onClick={isMonster ? undefined : resetOdometer}
-                title={isMonster ? "Odometer disabled in Monster Round" : "Tap to reset"}
-                className={`flex md:hidden arcade-meter flex-col items-center px-3 py-1.5 transition-transform ${isMonster ? "opacity-40 cursor-not-allowed" : "active:scale-95 cursor-pointer"}`}>
-                <div className={`digital-meter ${font} leading-none transition-all ${isMonster ? "text-slate-500" : "text-white"}`}>{s}</div>
-                {!isMonster && currentQ.totalGiven != null && (
-                  <div className="text-[20px] text-white leading-none mt-0.5">
-                    Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
-                  </div>
-                )}
-              </button>
-            );
-          })()}
         </div>
-
-        {/* Desktop odometer — right edge, large numbers, hidden on mobile */}
-        {(() => {
-          const isMonster = gamePhase === "monster";
-          const s = isMonster ? "--.-" : odomKm.toFixed(1);
-          const font = s.length >= 5 ? "text-xl" : s.length >= 4 ? "text-2xl" : "text-3xl";
-          return (
-            <button onClick={isMonster ? undefined : resetOdometer}
-              title={isMonster ? "Odometer disabled in Monster Round" : "Tap to reset"}
-              className={`hidden md:flex arcade-meter flex-col items-center px-5 py-2 text-center min-w-[120px] shrink-0 transition-transform ${isMonster ? "opacity-40 cursor-not-allowed" : "active:scale-95 cursor-pointer"}`}>
-              <div className={`digital-meter ${font} transition-all ${isMonster ? "text-slate-500" : "text-white"}`}>{s}</div>
-              {!isMonster && currentQ.totalGiven != null && (
-                <div className="text-2xl text-white mt-1 leading-none">
-                  Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
-                </div>
-              )}
-            </button>
-          );
-        })()}
       </div>
 
       {/* ── map ── */}
       <div
+        ref={mapContainerRef}
         className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
         onClick={() => setTopPanel("map")}
       >
@@ -993,25 +1134,25 @@ export default function ArcadeLevelOneScreen() {
               <g key={edge.from}>
                 {/* dark unlit road */}
                 <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
-                  stroke="rgba(0,0,0,0.5)" strokeWidth={34} strokeLinecap="round" />
+                  stroke="rgba(0,0,0,0.5)" strokeWidth={26} strokeLinecap="round" />
                 <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
-                  stroke="#1a2a3a" strokeWidth={26} strokeLinecap="round" />
+                  stroke="#1a2a3a" strokeWidth={20} strokeLinecap="round" />
                 {/* faint route highlight — so player knows the question path */}
                 {isRouteEdge && (
                   <line x1={A.x} y1={A.y} x2={B.x} y2={B.y}
-                    stroke={pal.trail} strokeWidth={14} strokeLinecap="round" opacity={0.18} />
+                    stroke={pal.trail} strokeWidth={10} strokeLinecap="round" opacity={0.18} />
                 )}
                 {showVisited && (
                   <line x1={visitedFromPt.x} y1={visitedFromPt.y} x2={visitedToPt.x} y2={visitedToPt.y}
-                    stroke={pal.visited} strokeWidth={14} strokeLinecap="round" />
+                    stroke={pal.visited} strokeWidth={10} strokeLinecap="round" />
                 )}
                 {showRepeat && (
                   <>
                     {/* backward track — wider base + bright centre stripe to look distinct */}
                     <line x1={repFromPt.x} y1={repFromPt.y} x2={visitedToPt.x} y2={visitedToPt.y}
-                      stroke={pal.repeated} strokeWidth={18} strokeLinecap="round" opacity={0.7} />
+                      stroke={pal.repeated} strokeWidth={13} strokeLinecap="round" opacity={0.7} />
                     <line x1={repFromPt.x} y1={repFromPt.y} x2={visitedToPt.x} y2={visitedToPt.y}
-                      stroke="white" strokeWidth={4} strokeLinecap="round" opacity={0.45}
+                      stroke="white" strokeWidth={3} strokeLinecap="round" opacity={0.45}
                       strokeDasharray="20 16" />
                   </>
                 )}
@@ -1050,40 +1191,105 @@ export default function ArcadeLevelOneScreen() {
                 isFirst={stop.id === routeFirst}
                 isLast={stop.id === routeLast && routeLast !== routeFirst}
                 palette={pal}
+                showEndpointLetters={level !== 3}
               />
             );
           })}
 
-          <g
-            transform={`translate(${token.x}, ${token.y - 44})`}
-            onPointerDown={(e) => { e.stopPropagation(); startDrag(e); }}
-            style={{ cursor: dragging ? "grabbing" : "grab" }}
-          >
-            {/* generous transparent hit area */}
-            <circle cx={0} cy={-10} r={80} fill="transparent" />
-            <RexSprite dino={dino} dinoColor={dinoColor} walking={walking} facingLeft={facingLeft} />
-          </g>
+          {(!isL3MonsterRound || extinctionL3ShowSteps) && (
+            <>
+              <g
+                transform={`translate(${token.x}, ${token.y - 44})`}
+                onPointerDown={(e) => { e.stopPropagation(); startDrag(e); }}
+                style={{ cursor: dragging ? "grabbing" : "grab" }}
+              >
+                {/* generous transparent hit area */}
+                <circle cx={0} cy={-10} r={80} fill="transparent" />
+                <RexSprite dino={dino} dinoColor={dinoColor} walking={walking} facingLeft={facingLeft} />
+              </g>
 
-          {/* Halo rendered last so it always paints above stop markers */}
-          {dragging && (
-            <g transform={`translate(${token.x}, ${token.y - 44})`} style={{ pointerEvents: "none" }}>
-              <circle cx={0} cy={-48} r={62}
-                fill="none"
-                stroke="#4ade80"
-                strokeWidth={10}
-                opacity={0.35}
-              />
-              <circle cx={0} cy={-48} r={62}
-                fill="none"
-                stroke="#4ade80"
-                strokeWidth={4}
-                style={{
-                  filter: "drop-shadow(0 0 6px #4ade80) drop-shadow(0 0 16px #22c55e) drop-shadow(0 0 32px #16a34a)",
-                }}
-              />
-            </g>
+              {/* Halo rendered last so it always paints above stop markers */}
+              {dragging && (
+                <g transform={`translate(${token.x}, ${token.y - 44})`} style={{ pointerEvents: "none" }}>
+                  <circle cx={0} cy={-48} r={62}
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth={10}
+                    opacity={0.35}
+                  />
+                  <circle cx={0} cy={-48} r={62}
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth={4}
+                    style={{
+                      filter: "drop-shadow(0 0 6px #4ade80) drop-shadow(0 0 16px #22c55e) drop-shadow(0 0 32px #16a34a)",
+                    }}
+                  />
+                </g>
+              )}
+            </>
           )}
         </svg>
+
+        {odometerMapPos &&
+          screen === "playing" &&
+          gamePhase === "normal" &&
+          !showMonsterAnnounce &&
+          (() => {
+            const s = odomKm.toFixed(1);
+            return (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetOdometer();
+                }}
+                title="Tap to reset"
+                className="arcade-meter absolute z-[45] inline-flex w-max max-w-[calc(100vw-1rem)] cursor-pointer flex-col items-stretch px-2 py-2 transition-transform pointer-events-auto active:scale-95 md:px-2.5 md:py-2"
+                style={{
+                  left: odometerMapPos.left,
+                  top: odometerMapPos.top,
+                  transform: "translate(-50%, -100%)",
+                }}
+              >
+                {currentQ.totalGiven != null ? (
+                  <>
+                    <div className="flex w-full justify-end">
+                      <div
+                        className="digital-meter leading-none text-white"
+                        style={{
+                          width: ODOMETER_MAIN_WIDTH,
+                          minWidth: ODOMETER_MAIN_WIDTH,
+                          textAlign: "right",
+                          fontSize: KEYPAD_DISPLAY_FONT_SIZE,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {s}
+                      </div>
+                    </div>
+                    <div className="mt-2 w-full whitespace-nowrap text-center text-sm leading-none text-white md:text-base">
+                      Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="digital-meter leading-none text-white"
+                    style={{
+                      width: ODOMETER_MAIN_WIDTH,
+                      minWidth: ODOMETER_MAIN_WIDTH,
+                      textAlign: "right",
+                      fontSize: KEYPAD_DISPLAY_FONT_SIZE,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {s}
+                  </div>
+                )}
+              </button>
+            );
+          })()}
       </div>
 
       {/* ── bottom bar ── */}
@@ -1092,7 +1298,7 @@ export default function ArcadeLevelOneScreen() {
         onClick={() => setTopPanel("question")}
       >
         {/* L3 distance comparison visual — appears after each step is confirmed */}
-        {currentQ.subAnswers && currentQ.promptLines && subStep >= 1 && (() => {
+        {currentQ.subAnswers && currentQ.promptLines && subStep >= 1 && !l3ExtinctionSingleLineOnly && (() => {
           const d1 = currentQ.subAnswers![0];
           const d2 = currentQ.subAnswers![1];
           const showBoth = subStep >= 2;
@@ -1167,16 +1373,29 @@ export default function ArcadeLevelOneScreen() {
           );
         })()}
 
-        <div className="flex items-stretch gap-2 md:gap-3">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:gap-3">
           {currentQ.promptLines && currentQ.subAnswers ? (
+            l3ExtinctionSingleLineOnly ? (
+              /* ── Level 3 Extinction Event: final prompt only until first wrong ── */
+              <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white">
+                <ColoredPrompt text={currentQ.promptLines[2]} stopLabels={stopLabels} />
+                {IS_DEV && currentQ.subAnswers && (
+                  <span className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
+                    style={{ background: "rgba(250,204,21,0.18)", color: "#fde047", border: "1px solid rgba(250,204,21,0.35)" }}>
+                    {currentQ.subAnswers[2].toFixed(1)}
+                  </span>
+                )}
+              </div>
+            ) : (
             /* ── Level 3: stepped one-at-a-time ── */
-            <div className="arcade-panel flex-1 flex flex-col gap-2 px-4 py-2.5 self-stretch min-h-0">
+            <div className="arcade-panel flex min-h-0 min-w-0 flex-col gap-2 px-4 py-2.5">
               {currentQ.promptLines.map((line, i) => {
                 const isDone    = i < subStep;
                 const isCurrent = i === subStep;
+                const shouldDim = i > subStep && !l3ExtinctionRevealedScaffold;
                 return (
-                  <div key={i} className={`flex items-center gap-2 transition-opacity duration-200 ${i > subStep ? "opacity-30" : ""}`}>
-                    <ColoredPrompt text={line}
+                  <div key={i} className={`flex items-center gap-2 transition-opacity duration-200 ${shouldDim ? "opacity-30" : ""}`}>
+                    <ColoredPrompt text={line} stopLabels={stopLabels}
                       className={`flex-1 text-sm leading-5 font-bold ${i === 2 ? "text-white" : "text-slate-300"}`} />
                     {IS_DEV && currentQ.subAnswers && (
                       <span className="shrink-0 rounded px-1 text-[10px] font-black"
@@ -1206,10 +1425,11 @@ export default function ArcadeLevelOneScreen() {
                 );
               })}
             </div>
+            )
           ) : (
             /* ── Level 1 / 2: single row ── */
-            <div className="arcade-panel flex-1 flex items-center gap-2 px-4 py-2 min-h-[60px] self-stretch text-sm md:text-base leading-6 text-white font-bold">
-              <ColoredPrompt text={currentQ.prompt} />
+            <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white">
+              <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
               {IS_DEV && (
                 <span className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                   style={{ background: "rgba(250,204,21,0.18)", color: "#fde047", border: "1px solid rgba(250,204,21,0.35)" }}>
@@ -1218,38 +1438,42 @@ export default function ArcadeLevelOneScreen() {
               )}
             </div>
           )}
-          <NumericKeypad
-            value={keypadValue}
-            onChange={handleKeypadChange}
-            onSubmit={submitAnswer}
-            canSubmit={canKeypadSubmit}
-            roundKey={calcRoundKey}
-          />
+          <div className="flex min-h-0 flex-col self-stretch">
+            <NumericKeypad
+              value={keypadValue}
+              onChange={handleKeypadChange}
+              onSubmit={submitAnswer}
+              canSubmit={canKeypadSubmit}
+              roundKey={calcRoundKey}
+            />
+          </div>
         </div>
       </div>
 
-      {/* dino name + attribution */}
-      <div className="pointer-events-none absolute bottom-[90px] right-3 z-10 text-right leading-5">
-        <div className="text-[10px] font-black tracking-widest uppercase" style={{ color: dinoColor }}>
-          {dino.name}
+      {/* dino name + attribution (hidden in L3 Extinction Event until scaffold revealed) */}
+      {(!isL3MonsterRound || extinctionL3ShowSteps) && (
+        <div className="pointer-events-none absolute bottom-[90px] right-3 z-10 text-right leading-5">
+          <div className="text-[10px] font-black tracking-widest uppercase" style={{ color: dinoColor }}>
+            {dino.name}
+          </div>
+          <a
+            href={dino.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto text-[8px] text-slate-600 hover:text-slate-400 transition-colors"
+          >
+            {dino.author} / game-icons.net / CC BY 3.0
+          </a>
+          <a
+            href="https://game-icons.net/1x1/sbed/big-egg.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto text-[8px] text-slate-600 hover:text-slate-400 transition-colors"
+          >
+            sbed / game-icons.net / CC BY 3.0
+          </a>
         </div>
-        <a
-          href={dino.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto text-[8px] text-slate-600 hover:text-slate-400 transition-colors"
-        >
-          {dino.author} / game-icons.net / CC BY 3.0
-        </a>
-        <a
-          href="https://game-icons.net/1x1/sbed/big-egg.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto text-[8px] text-slate-600 hover:text-slate-400 transition-colors"
-        >
-          sbed / game-icons.net / CC BY 3.0
-        </a>
-      </div>
+      )}
 
       {flash && (
         flash.icon ? (
