@@ -451,7 +451,7 @@ export default function ArcadeLevelOneScreen() {
   const xs = config.stops.map((s) => s.x);
   const ys = config.stops.map((s) => s.y);
   const padTop = 115;   // room for dino sprite above node
-  const padBottom = 60; // room for stop labels below node
+  const padBottom = isMobileLandscape ? 100 : 60; // room for stop labels below node
   const padSide = 80;   // room for label text either side
   const vbX = Math.min(...xs) - padSide;
   const vbY = Math.min(...ys) - padTop;
@@ -486,8 +486,8 @@ export default function ArcadeLevelOneScreen() {
 
       const frac = pBase.left / map.clientWidth;
       let anchor: 'above' | 'right' | 'left' = 'above';
-      if (frac < 0.20) anchor = 'right';
-      else if (frac > 0.80) anchor = 'left';
+      if (frac < 0.40) anchor = 'right';
+      else if (frac > 0.60) anchor = 'left';
 
       if (anchor === 'above') {
         const edgePad = 88;
@@ -1012,7 +1012,7 @@ export default function ArcadeLevelOneScreen() {
 
       {/* ── top bar ── */}
       <div
-        className="absolute left-0 right-0 top-0 z-20 flex items-start px-3 md:px-5"
+        className={`absolute left-0 right-0 top-0 ${isMobileLandscape ? 'z-[45]' : 'z-20'} flex items-start px-3 md:px-5`}
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
       >
 
@@ -1178,7 +1178,7 @@ export default function ArcadeLevelOneScreen() {
       <div
         ref={mapContainerRef}
         className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
-        style={isMobileLandscape ? { bottom: 88 } : undefined}
+        style={isMobileLandscape ? { top: 0, bottom: 88 } : undefined}
         onClick={() => setTopPanel("map")}
       >
         <svg
@@ -1337,8 +1337,8 @@ export default function ArcadeLevelOneScreen() {
                   left: odometerMapPos.left,
                   top: odometerMapPos.top,
                   transform:
-                    odometerMapPos.anchor === 'right' ? 'translate(16px, -50%)' :
-                    odometerMapPos.anchor === 'left'  ? 'translate(calc(-100% - 16px), -50%)' :
+                    odometerMapPos.anchor === 'right' ? 'translate(80px, -50%)' :
+                    odometerMapPos.anchor === 'left'  ? 'translate(calc(-100% - 80px), -50%)' :
                     'translate(-50%, -100%)',
                 }}
               >
