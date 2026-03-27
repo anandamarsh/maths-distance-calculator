@@ -263,7 +263,7 @@ function NumericKeypad({
   canSubmit,
   roundKey,
   defaultMinimized = false,
-  onToggleMinimized,
+  toggleRef,
 }: {
   value: string;
   onChange: (v: string) => void;
