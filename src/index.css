@@ -261,24 +261,29 @@ body {
   right: 0;
   bottom: 0;
   width: auto;
-  max-height: 75vh;
+  height: 50vh;
+  max-height: 50vh;
   padding: 1rem 1rem 1.15rem;
   border-radius: 0;
   border-top: 1px solid rgba(250, 204, 21, 0.46);
   box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.38);
+  background: #171717;
   overflow: hidden;
   transform: translateY(calc(100% + 1.25rem));
+  display: flex;
+  flex-direction: column;
 }
 
 .social-comments-drawer h2 {
   color: #fde047;
   width: 100%;
-  text-align: center;
-  font-size: 1rem;
+  text-align: left;
+  font-size: 1.1rem;
 }
 
 .social-comments-shell {
-  max-height: calc(75vh - 4.25rem);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 0.15rem;
 }
@@ -306,22 +311,15 @@ body {
   display: none;
 }
 
-.social-comments-shell #disqus_thread {
-  color-scheme: dark;
-}
-
 .social-comments-drawer .social-drawer-header {
   align-items: center;
-  justify-content: center;
-  position: relative;
+  justify-content: space-between;
   margin-bottom: 0.75rem;
   padding-top: 0.1rem;
 }
 
 .social-comments-drawer .social-drawer-close {
-  position: absolute;
-  top: 0;
-  right: 0;
+  position: static;
 }
 
 .social-share-drawer .social-drawer-close {
@@ -343,5 +341,12 @@ body {
   .social-comments-drawer {
     bottom: 0;
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 1023px) and (orientation: landscape) {
+  .social-comments-drawer {
+    height: 100dvh;
+    max-height: 100dvh;
   }
 }

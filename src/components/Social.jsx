@@ -1,4 +1,4 @@
-import { DiscussionEmbed } from "disqus-react";
+import { useEffect, useRef } from "react";
 import {
   FacebookIcon,
   FacebookShareButton,
@@ -10,14 +10,24 @@ import {
   WhatsappShareButton,
 } from "react-share";
 
-const APP_TITLE = "Interactive Maths";
 const SHARE_TITLE = "Check out this maths game on Interactive Maths!";
-const DISQUS_SHORTNAME = "interactive-maths";
-const GAME_ID = "maths-distance-calculator";
 const SHARE_URL = "https://interactive-maths.vercel.app/";
+const CUSDIS_HOST = "https://cusdis.com";
+const CUSDIS_APP_ID = "b7cf3bec-b283-485f-9db9-8e7f3cfac3c2";
+const COMMENTS_PAGE_ID = "interactive-maths";
+const COMMENTS_TITLE = "Interactive Maths";
 
-function getCurrentUrl() {
-  return typeof window !== "undefined" ? window.location.href : "";
+function ensureCusdisLoaded() {
+  const existing = document.querySelector('script[data-cusdis-script="true"]');
+  if (existing) return existing;
+
+  const script = document.createElement("script");
+  script.async = true;
+  script.defer = true;
+  script.src = `${CUSDIS_HOST}/js/cusdis.es.js`;
+  script.dataset.cusdisScript = "true";
+  document.body.appendChild(script);
+  return script;
 }
 
 export function SocialShare() {
@@ -52,16 +62,50 @@ export function SocialShare() {
 }
 
 export function SocialComments() {
-  const url = getCurrentUrl();
+  const hostRef = useRef(null);
+
+  useEffect(() => {
+    const script = ensureCusdisLoaded();
+
+    const stretchIframe = () => {
+      const iframe = hostRef.current?.querySelector("iframe");
+      if (iframe) {
+        iframe.style.height = "100%";
+        iframe.style.minHeight = "100%";
+      }
+    };
+
+    const renderCusdis = () => {
+      const api = window.CUSDIS;
+      if (api?.renderTo && hostRef.current) {
+        api.renderTo(hostRef.current);
+        requestAnimationFrame(stretchIframe);
+        setTimeout(stretchIframe, 150);
+      }
+    };
+
+    if (window.CUSDIS) {
+      renderCusdis();
+      return;
+    }
+
+    script?.addEventListener("load", renderCusdis, { once: true });
+    return () => script?.removeEventListener("load", renderCusdis);
+  }, []);
 
   return (
-    <DiscussionEmbed
-      shortname={DISQUS_SHORTNAME}
-      config={{
-        url,
-        identifier: GAME_ID,
-        title: `${APP_TITLE} Discussion`,
-      }}
-    />
+    <div style={{ padding: "1rem 1rem 1.25rem", height: "100%", boxSizing: "border-box" }}>
+      <div
+        id="cusdis_thread"
+        ref={hostRef}
+        data-host={CUSDIS_HOST}
+        data-app-id={CUSDIS_APP_ID}
+        data-page-id={COMMENTS_PAGE_ID}
+        data-page-url={SHARE_URL}
+        data-page-title={COMMENTS_TITLE}
+        data-theme="dark"
+        style={{ height: "100%", minHeight: "100%" }}
+      />
+    </div>
   );
 }
