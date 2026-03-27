@@ -1049,12 +1049,13 @@ export default function ArcadeLevelOneScreen() {
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
         {isMobileLandscape && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce && (
+          <div className="flex-1 flex items-center justify-center mt-[76px] md:mt-1">
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); resetOdometer(); }}
             title="Tap to reset"
-            className="arcade-meter shrink-0 w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95 mt-[76px] md:mt-1 ml-3"
+            className="arcade-meter shrink-0 w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95"
           >
             {currentQ.totalGiven != null ? (
               <>
@@ -1075,6 +1076,7 @@ export default function ArcadeLevelOneScreen() {
               </div>
             )}
           </button>
+          </div>
         )}
 
         {/* Center: levels + eggs */}
