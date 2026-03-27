@@ -256,28 +256,10 @@ function NumericKeypad({
   roundKey?: number;
 }) {
   const [minimized, setMinimized] = useState(false);
-  const calculatorRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMinimized(false);
-    const timer = window.setTimeout(() => setMinimized(true), 1800);
-    return () => clearTimeout(timer);
   }, [roundKey]);
-
-  useEffect(() => {
-    if (minimized) return;
-
-    function onPointerDown(e: PointerEvent) {
-      const root = calculatorRootRef.current;
-      if (!root) return;
-      const t = e.target as Node | null;
-      if (t && root.contains(t)) return;
-      setMinimized(true);
-    }
-
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [minimized]);
 
   function press(key: string) {
     playKeyClick();
@@ -309,7 +291,6 @@ function NumericKeypad({
 
   return (
     <div
-      ref={calculatorRootRef}
       className="flex h-full min-h-[60px] min-w-0 w-40 shrink-0 flex-col gap-1 rounded-xl p-1.5 md:w-44"
       style={{
         background: "rgba(2,6,23,0.97)",
