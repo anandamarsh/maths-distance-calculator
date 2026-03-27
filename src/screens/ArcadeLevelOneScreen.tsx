@@ -181,12 +181,23 @@ function NumericKeypad({
   onChange,
   onSubmit,
   canSubmit,
+  roundKey,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   canSubmit: boolean;
+  roundKey?: number;
 }) {
+  const [minimized, setMinimized] = useState(false);
+  const keypadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMinimized(false);
+    const timer = window.setTimeout(() => setMinimized(true), 1800);
+    return () => clearTimeout(timer);
+  }, [roundKey]);
+
   function press(key: string) {
     if (key === "⌫") {
       onChange(value.slice(0, -1));
@@ -224,7 +235,8 @@ function NumericKeypad({
       }}
     >
       <div
-        className="rounded-lg px-2 h-10 md:h-8 flex items-center justify-end overflow-hidden"
+        className="rounded-lg px-2 h-10 md:h-8 flex items-center justify-end overflow-hidden cursor-pointer"
+        onClick={() => setMinimized((m) => !m)}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
           fontWeight: 700,
@@ -238,7 +250,16 @@ function NumericKeypad({
       >
         {display}
       </div>
-      <div className="flex flex-col gap-0.5">
+      <div
+        ref={keypadRef}
+        className="flex flex-col gap-0.5"
+        style={{
+          overflow: "hidden",
+          maxHeight: minimized ? "0px" : "300px",
+          opacity: minimized ? 0 : 1,
+          transition: "max-height 0.4s ease-in-out, opacity 0.3s ease-in-out",
+        }}
+      >
         {rows.map((row, r) => (
           <div key={r} className="grid grid-cols-4 gap-0.5">
             {row.map((btn) => (
@@ -292,6 +313,7 @@ export default function ArcadeLevelOneScreen() {
   const [monsterEggs, setMonsterEggs] = useState(0);
   const [monsterRoundName, setMonsterRoundName] = useState("");
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
+  const [calcRoundKey, setCalcRoundKey] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef(false);
@@ -539,6 +561,7 @@ export default function ArcadeLevelOneScreen() {
     setFacingLeft(false);
     const firstStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(firstStartKm);
+    setCalcRoundKey((k) => k + 1);
   }
 
   /** DEV ONLY: jump straight to having i+1 eggs on the current level/phase. */
@@ -579,6 +602,7 @@ export default function ArcadeLevelOneScreen() {
     const startKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(startKm);
     window.setTimeout(() => setShowMonsterAnnounce(false), 2800);
+    setCalcRoundKey((k) => k + 1);
   }
 
   function earnMonsterEgg() {
@@ -1193,6 +1217,7 @@ export default function ArcadeLevelOneScreen() {
             onChange={handleKeypadChange}
             onSubmit={submitAnswer}
             canSubmit={canKeypadSubmit}
+            roundKey={calcRoundKey}
           />
         </div>
       </div>
