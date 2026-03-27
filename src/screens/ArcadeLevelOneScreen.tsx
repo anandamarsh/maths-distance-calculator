@@ -7,6 +7,7 @@ import {
 } from "../game/levelOne";
 import { randomDino, type DinoSprite } from "../game/dinos";
 import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory, playGameComplete, playKeyClick } from "../sound";
+import { SocialComments, SocialShare } from "../components/Social";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -397,6 +398,8 @@ export default function ArcadeLevelOneScreen() {
   const [monsterEggs, setMonsterEggs] = useState(0);
   const [monsterRoundName, setMonsterRoundName] = useState("");
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
+  const [showShareDrawer, setShowShareDrawer] = useState(false);
+  const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   /** After first wrong in L3 Extinction Event, show full 3-step scaffold + dino. */
   const [extinctionL3ShowSteps, setExtinctionL3ShowSteps] = useState(false);
   /** After a wrong direct-calculation attempt, finish the scaffold without earning that egg back. */
@@ -692,6 +695,27 @@ export default function ArcadeLevelOneScreen() {
     setSoundMuted(nowMuted);
   }
 
+  function toggleShareDrawer() {
+    setShowShareDrawer((open) => {
+      const next = !open;
+      if (next) setShowCommentsDrawer(false);
+      return next;
+    });
+  }
+
+  function toggleCommentsDrawer() {
+    setShowCommentsDrawer((open) => {
+      const next = !open;
+      if (next) setShowShareDrawer(false);
+      return next;
+    });
+  }
+
+  function closeSocialDrawers() {
+    setShowShareDrawer(false);
+    setShowCommentsDrawer(false);
+  }
+
   function resetCurrentQuestion() {
     playButton();
     setFlash(null);
@@ -928,6 +952,7 @@ export default function ArcadeLevelOneScreen() {
 
   const pal = config.palette;
   const phaseBg = PHASE_BG[`${level}-${gamePhase}`] ?? { bg: pal.bg, glow: pal.bgGlow, tint: "transparent" };
+  const isSocialDrawerOpen = showShareDrawer || showCommentsDrawer;
   const l3KeypadIndex =
     currentQ.promptLines && currentQ.subAnswers
       ? l3ExtinctionSingleLineOnly
@@ -1501,6 +1526,75 @@ export default function ArcadeLevelOneScreen() {
           </a>
         </div>
       )}
+
+      <div className="social-launchers">
+        <button
+          type="button"
+          onClick={toggleShareDrawer}
+          className={`social-launcher arcade-button ${showShareDrawer ? "is-active" : ""}`}
+          aria-expanded={showShareDrawer}
+          aria-controls="social-share-drawer"
+          aria-label="Open share panel"
+        >
+          <svg viewBox="0 0 24 24" className="social-launcher-icon" fill="none" aria-hidden="true">
+            <circle cx="18" cy="5.5" r="2.25" stroke="currentColor" strokeWidth="1.9" />
+            <circle cx="6" cy="12" r="2.25" stroke="currentColor" strokeWidth="1.9" />
+            <circle cx="18" cy="18.5" r="2.25" stroke="currentColor" strokeWidth="1.9" />
+            <path d="M8.1 10.95 15.9 6.55" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            <path d="M8.1 13.05 15.9 17.45" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={toggleCommentsDrawer}
+          className={`social-launcher arcade-button ${showCommentsDrawer ? "is-active" : ""}`}
+          aria-expanded={showCommentsDrawer}
+          aria-controls="social-comments-drawer"
+          aria-label="Open comments panel"
+        >
+          <svg viewBox="0 0 24 24" className="social-launcher-icon" fill="none" aria-hidden="true">
+            <path d="M6 6.5h12a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5H10l-4 3v-3H6A2.5 2.5 0 0 1 3.5 15V9A2.5 2.5 0 0 1 6 6.5Z" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {isSocialDrawerOpen && <div className="social-backdrop" onClick={closeSocialDrawers} />}
+
+      <aside
+        id="social-share-drawer"
+        className={`social-drawer social-share-drawer ${showShareDrawer ? "is-open" : ""}`}
+        aria-hidden={!showShareDrawer}
+      >
+        <div className="social-drawer-header">
+          <h2>Spread the word...</h2>
+          <button type="button" onClick={() => setShowShareDrawer(false)} className="social-drawer-close" aria-label="Close share drawer">
+            <svg viewBox="0 0 24 24" className="social-close-icon" fill="none" aria-hidden="true">
+              <path d="M6 6 18 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+              <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <SocialShare />
+      </aside>
+
+      <aside
+        id="social-comments-drawer"
+        className={`social-drawer social-comments-drawer ${showCommentsDrawer ? "is-open" : ""}`}
+        aria-hidden={!showCommentsDrawer}
+      >
+        <div className="social-drawer-header">
+          <h2>Comments</h2>
+          <button type="button" onClick={() => setShowCommentsDrawer(false)} className="social-drawer-close" aria-label="Close comments drawer">
+            <svg viewBox="0 0 24 24" className="social-close-icon" fill="none" aria-hidden="true">
+              <path d="M6 6 18 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+              <path d="M18 6 6 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div className="social-comments-shell">
+          <SocialComments />
+        </div>
+      </aside>
 
       {flash && (
         flash.icon ? (
