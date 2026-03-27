@@ -344,6 +344,13 @@ body {
   }
 }
 
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  .social-launchers {
+    top: calc(env(safe-area-inset-top) + 0.5rem + 76px);
+    right: 0.75rem;
+  }
+}
+
 @media (max-width: 1023px) and (orientation: landscape) {
   .social-comments-drawer {
     height: 100dvh;
