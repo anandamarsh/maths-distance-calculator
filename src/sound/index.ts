@@ -1,6 +1,8 @@
 let ctx: AudioContext | null = null;
 let footToggle = false;
-let muted = false;
+let musicMuted = false;
+const MUSIC_VOLUME_SCALE = 0.25;
+const SFX_VOLUME_SCALE = 1;
 
 function ac(): AudioContext {
   if (!ctx) ctx = new AudioContext();
@@ -8,8 +10,15 @@ function ac(): AudioContext {
   return ctx;
 }
 
-function tone(freq: number, start: number, dur: number, vol = 0.08, type: OscillatorType = "square") {
-  if (muted) return;
+function tone(
+  freq: number,
+  start: number,
+  dur: number,
+  vol = 0.08,
+  type: OscillatorType = "square",
+  channel: "sfx" | "music" = "sfx",
+) {
+  if (channel === "music" && musicMuted) return;
   const c = ac();
   const osc = c.createOscillator();
   const gain = c.createGain();
@@ -17,23 +26,24 @@ function tone(freq: number, start: number, dur: number, vol = 0.08, type: Oscill
   gain.connect(c.destination);
   osc.type = type;
   osc.frequency.setValueAtTime(freq, start);
-  gain.gain.setValueAtTime(vol, start);
+  const scaledVol = vol * (channel === "music" ? MUSIC_VOLUME_SCALE : SFX_VOLUME_SCALE);
+  gain.gain.setValueAtTime(scaledVol, start);
   gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
   osc.start(start);
   osc.stop(start + dur + 0.01);
 }
 
 export function toggleMute(): boolean {
-  muted = !muted;
-  return muted;
+  musicMuted = !musicMuted;
+  return musicMuted;
 }
 
 export function isMuted() {
-  return muted;
+  return musicMuted;
 }
 
-function noiseBurst(startTime: number, filterFreq: number, vol: number, dur: number) {
-  if (muted) return;
+function noiseBurst(startTime: number, filterFreq: number, vol: number, dur: number, channel: "sfx" | "music" = "sfx") {
+  if (channel === "music" && musicMuted) return;
   const c = ac();
   const bufLen = Math.ceil(c.sampleRate * dur);
   const buf = c.createBuffer(1, bufLen, c.sampleRate);
@@ -49,7 +59,8 @@ function noiseBurst(startTime: number, filterFreq: number, vol: number, dur: num
   filter.Q.value = 1.8;
 
   const gain = c.createGain();
-  gain.gain.setValueAtTime(vol, startTime);
+  const scaledVol = vol * (channel === "music" ? MUSIC_VOLUME_SCALE : SFX_VOLUME_SCALE);
+  gain.gain.setValueAtTime(scaledVol, startTime);
   gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
 
   src.connect(filter);
@@ -60,17 +71,16 @@ function noiseBurst(startTime: number, filterFreq: number, vol: number, dur: num
 }
 
 export function playStep() {
-  if (muted) return;
   const t = ac().currentTime;
   footToggle = !footToggle;
   const side = footToggle ? 1 : -1;
 
   // Sharp impact crack (noise burst)
-  noiseBurst(t, 420 + side * 60, 0.28, 0.055);
+  noiseBurst(t, 420 + side * 60, 0.36, 0.06);
   // Low bass thud
-  tone(footToggle ? 72 : 88, t, 0.09, 0.22, "sine");
+  tone(footToggle ? 72 : 88, t, 0.1, 0.3, "sine");
   // Subtle high tick click
-  noiseBurst(t, 2800, 0.09, 0.018);
+  noiseBurst(t, 2800, 0.14, 0.022);
 }
 
 export function playCorrect() {
@@ -110,6 +120,12 @@ export function playButton() {
   const t = ac().currentTime;
   tone(659.25, t, 0.05, 0.06, "square");
   tone(783.99, t + 0.04, 0.05, 0.045, "square");
+}
+
+export function playKeyClick() {
+  const t = ac().currentTime;
+  noiseBurst(t, 2600, 0.14, 0.02);
+  tone(1900, t, 0.026, 0.08, "square");
 }
 
 // ─── Background music ─────────────────────────────────────────────────────────
@@ -225,8 +241,8 @@ function tick() {
   const { melody, bass, melodyVol = 0.05, bassVol = 0.04,
           melodyType = "square", bassType = "triangle" } = currentPattern;
 
-  if (melody[step]) tone(melody[step], t, beat * 0.7, melodyVol, melodyType);
-  if (bass[step]) tone(bass[step], t, beat * 0.9, bassVol, bassType);
+  if (melody[step]) tone(melody[step], t, beat * 0.7, melodyVol, melodyType, "music");
+  if (bass[step]) tone(bass[step], t, beat * 0.9, bassVol, bassType, "music");
 
   step = (step + 1) % melody.length;
   bgTimer = setTimeout(tick, beat * 1000);

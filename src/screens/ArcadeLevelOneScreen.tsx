@@ -6,7 +6,7 @@ import {
   type TrailQuestion,
 } from "../game/levelOne";
 import { randomDino, type DinoSprite } from "../game/dinos";
-import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory, playGameComplete } from "../sound";
+import { playButton, playCorrect, playStep, playWrong, startMusic, shuffleMusic, switchToMonsterMusic, toggleMute, isMuted, playMonsterStart, playGoldenEgg, playMonsterVictory, playGameComplete, playKeyClick } from "../sound";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -94,6 +94,11 @@ function projectToTrail(config: TrailConfig, svgX: number, svgY: number, checkpo
     }
   }
   return bestKm;
+}
+
+function shouldFaceLeftForRoute(route: number[]) {
+  if (route.length < 2) return false;
+  return route[route.length - 1] < route[0];
 }
 
 const IS_DEV = import.meta.env.DEV;
@@ -188,8 +193,6 @@ function RexSprite({ dino, dinoColor, walking, facingLeft }: {
   return (
     <g style={{ transform: facingLeft ? "scaleX(-1)" : undefined }}>
       <g className={walking ? "dino-walk" : ""}>
-        {/* ground shadow */}
-        <ellipse cx={0} cy={6} rx={36} ry={9} fill="rgba(0,0,0,0.32)" />
         {/* icon centred at (0,0), scaled to ~100px, sitting just above y=0 */}
         <svg x={-50} y={-100} width={100} height={100} viewBox="0 0 512 512" overflow="visible">
           <path d={dino.path} fill={dinoColor} />
@@ -211,8 +214,9 @@ function StopMarker({
   showEndpointLetters?: boolean;
 }) {
   const r = active ? 30 : 24;
-  const hubGlyph =
-    !showEndpointLetters ? "●" : isFirst ? "S" : isLast ? "F" : "●";
+  const showDot =
+    !showEndpointLetters || (!isFirst && !isLast);
+  const hubGlyph = isFirst ? "S" : "F";
   return (
     <g>
       {active && <circle cx={stop.x} cy={stop.y} r={r + 14} fill={palette.accent} opacity={0.16} />}
@@ -222,9 +226,13 @@ function StopMarker({
         stroke={active ? palette.accent : "#475569"}
         strokeWidth={active ? 5 : 3}
       />
-      <text x={stop.x} y={stop.y + 8} textAnchor="middle" fontSize={r * 0.72} fontWeight="900" fill="white">
-        {hubGlyph}
-      </text>
+      {showDot ? (
+        <circle cx={stop.x} cy={stop.y} r={r * 0.18} fill="white" />
+      ) : (
+        <text x={stop.x} y={stop.y + 8} textAnchor="middle" fontSize={r * 0.72} fontWeight="900" fill="white">
+          {hubGlyph}
+        </text>
+      )}
       <text x={stop.x} y={stop.y + r + 22} textAnchor="middle" fontSize="21" fontWeight="800"
         fill={palette.text} stroke="rgba(0,0,0,0.8)" strokeWidth={3} paintOrder="stroke">
         {stop.label}
@@ -271,6 +279,7 @@ function NumericKeypad({
   }, [minimized]);
 
   function press(key: string) {
+    playKeyClick();
     if (key === "⌫") {
       onChange(value.slice(0, -1));
       return;
@@ -454,7 +463,11 @@ export default function ArcadeLevelOneScreen() {
       const map = mapContainerRef.current;
       if (!svg || !map) return;
       const p = svgUserToMapLocal(svg, map, token.x, token.y - 152);
-      if (p) setOdometerMapPos({ left: p.left, top: p.top - 12 });
+      if (p) {
+        const edgePad = 88;
+        const clampedLeft = clamp(p.left, edgePad, map.clientWidth - edgePad);
+        setOdometerMapPos({ left: clampedLeft, top: p.top - 12 });
+      }
     }
 
     commit();
@@ -474,13 +487,16 @@ export default function ArcadeLevelOneScreen() {
     setSoundMuted(isMuted());
     // Teleport dino to the first question's start stop on initial load
     const firstStartKm = getCheckpoints(run.config)[run.firstQ.route[0]];
+    setFacingLeft(shouldFaceLeftForRoute(run.firstQ.route));
     posKmRef.current = firstStartKm;
     minKmRef.current = firstStartKm;
     maxKmRef.current = firstStartKm;
-    lastStepRef.current = firstStartKm;
+    odometerRef.current = 0;
+    lastStepRef.current = -0.35;
     setPosKm(firstStartKm);
     setMinKm(firstStartKm);
     setMaxKm(firstStartKm);
+    setOdomKm(0);
   }, []);
 
   useEffect(() => {
@@ -506,12 +522,14 @@ export default function ArcadeLevelOneScreen() {
       if (digit) {
         e.preventDefault();
         next = val === "0" ? digit : `${val}${digit}`;
+        playKeyClick();
         handleKeypadChangeRef.current(next);
         return;
       }
 
       if (code === "Backspace" || k === "Backspace") {
         e.preventDefault();
+        playKeyClick();
         handleKeypadChangeRef.current(val.slice(0, -1));
         return;
       }
@@ -521,6 +539,7 @@ export default function ArcadeLevelOneScreen() {
         if (val.startsWith("-")) next = val.slice(1);
         else if (val !== "" && val !== "0") next = `-${val}`;
         else return;
+        playKeyClick();
         handleKeypadChangeRef.current(next);
         return;
       }
@@ -529,6 +548,7 @@ export default function ArcadeLevelOneScreen() {
         e.preventDefault();
         if (val.includes(".")) return;
         next = val === "" ? "0." : `${val}.`;
+        playKeyClick();
         handleKeypadChangeRef.current(next);
         return;
       }
@@ -537,6 +557,7 @@ export default function ArcadeLevelOneScreen() {
       if (/^[0-9]$/.test(k)) {
         e.preventDefault();
         next = val === "0" ? k : `${val}${k}`;
+        playKeyClick();
         handleKeypadChangeRef.current(next);
       }
     }
@@ -648,7 +669,7 @@ export default function ArcadeLevelOneScreen() {
     minKmRef.current = startKm;
     maxKmRef.current = startKm;
     odometerRef.current = 0;
-    lastStepRef.current = startKm;
+    lastStepRef.current = -0.35;
     setPosKm(startKm);
     setMinKm(startKm);
     setMaxKm(startKm);
@@ -662,7 +683,7 @@ export default function ArcadeLevelOneScreen() {
   function resetOdometer() {
     playButton();
     odometerRef.current = 0;
-    lastStepRef.current = posKmRef.current;
+    lastStepRef.current = -0.35;
     setOdomKm(0);
   }
 
@@ -675,7 +696,7 @@ export default function ArcadeLevelOneScreen() {
     playButton();
     setFlash(null);
     setDragging(false);
-    setFacingLeft(false);
+    setFacingLeft(shouldFaceLeftForRoute(currentQ.route));
     const startKm = getCheckpoints(config)[currentQ.route[0]];
     resetPosition(startKm);
   }
@@ -696,7 +717,7 @@ export default function ArcadeLevelOneScreen() {
     setGamePhase("normal");
     setFlash(null);
     setDragging(false);
-    setFacingLeft(false);
+    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     const firstStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(firstStartKm);
     setCalcRoundKey((k) => k + 1);
@@ -719,6 +740,7 @@ export default function ArcadeLevelOneScreen() {
       const next = createRun(level);
       setRun(next);
       setCurrentQ(next.firstQ);
+      setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
       resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     }
   }
@@ -737,6 +759,7 @@ export default function ArcadeLevelOneScreen() {
     const next = createRun(level);
     setRun(next);
     setCurrentQ(next.firstQ);
+    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     setSubAnswers(["", "", ""]);
     setSubStep(0);
     const startKm = getCheckpoints(next.config)[next.firstQ.route[0]];
@@ -769,6 +792,7 @@ export default function ArcadeLevelOneScreen() {
     const next = createRun(level);
     setRun(next);
     setCurrentQ(next.firstQ);
+    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     // Next Extinction Event question starts on final line only (until another miss).
     setExtinctionL3ShowSteps(false);
@@ -782,6 +806,7 @@ export default function ArcadeLevelOneScreen() {
     const next = createRun(level);
     setRun(next);
     setCurrentQ(next.firstQ);
+    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
@@ -808,6 +833,7 @@ export default function ArcadeLevelOneScreen() {
     const next = createRun(level);
     setRun(next);
     setCurrentQ(next.firstQ);
+    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     setExtinctionL3RecoveryMode(false);
   }
@@ -831,6 +857,7 @@ export default function ArcadeLevelOneScreen() {
       return;
     }
     setCurrentQ(nextQ);
+    setFacingLeft(shouldFaceLeftForRoute(nextQ.route));
     resetPosition(getCheckpoints(config)[nextQ.route[0]]);
     setExtinctionL3RecoveryMode(false);
   }
@@ -1482,7 +1509,7 @@ export default function ArcadeLevelOneScreen() {
             {flash.ok ? (
               /* ✓ green tick */
               <svg
-                viewBox="0 0 120 120" width="220" height="220"
+                viewBox="0 0 120 120" width="110" height="110"
                 style={{
                   position: "absolute", top: "38%", left: "50%",
                   animation: "icon-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards",
@@ -1498,7 +1525,7 @@ export default function ArcadeLevelOneScreen() {
             ) : (
               /* ✗ red cross */
               <svg
-                viewBox="0 0 120 120" width="220" height="220"
+                viewBox="0 0 120 120" width="110" height="110"
                 style={{
                   position: "absolute", top: "38%", left: "50%",
                   animation: "icon-pop-wrong 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards",
