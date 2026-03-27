@@ -3,7 +3,9 @@
   "name": "Trail Distances",
   "short_name": "Trail Calc",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0d1b35",
   "theme_color": "#0d1b35",
   "icons": [
