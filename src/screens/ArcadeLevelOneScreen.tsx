@@ -263,6 +263,7 @@ function NumericKeypad({
   canSubmit,
   roundKey,
   defaultMinimized = false,
+  onToggleMinimized,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -270,8 +271,11 @@ function NumericKeypad({
   canSubmit: boolean;
   roundKey?: number;
   defaultMinimized?: boolean;
+  toggleRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [minimized, setMinimized] = useState(defaultMinimized);
+  const toggleMinimized = () => setMinimized((m) => !m);
+  if (toggleRef) toggleRef.current = toggleMinimized;
   const defaultMinimizedRef = useRef(defaultMinimized);
   defaultMinimizedRef.current = defaultMinimized;
 
@@ -318,7 +322,7 @@ function NumericKeypad({
     >
       <div
         className="rounded-lg px-3.5 flex h-14 md:h-12 shrink-0 items-center justify-end overflow-hidden cursor-pointer"
-        onClick={() => setMinimized((m) => !m)}
+        onClick={toggleMinimized}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
           fontWeight: 700,
@@ -407,10 +411,15 @@ export default function ArcadeLevelOneScreen() {
 
   const isMobileLandscape = useIsMobileLandscape();
   const isMobileLandscapeRef = useRef(isMobileLandscape);
+  const keypadToggleRef = useRef<(() => void) | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const leftControlsRef = useRef<HTMLDivElement>(null);
+  const centerControlsRef = useRef<HTMLDivElement>(null);
   const [odometerMapPos, setOdometerMapPos] = useState<{ left: number; top: number; anchor: 'above' | 'right' | 'left' } | null>(null);
+  const [mobileLandscapeOdometerPos, setMobileLandscapeOdometerPos] = useState<{ left: number; top: number } | null>(null);
   const draggingRef = useRef(false);
   const walkTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
@@ -502,6 +511,43 @@ export default function ArcadeLevelOneScreen() {
       window.removeEventListener("resize", commit);
     };
   }, [token.x, token.y, tightViewBox]);
+
+  useLayoutEffect(() => {
+    if (!isMobileLandscape) {
+      setMobileLandscapeOdometerPos(null);
+      return;
+    }
+
+    const topBar = topBarRef.current;
+    const leftControls = leftControlsRef.current;
+    const centerControls = centerControlsRef.current;
+    if (!topBar || !leftControls || !centerControls) return;
+
+    function commit() {
+      if (!topBar || !leftControls || !centerControls) return;
+      const barRect = topBar.getBoundingClientRect();
+      const leftRect = leftControls.getBoundingClientRect();
+      const centerRect = centerControls.getBoundingClientRect();
+      const gapLeft = leftRect.right - barRect.left;
+      const gapRight = centerRect.left - barRect.left;
+      const left = gapLeft + Math.max(0, gapRight - gapLeft) / 2;
+      const top = leftRect.top - barRect.top + leftRect.height / 2 + 6;
+      setMobileLandscapeOdometerPos({ left, top });
+    }
+
+    commit();
+    const raf = requestAnimationFrame(commit);
+    const ro = new ResizeObserver(commit);
+    ro.observe(topBar);
+    ro.observe(leftControls);
+    ro.observe(centerControls);
+    window.addEventListener("resize", commit);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", commit);
+    };
+  }, [isMobileLandscape, screen, gamePhase, showMonsterAnnounce, currentQ.totalGiven, odomKm]);
 
   useEffect(() => {
     startMusic();
@@ -1005,13 +1051,14 @@ export default function ArcadeLevelOneScreen() {
 
       {/* ── top bar ── */}
       <div
+        ref={topBarRef}
         className={`absolute left-0 right-0 top-0 ${isMobileLandscape ? 'z-[45]' : 'z-20'} flex items-start px-3 md:px-5`}
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
       >
 
         {/* Left icon buttons — match shell home: w-10 h-10, arcade-button, p-2, SVG w-full h-full
             Mobile: flex-col below shell home; Desktop: flex-row, tight gap after 40px home */}
-        <div className="flex flex-col md:flex-row gap-1 mt-[76px] md:mt-0 md:ml-[42px] shrink-0">
+        <div ref={leftControlsRef} className="flex flex-col md:flex-row gap-1 mt-[76px] md:mt-0 md:ml-[42px] shrink-0">
           <button
             onClick={resetCurrentQuestion}
             title="Reset"
@@ -1048,14 +1095,18 @@ export default function ArcadeLevelOneScreen() {
         </div>
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
-        {isMobileLandscape && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce && (
-          <div className="flex-1 flex items-center justify-center mt-[76px] md:mt-1">
+        {isMobileLandscape && mobileLandscapeOdometerPos && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce && (
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); resetOdometer(); }}
             title="Tap to reset"
-            className="arcade-meter shrink-0 w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95"
+            className="arcade-meter absolute z-[46] w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95"
+            style={{
+              left: mobileLandscapeOdometerPos.left,
+              top: mobileLandscapeOdometerPos.top,
+              transform: "translate(-50%, -50%)",
+            }}
           >
             {currentQ.totalGiven != null ? (
               <>
@@ -1076,11 +1127,10 @@ export default function ArcadeLevelOneScreen() {
               </div>
             )}
           </button>
-          </div>
         )}
 
         {/* Center: levels + eggs */}
-        <div className={isMobileLandscape ? "absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pt-1" : "flex-1 flex flex-col items-center gap-1.5 pt-1"}>
+        <div ref={centerControlsRef} className={isMobileLandscape ? "absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pt-1" : "flex-1 flex flex-col items-center gap-1.5 pt-1"}>
           <div className="flex items-center gap-1.5">
             {([1, 2, 3] as const).map((lv) => {
               // Lit up if: dev mode, already playing this level or lower, or unlocked via progression
@@ -1492,7 +1542,7 @@ export default function ArcadeLevelOneScreen() {
           {currentQ.promptLines && currentQ.subAnswers ? (
             l3ExtinctionSingleLineOnly ? (
               /* ── Level 3 Extinction Event: final prompt only until first wrong ── */
-              <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white">
+              <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white cursor-pointer" onClick={() => keypadToggleRef.current?.()}>
                 <ColoredPrompt text={currentQ.promptLines[2]} stopLabels={stopLabels} />
                 {IS_DEV && currentQ.subAnswers && (
                   <span className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
@@ -1503,7 +1553,7 @@ export default function ArcadeLevelOneScreen() {
               </div>
             ) : (
             /* ── Level 3: stepped one-at-a-time ── */
-            <div className="arcade-panel flex min-h-0 min-w-0 flex-col gap-2 px-4 py-2.5">
+            <div className="arcade-panel flex min-h-0 min-w-0 flex-col gap-2 px-4 py-2.5 cursor-pointer" onClick={() => keypadToggleRef.current?.()}>
               {currentQ.promptLines.map((line, i) => {
                 const isDone    = i < subStep;
                 const isCurrent = i === subStep;
@@ -1543,7 +1593,7 @@ export default function ArcadeLevelOneScreen() {
             )
           ) : (
             /* ── Level 1 / 2: single row ── */
-            <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white">
+            <div className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white cursor-pointer" onClick={() => keypadToggleRef.current?.()}>
               <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
               {IS_DEV && (
                 <span className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
@@ -1561,6 +1611,7 @@ export default function ArcadeLevelOneScreen() {
               canSubmit={canKeypadSubmit}
               roundKey={calcRoundKey}
               defaultMinimized={isMobileLandscape}
+              toggleRef={keypadToggleRef}
             />
           </div>
         </div>
