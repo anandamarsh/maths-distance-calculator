@@ -970,7 +970,7 @@ export default function ArcadeLevelOneScreen() {
 
   const pal = config.palette;
   const phaseBg = PHASE_BG[`${level}-${gamePhase}`] ?? { bg: pal.bg, glow: pal.bgGlow, tint: "transparent" };
-  const edgeLabelFontSize = isMobileLandscape ? 40 : 27;
+  const edgeLabelFontSize = isMobileLandscape ? 26 : 27; // 1.25 × station name font (21)
   const isSocialDrawerOpen = showShareDrawer || showCommentsDrawer;
   const l3KeypadIndex =
     currentQ.promptLines && currentQ.subAnswers
