@@ -38,6 +38,20 @@ function svgUserToMapLocal(svg: SVGSVGElement, mapEl: HTMLElement, x: number, y:
   return { left: screen.x - mr.left, top: screen.y - mr.top };
 }
 
+function useIsMobileLandscape() {
+  const [is, setIs] = useState(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: none) and (pointer: coarse) and (orientation: landscape)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse) and (orientation: landscape)");
+    const handler = (e: MediaQueryListEvent) => setIs(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return is;
+}
+
 // ─── Trail geometry ───────────────────────────────────────────────────────────
 
 function clamp(v: number, lo: number, hi: number) {
@@ -248,17 +262,21 @@ function NumericKeypad({
   onSubmit,
   canSubmit,
   roundKey,
+  defaultMinimized = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   canSubmit: boolean;
   roundKey?: number;
+  defaultMinimized?: boolean;
 }) {
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(defaultMinimized);
+  const defaultMinimizedRef = useRef(defaultMinimized);
+  defaultMinimizedRef.current = defaultMinimized;
 
   useEffect(() => {
-    setMinimized(false);
+    setMinimized(defaultMinimizedRef.current);
   }, [roundKey]);
 
   function press(key: string) {
@@ -387,9 +405,14 @@ export default function ArcadeLevelOneScreen() {
   const [extinctionL3RecoveryMode, setExtinctionL3RecoveryMode] = useState(false);
   const [calcRoundKey, setCalcRoundKey] = useState(0);
 
+  const isMobileLandscape = useIsMobileLandscape();
+  const isMobileLandscapeRef = useRef(isMobileLandscape);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [odometerMapPos, setOdometerMapPos] = useState<{ left: number; top: number } | null>(null);
+  const bottomBarRef = useRef<HTMLDivElement>(null);
+  const [bottomBarHeight, setBottomBarHeight] = useState(86);
+  const [odometerMapPos, setOdometerMapPos] = useState<{ left: number; top: number; anchor: 'above' | 'right' | 'left' } | null>(null);
   const draggingRef = useRef(false);
   const walkTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
@@ -416,6 +439,7 @@ export default function ArcadeLevelOneScreen() {
   // Keep stable refs in sync with every render so window listeners stay current.
   configRef.current = config;
   checkpointsRef.current = checkpoints;
+  isMobileLandscapeRef.current = isMobileLandscape;
   const token = posAtKm(config, posKm, checkpoints);
   const routeStops = new Set(currentQ.route.map((i) => config.stops[i].id));
   const stopLabels = useMemo(() => config.stops.map((s) => s.label), [config.id]);
@@ -446,11 +470,33 @@ export default function ArcadeLevelOneScreen() {
       const svg = svgRef.current;
       const map = mapContainerRef.current;
       if (!svg || !map) return;
-      const p = svgUserToMapLocal(svg, map, token.x, token.y - 152);
-      if (p) {
+      // pAbove: anchor point used when odometer floats above the dino
+      const pAbove = svgUserToMapLocal(svg, map, token.x, token.y - 152);
+      if (!pAbove) return;
+
+      if (!isMobileLandscapeRef.current) {
         const edgePad = 88;
-        const clampedLeft = clamp(p.left, edgePad, map.clientWidth - edgePad);
-        setOdometerMapPos({ left: clampedLeft, top: p.top - 12 });
+        const clampedLeft = clamp(pAbove.left, edgePad, map.clientWidth - edgePad);
+        setOdometerMapPos({ left: clampedLeft, top: pAbove.top - 12, anchor: 'above' });
+        return;
+      }
+
+      // Mobile landscape: compute dino x fraction to pick anchor zone
+      const pBase   = svgUserToMapLocal(svg, map, token.x, token.y);         // dino foot
+      const pCenter = svgUserToMapLocal(svg, map, token.x, token.y - 94);    // dino vertical centre
+      if (!pBase || !pCenter) return;
+
+      const frac = pBase.left / map.clientWidth;
+      let anchor: 'above' | 'right' | 'left' = 'above';
+      if (frac < 0.20) anchor = 'right';
+      else if (frac > 0.80) anchor = 'left';
+
+      if (anchor === 'above') {
+        const edgePad = 88;
+        const clampedLeft = clamp(pAbove.left, edgePad, map.clientWidth - edgePad);
+        setOdometerMapPos({ left: clampedLeft, top: pAbove.top - 12, anchor: 'above' });
+      } else {
+        setOdometerMapPos({ left: pCenter.left, top: pCenter.top, anchor });
       }
     }
 
@@ -465,6 +511,16 @@ export default function ArcadeLevelOneScreen() {
       window.removeEventListener("resize", commit);
     };
   }, [token.x, token.y, tightViewBox]);
+
+  // Track bottom bar height so the map can dynamically avoid overlapping it on mobile landscape.
+  useLayoutEffect(() => {
+    const el = bottomBarRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBottomBarHeight(el.offsetHeight));
+    ro.observe(el);
+    setBottomBarHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     startMusic();
@@ -933,6 +989,7 @@ export default function ArcadeLevelOneScreen() {
 
   const pal = config.palette;
   const phaseBg = PHASE_BG[`${level}-${gamePhase}`] ?? { bg: pal.bg, glow: pal.bgGlow, tint: "transparent" };
+  const edgeLabelFontSize = isMobileLandscape ? 40 : 27;
   const isSocialDrawerOpen = showShareDrawer || showCommentsDrawer;
   const l3KeypadIndex =
     currentQ.promptLines && currentQ.subAnswers
@@ -1133,6 +1190,7 @@ export default function ArcadeLevelOneScreen() {
       <div
         ref={mapContainerRef}
         className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
+        style={isMobileLandscape ? { bottom: bottomBarHeight } : undefined}
         onClick={() => setTopPanel("map")}
       >
         <svg
@@ -1202,7 +1260,7 @@ export default function ArcadeLevelOneScreen() {
                   strokeDasharray="18 14" strokeLinecap="round" />
                 {/* distance label — sits above track for normal edges */}
                 {!isHidden && (
-                  <text x={mx} y={my} textAnchor="middle" fontSize="27" fontWeight="900"
+                  <text x={mx} y={my} textAnchor="middle" fontSize={edgeLabelFontSize} fontWeight="900"
                     fill={pal.text}
                     stroke="rgba(0,0,0,0.8)" strokeWidth={4} paintOrder="stroke">
                     {`${edge.distance.toFixed(1)} ${config.unit}`}
@@ -1290,7 +1348,10 @@ export default function ArcadeLevelOneScreen() {
                 style={{
                   left: odometerMapPos.left,
                   top: odometerMapPos.top,
-                  transform: "translate(-50%, -100%)",
+                  transform:
+                    odometerMapPos.anchor === 'right' ? 'translate(16px, -50%)' :
+                    odometerMapPos.anchor === 'left'  ? 'translate(calc(-100% - 16px), -50%)' :
+                    'translate(-50%, -100%)',
                 }}
               >
                 {currentQ.totalGiven != null ? (
@@ -1334,6 +1395,7 @@ export default function ArcadeLevelOneScreen() {
 
       {/* ── bottom bar ── */}
       <div
+        ref={bottomBarRef}
         className={`absolute bottom-0 left-0 right-0 px-3 pb-3 md:px-5 md:pb-4 z-50`}
         onClick={() => setTopPanel("question")}
       >
@@ -1485,6 +1547,7 @@ export default function ArcadeLevelOneScreen() {
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
               roundKey={calcRoundKey}
+              defaultMinimized={isMobileLandscape}
             />
           </div>
         </div>
