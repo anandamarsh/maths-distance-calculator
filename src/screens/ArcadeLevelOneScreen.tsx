@@ -90,12 +90,12 @@ function useIsSmallMobileLandscape() {
     () =>
       typeof window !== "undefined" &&
       window.matchMedia(
-        "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 740px)",
+        "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 430px)",
       ).matches,
   );
   useEffect(() => {
     const mq = window.matchMedia(
-      "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 740px)",
+      "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 430px)",
     );
     const handler = (e: MediaQueryListEvent) => setIs(e.matches);
     mq.addEventListener("change", handler);
