@@ -103,11 +103,9 @@ This is a single-screen, drag-based maths arcade game. A dinosaur character live
 | Tailwind CSS v4 (via `@tailwindcss/vite`) | Utility-first styling |
 | Web Audio API | All music and sound effects — no audio files |
 | SVG | Map, dino sprite, eggs, feedback icons, comparison widget |
-| GitHub Actions | Auto-deploy to GitHub Pages on push to `main` |
 
 **Vite config:**
 - Dev base: `/`
-- Prod base: `/maths-distance-calculator/` (GitHub Pages sub-path)
 - Dev server always on port 4001; kills any existing process first via `lsof -ti :4001 | xargs kill -9` in the `dev` npm script.
 
 ---
@@ -131,7 +129,6 @@ public/
   dseg/fonts/DSEG7-Classic/    — Digital clock font (woff/woff2)
 index.html                     — HTML entry point
 vite.config.ts                 — Vite configuration
-.github/workflows/deploy.yml   — GitHub Actions CI/CD
 ```
 
 There is **one screen** — `ArcadeLevelOneScreen.tsx`. All three levels, the Monster Round, and the game-over state are managed inside this single component.
@@ -870,17 +867,6 @@ npm run build
 # runs: tsc -b && vite build
 # output: dist/ with hashed asset filenames
 ```
-
-### GitHub Actions (`.github/workflows/deploy.yml`)
-
-Triggers on every push to `main`:
-1. Checkout repo
-2. Install Node 20
-3. `npm ci`
-4. `npm run build`
-5. Deploy `./dist` to the `gh-pages` branch via `peaceiris/actions-gh-pages@v4`
-
-The GitHub Pages site is served from the `gh-pages` branch. The `vercel.json` file adds permissive iframe headers for embedding.
 
 ---
 
