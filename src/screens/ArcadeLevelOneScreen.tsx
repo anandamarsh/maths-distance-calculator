@@ -415,6 +415,12 @@ function NumericKeypad({
     setMinimized(defaultMinimizedRef.current);
   }, [roundKey]);
 
+  useEffect(() => {
+    if (defaultMinimized) {
+      setMinimized(true);
+    }
+  }, [defaultMinimized]);
+
   function press(key: string) {
     playKeyClick();
     if (key === "⌫") {
@@ -2277,7 +2283,7 @@ export default function ArcadeLevelOneScreen() {
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
               roundKey={calcRoundKey}
-              defaultMinimized={isMobileLandscape}
+              defaultMinimized={true}
               toggleRef={keypadToggleRef}
               minimizeRef={keypadMinimizeRef}
             />
