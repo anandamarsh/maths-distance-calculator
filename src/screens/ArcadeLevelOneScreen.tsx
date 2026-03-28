@@ -1329,7 +1329,7 @@ export default function ArcadeLevelOneScreen() {
           className="flex flex-row gap-1 mt-0 md:ml-[34px] shrink-0"
           style={
             isSmallMobileLandscape
-              ? { marginLeft: "calc(env(safe-area-inset-left) + 42px)" }
+              ? { marginLeft: "58px" }
               : undefined
           }
         >
