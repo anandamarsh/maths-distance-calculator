@@ -85,6 +85,25 @@ function useIsMobileLandscape() {
   return is;
 }
 
+function useIsSmallMobileLandscape() {
+  const [is, setIs] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia(
+        "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 740px)",
+      ).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(
+      "(hover: none) and (pointer: coarse) and (orientation: landscape) and (max-width: 740px)",
+    );
+    const handler = (e: MediaQueryListEvent) => setIs(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return is;
+}
+
 // ─── Trail geometry ───────────────────────────────────────────────────────────
 
 function clamp(v: number, lo: number, hi: number) {
@@ -551,6 +570,7 @@ export default function ArcadeLevelOneScreen() {
   const [calcRoundKey, setCalcRoundKey] = useState(0);
 
   const isMobileLandscape = useIsMobileLandscape();
+  const isSmallMobileLandscape = useIsSmallMobileLandscape();
   const isMobileLandscapeRef = useRef(isMobileLandscape);
   const keypadToggleRef = useRef<(() => void) | null>(null);
 
@@ -559,6 +579,7 @@ export default function ArcadeLevelOneScreen() {
   const topBarRef = useRef<HTMLDivElement>(null);
   const leftControlsRef = useRef<HTMLDivElement>(null);
   const centerControlsRef = useRef<HTMLDivElement>(null);
+  const rightControlsRef = useRef<HTMLDivElement>(null);
   const [odometerMapPos, setOdometerMapPos] = useState<{
     left: number;
     top: number;
@@ -679,19 +700,19 @@ export default function ArcadeLevelOneScreen() {
     }
 
     const topBar = topBarRef.current;
-    const leftControls = leftControlsRef.current;
     const centerControls = centerControlsRef.current;
-    if (!topBar || !leftControls || !centerControls) return;
+    const rightControls = rightControlsRef.current;
+    if (!topBar || !centerControls || !rightControls) return;
 
     function commit() {
-      if (!topBar || !leftControls || !centerControls) return;
+      if (!topBar || !centerControls || !rightControls) return;
       const barRect = topBar.getBoundingClientRect();
-      const leftRect = leftControls.getBoundingClientRect();
       const centerRect = centerControls.getBoundingClientRect();
-      const gapLeft = leftRect.right - barRect.left;
-      const gapRight = centerRect.left - barRect.left;
+      const rightRect = rightControls.getBoundingClientRect();
+      const gapLeft = centerRect.right - barRect.left;
+      const gapRight = rightRect.left - barRect.left;
       const left = gapLeft + Math.max(0, gapRight - gapLeft) / 2;
-      const top = leftRect.top - barRect.top + leftRect.height / 2 + 6;
+      const top = rightRect.top - barRect.top + rightRect.height / 2 + 6;
       setMobileLandscapeOdometerPos({ left, top });
     }
 
@@ -699,8 +720,8 @@ export default function ArcadeLevelOneScreen() {
     const raf = requestAnimationFrame(commit);
     const ro = new ResizeObserver(commit);
     ro.observe(topBar);
-    ro.observe(leftControls);
     ro.observe(centerControls);
+    ro.observe(rightControls);
     window.addEventListener("resize", commit);
     return () => {
       cancelAnimationFrame(raf);
@@ -958,16 +979,21 @@ export default function ArcadeLevelOneScreen() {
       url: "https://interactive-maths.vercel.app/",
     };
     const looksMobileOrPwa =
-      window.matchMedia?.("(display-mode: standalone)").matches
-      || !!nav.standalone
-      || navigator.maxTouchPoints > 0;
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      !!nav.standalone ||
+      navigator.maxTouchPoints > 0;
 
-    if (looksMobileOrPwa && typeof nav.share === "function" && (!nav.canShare || nav.canShare(shareData))) {
+    if (
+      looksMobileOrPwa &&
+      typeof nav.share === "function" &&
+      (!nav.canShare || nav.canShare(shareData))
+    ) {
       try {
         await nav.share(shareData);
         return;
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
       }
     }
 
@@ -1297,11 +1323,15 @@ export default function ArcadeLevelOneScreen() {
         className={`absolute left-0 right-0 top-0 ${isMobileLandscape ? "z-[45]" : "z-20"} flex items-start px-3 md:px-5`}
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
       >
-        {/* Left icon buttons — match shell home: w-10 h-10, arcade-button, p-2, SVG w-full h-full
-            Mobile: flex-col below shell home; Desktop: flex-row, tight gap after 40px home */}
+        {/* Left icon buttons — keep these horizontal so small iPhones match the newer top-row layout. */}
         <div
           ref={leftControlsRef}
-          className="flex flex-col md:flex-row gap-1 mt-[76px] md:mt-0 md:ml-[34px] shrink-0"
+          className="flex flex-row gap-1 mt-0 md:ml-[34px] shrink-0"
+          style={
+            isSmallMobileLandscape
+              ? { marginLeft: "calc(env(safe-area-inset-left) + 42px)" }
+              : undefined
+          }
         >
           <button
             onClick={resetCurrentQuestion}
@@ -2276,7 +2306,7 @@ export default function ArcadeLevelOneScreen() {
         </div>
       )}
 
-      <div className="social-launchers">
+      <div ref={rightControlsRef} className="social-launchers">
         <button
           type="button"
           onClick={toggleShareDrawer}
