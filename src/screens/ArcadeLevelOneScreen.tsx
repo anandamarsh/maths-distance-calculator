@@ -393,6 +393,7 @@ function NumericKeypad({
   roundKey,
   defaultMinimized = false,
   toggleRef,
+  minimizeRef,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -401,10 +402,12 @@ function NumericKeypad({
   roundKey?: number;
   defaultMinimized?: boolean;
   toggleRef?: React.MutableRefObject<(() => void) | null>;
+  minimizeRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [minimized, setMinimized] = useState(defaultMinimized);
   const toggleMinimized = () => setMinimized((m) => !m);
   if (toggleRef) toggleRef.current = toggleMinimized;
+  if (minimizeRef) minimizeRef.current = () => setMinimized(true);
   const defaultMinimizedRef = useRef(defaultMinimized);
   defaultMinimizedRef.current = defaultMinimized;
 
@@ -573,6 +576,7 @@ export default function ArcadeLevelOneScreen() {
   const isSmallMobileLandscape = useIsSmallMobileLandscape();
   const isMobileLandscapeRef = useRef(isMobileLandscape);
   const keypadToggleRef = useRef<(() => void) | null>(null);
+  const keypadMinimizeRef = useRef<(() => void) | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -1125,6 +1129,7 @@ export default function ArcadeLevelOneScreen() {
     // Next Extinction Event question starts on final line only (until another miss).
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
+    setCalcRoundKey((k) => k + 1);
   }
 
   function advanceMonsterQuestionWithoutEgg() {
@@ -1138,6 +1143,7 @@ export default function ArcadeLevelOneScreen() {
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
+    setCalcRoundKey((k) => k + 1);
   }
 
   function showFlash(text: string, ok: boolean) {
@@ -1164,6 +1170,7 @@ export default function ArcadeLevelOneScreen() {
     setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
     setExtinctionL3RecoveryMode(false);
+    setCalcRoundKey((k) => k + 1);
   }
 
   function loseEgg() {
@@ -1200,6 +1207,7 @@ export default function ArcadeLevelOneScreen() {
           showFlash("Enter a number!", false);
           return;
         }
+        if (isMobileLandscape) keypadMinimizeRef.current?.();
         const ok = Math.abs(g - currentQ.subAnswers[2]) < 0.11;
         if (ok) {
           playCorrect();
@@ -1215,6 +1223,7 @@ export default function ArcadeLevelOneScreen() {
         showFlash("Enter a number!", false);
         return;
       }
+      if (isMobileLandscape) keypadMinimizeRef.current?.();
       const ok = Math.abs(g - currentQ.subAnswers[subStep]) < 0.11;
 
       if (subStep < 2) {
@@ -1252,6 +1261,7 @@ export default function ArcadeLevelOneScreen() {
       showFlash("Type a number!", false);
       return;
     }
+    if (isMobileLandscape) keypadMinimizeRef.current?.();
     const correct = Math.abs(guess - currentQ.answer) < 0.11;
     if (correct) {
       playCorrect();
@@ -2267,8 +2277,9 @@ export default function ArcadeLevelOneScreen() {
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
               roundKey={calcRoundKey}
-              defaultMinimized={true}
+              defaultMinimized={isMobileLandscape}
               toggleRef={keypadToggleRef}
+              minimizeRef={keypadMinimizeRef}
             />
           </div>
         </div>
