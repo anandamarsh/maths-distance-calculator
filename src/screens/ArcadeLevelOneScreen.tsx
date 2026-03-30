@@ -574,7 +574,7 @@ function NumericKeypad({
             style={{
               animation: "keypad-display-finger-fade 2.4s ease-in-out infinite",
               transform: showCenteredDisplayHint
-                ? `translate(${-centeredDisplayFingerTipX}px, calc(${-centeredDisplayFingerTipY}px - 20px))`
+                ? `translate(${ -centeredDisplayFingerTipX }px, ${ isCoarsePointer ? `calc(${-centeredDisplayFingerTipY}px - 20px)` : `${-centeredDisplayFingerTipY}px` })`
                 : undefined,
             }}
           >
@@ -1823,6 +1823,29 @@ export default function ArcadeLevelOneScreen() {
               )}
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={handleCaptureQuestion}
+            title="Capture scene"
+            aria-label="Capture scene"
+            className="arcade-button w-10 h-10 flex items-center justify-center p-2"
+            style={{
+              background: "linear-gradient(180deg,#0f766e,#115e59)",
+              boxShadow: "0 5px 0 #0f3f3b",
+              borderColor: "#5eead4",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+              <path
+                d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
+                stroke="white"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="12.5" r="3.25" stroke="white" strokeWidth="1.9" />
+            </svg>
+          </button>
         </div>
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
@@ -2842,33 +2865,6 @@ export default function ArcadeLevelOneScreen() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-          </svg>
-          </button>
-          <button
-            type="button"
-            onClick={handleCaptureQuestion}
-            className="social-launcher arcade-button"
-            aria-label="Capture question"
-            title="Capture question"
-            style={{
-              background: "linear-gradient(180deg,#0f766e,#115e59)",
-              borderColor: "#5eead4",
-            }}
-          >
-          <svg
-            viewBox="0 0 24 24"
-            className="social-launcher-icon"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="12" cy="12.5" r="3.25" stroke="currentColor" strokeWidth="1.9" />
           </svg>
           </button>
         </div>
