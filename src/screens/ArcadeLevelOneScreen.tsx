@@ -1828,7 +1828,7 @@ export default function ArcadeLevelOneScreen() {
             onClick={handleCaptureQuestion}
             title="Capture scene"
             aria-label="Capture scene"
-            className="arcade-button w-10 h-10 flex items-center justify-center p-2"
+            className="social-launcher arcade-button"
           >
             <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
               <path
