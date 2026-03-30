@@ -148,7 +148,8 @@ body {
 }
 
 .dino-walk {
-  animation: none;
+  animation: walk-bob 0.42s ease-in-out infinite;
+  transform-origin: center;
 }
 
 @keyframes dino-drag-ghost {
@@ -171,6 +172,15 @@ body {
   100% {
     transform: translate(var(--drag-dx, 24px), var(--drag-dy, 0px));
     opacity: 0;
+  }
+}
+
+@keyframes keypad-display-finger-fade {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
@@ -371,6 +381,9 @@ body {
   .social-launchers {
     top: calc(env(safe-area-inset-top) + 0.5rem);
     right: 0.4rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
   }
 }
 

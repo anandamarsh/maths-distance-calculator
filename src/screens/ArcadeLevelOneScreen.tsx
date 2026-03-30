@@ -1208,6 +1208,115 @@ export default function ArcadeLevelOneScreen() {
     setShowCommentsDrawer(false);
   }
 
+  async function handleCaptureQuestion() {
+    const svg = svgRef.current;
+    const map = mapContainerRef.current;
+    if (!svg || !map) {
+      showFlash("Capture failed", false);
+      return;
+    }
+
+    try {
+      const rect = map.getBoundingClientRect();
+      const width = Math.max(1, Math.ceil(rect.width));
+      const height = Math.max(1, Math.ceil(rect.height));
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+      clone.setAttribute("width", String(width));
+      clone.setAttribute("height", String(height));
+      clone.setAttribute("viewBox", tightViewBox);
+
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("x", String(vbX));
+      bg.setAttribute("y", String(vbY));
+      bg.setAttribute("width", String(vbW));
+      bg.setAttribute("height", String(vbH));
+      bg.setAttribute("fill", phaseBg.bg);
+      clone.insertBefore(bg, clone.firstChild);
+
+      const svgText = new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([svgText], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+
+      const img = new Image();
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        img.onload = () => {
+          const scale = 2;
+          const canvas = document.createElement("canvas");
+          canvas.width = width * scale;
+          canvas.height = height * scale;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Canvas context unavailable"));
+            return;
+          }
+          ctx.setTransform(scale, 0, 0, scale, 0, 0);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blobOut) => {
+            if (!blobOut) {
+              reject(new Error("Unable to encode PNG"));
+              return;
+            }
+            resolve(blobOut);
+          }, "image/png");
+        };
+        img.onerror = () => reject(new Error("Unable to render scene snapshot"));
+        img.src = url;
+      });
+      URL.revokeObjectURL(url);
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `distance-scene-${stamp}.png`;
+      const nav = navigator as Navigator & {
+        share?: (data: ShareData) => Promise<void>;
+        canShare?: (data?: ShareData) => boolean;
+        standalone?: boolean;
+      };
+      const file = new File([pngBlob], fileName, { type: "image/png" });
+      const shareData: ShareData = {
+        files: [file],
+        title: "Distance Calculator scene",
+        text: "Save or share this Distance Calculator scene.",
+      };
+      const looksMobileOrPwa =
+        window.matchMedia?.("(display-mode: standalone)").matches ||
+        !!nav.standalone ||
+        navigator.maxTouchPoints > 0;
+
+      if (
+        looksMobileOrPwa &&
+        typeof nav.share === "function" &&
+        (!nav.canShare || nav.canShare(shareData))
+      ) {
+        try {
+          await nav.share(shareData);
+          showFlash("Image ready to share", true);
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+        }
+      }
+
+      const pngUrl = URL.createObjectURL(pngBlob);
+      const link = document.createElement("a");
+      link.href = pngUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(pngUrl);
+      showFlash("Scene captured", true);
+    } catch (error) {
+      console.error("Scene capture failed", error);
+      showFlash("Capture failed", false);
+    }
+  }
+
   function resetCurrentQuestion() {
     playButton();
     setFlash(null);
@@ -2683,6 +2792,33 @@ export default function ArcadeLevelOneScreen() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+          </svg>
+          </button>
+          <button
+            type="button"
+            onClick={handleCaptureQuestion}
+            className="social-launcher arcade-button"
+            aria-label="Capture question"
+            title="Capture question"
+            style={{
+              background: "linear-gradient(180deg,#0f766e,#115e59)",
+              borderColor: "#5eead4",
+            }}
+          >
+          <svg
+            viewBox="0 0 24 24"
+            className="social-launcher-icon"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="12" cy="12.5" r="3.25" stroke="currentColor" strokeWidth="1.9" />
           </svg>
           </button>
         </div>
