@@ -1829,11 +1829,6 @@ export default function ArcadeLevelOneScreen() {
             title="Capture scene"
             aria-label="Capture scene"
             className="arcade-button w-10 h-10 flex items-center justify-center p-2"
-            style={{
-              background: "linear-gradient(180deg,#0f766e,#115e59)",
-              boxShadow: "0 5px 0 #0f3f3b",
-              borderColor: "#5eead4",
-            }}
           >
             <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
               <path
