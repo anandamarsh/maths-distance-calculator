@@ -413,6 +413,7 @@ function NumericKeypad({
   toggleRef,
   minimizeRef,
   onMinimizedChange,
+  displayHintVariant = "default",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -425,6 +426,7 @@ function NumericKeypad({
   toggleRef?: React.MutableRefObject<(() => void) | null>;
   minimizeRef?: React.MutableRefObject<(() => void) | null>;
   onMinimizedChange?: (minimized: boolean) => void;
+  displayHintVariant?: "default" | "display-center";
 }) {
   const isCoarsePointer = useIsCoarsePointer();
   const [minimized, setMinimized] = useState(defaultMinimized);
@@ -510,10 +512,19 @@ function NumericKeypad({
     borderColor: "#67e8f9",
     boxShadow: "0 0 16px rgba(103,232,249,0.45)",
   } satisfies React.CSSProperties;
-  const displayHandWidth = isCoarsePointer ? 60 : 90;
-  const displayHandHeight = isCoarsePointer ? 72 : 108;
-  const showDisplayHandOnDisplay = showDisplayHint && isCoarsePointer;
-  const showDisplayHandOnKeypad = showDisplayHint && !isCoarsePointer;
+  const defaultDisplayHandWidth = isCoarsePointer ? 60 : 90;
+  const defaultDisplayHandHeight = isCoarsePointer ? 72 : 108;
+  const centeredDisplayHandWidth = isCoarsePointer ? 70 : 53;
+  const centeredDisplayHandHeight = isCoarsePointer ? 86 : 65;
+  const centeredDisplayFingerTipX = centeredDisplayHandWidth * (30.53 / 80);
+  const centeredDisplayFingerTipY = centeredDisplayHandHeight * (14.4 / 100);
+  const showCenteredDisplayHint =
+    showDisplayHint && displayHintVariant === "display-center";
+  const showDisplayHandOnDisplay =
+    showCenteredDisplayHint ||
+    (showDisplayHint && isCoarsePointer && displayHintVariant === "default");
+  const showDisplayHandOnKeypad =
+    showDisplayHint && !isCoarsePointer && displayHintVariant === "default";
   const shellPaddingClass = minimized ? "px-1.5 py-1" : "p-1.5";
   const shellGapClass = minimized ? "gap-0" : "gap-1";
   const shellHeightClass = minimized ? "h-[78px]" : "";
@@ -555,15 +566,30 @@ function NumericKeypad({
         {display}
         {showDisplayHandOnDisplay && (
           <div
-            className="pointer-events-none absolute left-2 top-1/2 translate-y-[-25%]"
+            className={
+              showCenteredDisplayHint
+                ? "pointer-events-none absolute left-1/2 top-1/2"
+                : "pointer-events-none absolute left-2 top-1/2 translate-y-[-25%]"
+            }
             style={{
               animation: "keypad-display-finger-fade 2.4s ease-in-out infinite",
+              transform: showCenteredDisplayHint
+                ? `translate(${-centeredDisplayFingerTipX}px, calc(${-centeredDisplayFingerTipY}px - 20px))`
+                : undefined,
             }}
           >
             <svg
               viewBox="0 0 80 100"
-              width={displayHandWidth}
-              height={displayHandHeight}
+              width={
+                showCenteredDisplayHint
+                  ? centeredDisplayHandWidth
+                  : defaultDisplayHandWidth
+              }
+              height={
+                showCenteredDisplayHint
+                  ? centeredDisplayHandHeight
+                  : defaultDisplayHandHeight
+              }
               overflow="visible"
               style={{ filter: "drop-shadow(0 0 8px rgba(103,232,249,0.65))" }}
             >
@@ -727,6 +753,8 @@ export default function ArcadeLevelOneScreen() {
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
   const [hasDiscoveredKeypadDisplay, setHasDiscoveredKeypadDisplay] =
     useState(false);
+  const [hasDiscoveredMonsterKeypadDisplay, setHasDiscoveredMonsterKeypadDisplay] =
+    useState(false);
   /** After first wrong in L3 Extinction Event, show full 3-step scaffold + dino. */
   const [extinctionL3ShowSteps, setExtinctionL3ShowSteps] = useState(false);
   /** After a wrong direct-calculation attempt, finish the scaffold without earning that egg back. */
@@ -814,6 +842,13 @@ export default function ArcadeLevelOneScreen() {
     screen === "playing" &&
     !dragging &&
     !showMonsterAnnounce;
+  const showMonsterKeypadDisplayHint =
+    level === 1 &&
+    gamePhase === "monster" &&
+    monsterEggs === 0 &&
+    screen === "playing" &&
+    !showMonsterAnnounce &&
+    !hasDiscoveredMonsterKeypadDisplay;
   const tutorialHandScale = isCoarsePointer ? 1.5 : 1.125;
   const tutorialHandOffsetX = isCoarsePointer ? 5 : 20;
   const tutorialHandOffsetY = isCoarsePointer ? -40 : -25;
@@ -1584,6 +1619,9 @@ export default function ArcadeLevelOneScreen() {
   function handleKeypadChange(v: string) {
     if (showKeypadDisplayHint) {
       setHasDiscoveredKeypadDisplay(true);
+    }
+    if (showMonsterKeypadDisplayHint) {
+      setHasDiscoveredMonsterKeypadDisplay(true);
     }
     if (currentQ.subAnswers && currentQ.promptLines) {
       const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
@@ -2708,8 +2746,20 @@ export default function ArcadeLevelOneScreen() {
               onChange={handleKeypadChange}
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
-              showDisplayHint={showKeypadDisplayHint}
-              onDisplayHintConsumed={() => setHasDiscoveredKeypadDisplay(true)}
+              showDisplayHint={
+                showKeypadDisplayHint || showMonsterKeypadDisplayHint
+              }
+              onDisplayHintConsumed={() => {
+                if (showKeypadDisplayHint) {
+                  setHasDiscoveredKeypadDisplay(true);
+                }
+                if (showMonsterKeypadDisplayHint) {
+                  setHasDiscoveredMonsterKeypadDisplay(true);
+                }
+              }}
+              displayHintVariant={
+                showMonsterKeypadDisplayHint ? "display-center" : "default"
+              }
               roundKey={calcRoundKey}
               defaultMinimized={isCoarsePointer}
               onMinimizedChange={setIsKeypadMinimized}
