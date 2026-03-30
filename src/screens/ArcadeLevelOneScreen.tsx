@@ -201,6 +201,7 @@ const IS_DEV = import.meta.env.DEV;
 /** Eggs to collect per phase (normal white → Monster Round golden). */
 const EGGS_PER_LEVEL = 10;
 const EGG_INDICES = Array.from({ length: EGGS_PER_LEVEL }, (_, i) => i);
+const SUCCESS_ICON_DURATION_MS = 1100;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
@@ -405,22 +406,36 @@ function NumericKeypad({
   onChange,
   onSubmit,
   canSubmit,
+  showDisplayHint = false,
+  onDisplayHintConsumed,
   roundKey,
   defaultMinimized = false,
   toggleRef,
   minimizeRef,
+  onMinimizedChange,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   canSubmit: boolean;
+  showDisplayHint?: boolean;
+  onDisplayHintConsumed?: () => void;
   roundKey?: number;
   defaultMinimized?: boolean;
   toggleRef?: React.MutableRefObject<(() => void) | null>;
   minimizeRef?: React.MutableRefObject<(() => void) | null>;
+  onMinimizedChange?: (minimized: boolean) => void;
 }) {
+  const isCoarsePointer = useIsCoarsePointer();
   const [minimized, setMinimized] = useState(defaultMinimized);
-  const toggleMinimized = () => setMinimized((m) => !m);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const activeKeyTimeoutRef = useRef<number | null>(null);
+  const toggleMinimized = () =>
+    setMinimized((m) => {
+      const next = !m;
+      if (m && !next && showDisplayHint) onDisplayHintConsumed?.();
+      return next;
+    });
   if (toggleRef) toggleRef.current = toggleMinimized;
   if (minimizeRef) minimizeRef.current = () => setMinimized(true);
   const defaultMinimizedRef = useRef(defaultMinimized);
@@ -436,8 +451,32 @@ function NumericKeypad({
     }
   }, [defaultMinimized]);
 
+  useEffect(() => {
+    onMinimizedChange?.(minimized);
+  }, [minimized, onMinimizedChange]);
+
+  useEffect(() => {
+    return () => {
+      if (activeKeyTimeoutRef.current !== null) {
+        window.clearTimeout(activeKeyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function flashKey(key: string) {
+    setActiveKey(key);
+    if (activeKeyTimeoutRef.current !== null) {
+      window.clearTimeout(activeKeyTimeoutRef.current);
+    }
+    activeKeyTimeoutRef.current = window.setTimeout(() => {
+      setActiveKey((current) => (current === key ? null : current));
+      activeKeyTimeoutRef.current = null;
+    }, 140);
+  }
+
   function press(key: string) {
     playKeyClick();
+    flashKey(key);
     if (key === "⌫") {
       onChange(value.slice(0, -1));
       return;
@@ -460,14 +499,29 @@ function NumericKeypad({
     ["4", "5", "6", "±"],
     ["1", "2", "3", "."],
   ];
+  const buttonHeightClass = isCoarsePointer ? "h-9" : "h-11 md:h-8";
   const base =
-    "rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 text-base md:text-sm h-11 md:h-8";
-  const digit = `${base} bg-slate-800 text-slate-100 border border-slate-600/60`;
-  const op = `${base} bg-slate-700/80 text-cyan-300 border border-slate-500/60`;
+    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 text-base md:text-sm ${buttonHeightClass}`;
+  const digit = `${base} text-lg md:text-base bg-slate-800 text-slate-100 border border-slate-600/60`;
+  const op = `${base} bg-slate-700/80 text-slate-100 border border-slate-500/60`;
+  const pressedKeyStyle = {
+    background: "#67e8f9",
+    color: "#020617",
+    borderColor: "#67e8f9",
+    boxShadow: "0 0 16px rgba(103,232,249,0.45)",
+  } satisfies React.CSSProperties;
+  const displayHandWidth = isCoarsePointer ? 60 : 90;
+  const displayHandHeight = isCoarsePointer ? 72 : 108;
+  const showDisplayHandOnDisplay = showDisplayHint && isCoarsePointer;
+  const showDisplayHandOnKeypad = showDisplayHint && !isCoarsePointer;
+  const shellPaddingClass = minimized ? "px-1.5 py-1" : "p-1.5";
+  const shellGapClass = minimized ? "gap-0" : "gap-1";
+  const shellHeightClass = minimized ? "h-[78px]" : "";
+  const displayHeightClass = minimized ? "h-[68px] md:h-10" : "h-14 md:h-12";
 
   return (
     <div
-      className="flex h-full min-h-[60px] min-w-0 w-40 shrink-0 flex-col gap-1 rounded-xl p-1.5 md:w-44"
+      className={`relative flex min-h-0 min-w-0 w-40 shrink-0 flex-col self-start rounded-xl md:w-44 ${shellPaddingClass} ${shellGapClass} ${shellHeightClass}`}
       style={{
         background: "rgba(2,6,23,0.97)",
         border: "4px solid rgba(56,189,248,0.45)",
@@ -476,7 +530,7 @@ function NumericKeypad({
       }}
     >
       <div
-        className="rounded-lg px-3.5 flex h-14 md:h-12 shrink-0 items-center justify-end overflow-hidden cursor-pointer"
+        className={`relative rounded-lg px-3.5 flex shrink-0 items-center justify-end overflow-visible cursor-pointer ${displayHeightClass}`}
         onClick={toggleMinimized}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
@@ -484,14 +538,54 @@ function NumericKeypad({
           fontSize: KEYPAD_DISPLAY_FONT_SIZE,
           lineHeight: 1,
           background: "rgba(0,8,4,0.95)",
-          border: minimized ? "none" : "2px solid rgba(56,189,248,0.28)",
+          border:
+            minimized && !showDisplayHint
+              ? "none"
+              : showDisplayHint
+                ? "none"
+                : "2px solid rgba(56,189,248,0.28)",
           color: "#67e8f9",
-          textShadow:
-            "0 0 12px rgba(103,232,249,0.85), 0 0 26px rgba(56,189,248,0.4)",
+          textShadow: showDisplayHint
+            ? "none"
+            : "0 0 12px rgba(103,232,249,0.85), 0 0 26px rgba(56,189,248,0.4)",
+          boxShadow: "none",
           letterSpacing: "0.08em",
         }}
       >
         {display}
+        {showDisplayHandOnDisplay && (
+          <div
+            className="pointer-events-none absolute left-2 top-1/2 translate-y-[-25%]"
+            style={{
+              animation: "keypad-display-finger-fade 2.4s ease-in-out infinite",
+            }}
+          >
+            <svg
+              viewBox="0 0 80 100"
+              width={displayHandWidth}
+              height={displayHandHeight}
+              overflow="visible"
+              style={{ filter: "drop-shadow(0 0 8px rgba(103,232,249,0.65))" }}
+            >
+              <path
+                d="M24.76,22.64V12.4c0-3.18,2.59-5.77,5.77-5.77,1.44,0,2.82,.54,3.89,1.51,1.07,1,1.72,2.33,1.85,3.76l.87,10.08c2.12-1.88,3.39-4.59,3.39-7.48,0-5.51-4.49-10-10-10s-10,4.49-10,10c0,3.29,1.62,6.29,4.23,8.14Z"
+                fill="#67e8f9"
+                stroke="rgba(2,6,23,0.98)"
+                strokeWidth="4"
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              />
+              <path
+                d="M55.98,69.53c0-.14,.03-.28,.09-.41l4.48-9.92v-18.37c0-1.81-1.08-3.48-2.76-4.26-6.75-3.13-13.8-4.84-20.95-5.08-.51-.01-.92-.41-.97-.91l-1.6-18.5c-.08-.94-.51-1.82-1.2-2.46-.7-.63-1.6-.99-2.54-.99-2.08,0-3.77,1.69-3.77,3.77V48.48h-2v-13.32c-2.61,.46-4.69,2.65-4.91,5.36-.56,6.79-.53,14.06,.08,21.62,.28,3.44,2.42,6.52,5.58,8.05l4.49,2.18c.35,.17,.56,.52,.56,.9v2.23h25.42v-5.97Z"
+                fill="#67e8f9"
+                stroke="rgba(2,6,23,0.98)"
+                strokeWidth="4"
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              />
+            </svg>
+          </div>
+        )}
       </div>
       <div
         className="flex min-h-0 flex-1 flex-col gap-0.5"
@@ -504,6 +598,40 @@ function NumericKeypad({
           transition: "max-height 0.4s ease-in-out, opacity 0.3s ease-in-out",
         }}
       >
+        {showDisplayHandOnKeypad && !minimized && (
+          <div
+            className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              top: "calc(58% + 30px)",
+              animation: "keypad-display-finger-fade 2.4s ease-in-out infinite",
+            }}
+          >
+            <svg
+              viewBox="0 0 80 100"
+              width="90"
+              height="108"
+              overflow="visible"
+              style={{ filter: "drop-shadow(0 0 8px rgba(103,232,249,0.65))" }}
+            >
+              <path
+                d="M24.76,22.64V12.4c0-3.18,2.59-5.77,5.77-5.77,1.44,0,2.82,.54,3.89,1.51,1.07,1,1.72,2.33,1.85,3.76l.87,10.08c2.12-1.88,3.39-4.59,3.39-7.48,0-5.51-4.49-10-10-10s-10,4.49-10,10c0,3.29,1.62,6.29,4.23,8.14Z"
+                fill="#67e8f9"
+                stroke="rgba(2,6,23,0.98)"
+                strokeWidth="4"
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              />
+              <path
+                d="M55.98,69.53c0-.14,.03-.28,.09-.41l4.48-9.92v-18.37c0-1.81-1.08-3.48-2.76-4.26-6.75-3.13-13.8-4.84-20.95-5.08-.51-.01-.92-.41-.97-.91l-1.6-18.5c-.08-.94-.51-1.82-1.2-2.46-.7-.63-1.6-.99-2.54-.99-2.08,0-3.77,1.69-3.77,3.77V48.48h-2v-13.32c-2.61,.46-4.69,2.65-4.91,5.36-.56,6.79-.53,14.06,.08,21.62,.28,3.44,2.42,6.52,5.58,8.05l4.49,2.18c.35,.17,.56,.52,.56,.9v2.23h25.42v-5.97Z"
+                fill="#67e8f9"
+                stroke="rgba(2,6,23,0.98)"
+                strokeWidth="4"
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              />
+            </svg>
+          </div>
+        )}
         {rows.map((row, r) => (
           <div key={r} className="grid grid-cols-4 gap-0.5">
             {row.map((btn) => (
@@ -512,8 +640,17 @@ function NumericKeypad({
                 type="button"
                 onClick={() => press(btn)}
                 className={/[0-9]/.test(btn) ? digit : op}
+                style={activeKey === btn ? pressedKeyStyle : undefined}
               >
-                {btn}
+                {btn === "±" ? (
+                  <span className="text-[1.7rem] leading-none">±</span>
+                ) : btn === "⌫" ? (
+                  <span className="text-[2rem] leading-none">⌫</span>
+                ) : btn === "." ? (
+                  <span className="text-[2rem] leading-none">.</span>
+                ) : (
+                  btn
+                )}
               </button>
             ))}
           </div>
@@ -523,6 +660,7 @@ function NumericKeypad({
             type="button"
             onClick={() => press("0")}
             className={`${digit} flex-[2]`}
+            style={activeKey === "0" ? pressedKeyStyle : undefined}
           >
             0
           </button>
@@ -587,12 +725,15 @@ export default function ArcadeLevelOneScreen() {
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
+  const [hasDiscoveredKeypadDisplay, setHasDiscoveredKeypadDisplay] =
+    useState(false);
   /** After first wrong in L3 Extinction Event, show full 3-step scaffold + dino. */
   const [extinctionL3ShowSteps, setExtinctionL3ShowSteps] = useState(false);
   /** After a wrong direct-calculation attempt, finish the scaffold without earning that egg back. */
   const [extinctionL3RecoveryMode, setExtinctionL3RecoveryMode] =
     useState(false);
   const [calcRoundKey, setCalcRoundKey] = useState(0);
+  const [isKeypadMinimized, setIsKeypadMinimized] = useState(false);
 
   const isMobileLandscape = useIsMobileLandscape();
   const isSmallMobileLandscape = useIsSmallMobileLandscape();
@@ -604,6 +745,8 @@ export default function ArcadeLevelOneScreen() {
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
+  const steppedPromptScrollRef = useRef<HTMLDivElement>(null);
+  const steppedPromptItemRefs = useRef<Array<HTMLDivElement | null>>([]);
   const leftControlsRef = useRef<HTMLDivElement>(null);
   const centerControlsRef = useRef<HTMLDivElement>(null);
   const rightControlsRef = useRef<HTMLDivElement>(null);
@@ -661,6 +804,15 @@ export default function ArcadeLevelOneScreen() {
     gamePhase === "normal" &&
     eggsCollected === 0 &&
     screen === "playing" &&
+    !showMonsterAnnounce;
+  const showKeypadDisplayHint =
+    hasDiscoveredDinoDrag &&
+    !hasDiscoveredKeypadDisplay &&
+    level === 1 &&
+    gamePhase === "normal" &&
+    eggsCollected === 0 &&
+    screen === "playing" &&
+    !dragging &&
     !showMonsterAnnounce;
   const tutorialHandScale = isCoarsePointer ? 1.5 : 1.125;
   const tutorialHandOffsetX = isCoarsePointer ? 5 : 20;
@@ -754,7 +906,7 @@ export default function ArcadeLevelOneScreen() {
       const gapLeft = centerRect.right - barRect.left;
       const gapRight = rightRect.left - barRect.left;
       const left = gapLeft + Math.max(0, gapRight - gapLeft) / 2;
-      const top = rightRect.top - barRect.top + rightRect.height / 2 + 6;
+      const top = rightRect.top - barRect.top;
       setMobileLandscapeOdometerPos({ left, top });
     }
 
@@ -1094,6 +1246,10 @@ export default function ArcadeLevelOneScreen() {
     if (gamePhase === "monster") {
       if (target === EGGS_PER_LEVEL) {
         earnMonsterEgg();
+      } else if (target > monsterEggs) {
+        setMonsterEggs(target);
+        playGoldenEgg();
+        advanceMonsterQuestionWithoutEgg();
       } else {
         setMonsterEggs(target);
       }
@@ -1134,8 +1290,17 @@ export default function ArcadeLevelOneScreen() {
     setSubStep(0);
     const startKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(startKm);
-    window.setTimeout(() => setShowMonsterAnnounce(false), 2800);
+    window.setTimeout(() => setShowMonsterAnnounce(false), 4200);
     setCalcRoundKey((k) => k + 1);
+  }
+
+  function queueNextQuestionAfterSuccessIcon(onComplete: () => void) {
+    setFlash({ text: "", ok: true, icon: true });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => {
+      setFlash(null);
+      onComplete();
+    }, SUCCESS_ICON_DURATION_MS);
   }
 
   function earnMonsterEgg() {
@@ -1157,32 +1322,30 @@ export default function ArcadeLevelOneScreen() {
     }
     setMonsterEggs(newGolden);
     playGoldenEgg();
-    setFlash({ text: "", ok: true, icon: true });
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
-    const next = createRun(level);
-    setRun(next);
-    setCurrentQ(next.firstQ);
-    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
-    resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
-    // Next Extinction Event question starts on final line only (until another miss).
-    setExtinctionL3ShowSteps(false);
-    setExtinctionL3RecoveryMode(false);
-    setCalcRoundKey((k) => k + 1);
+    queueNextQuestionAfterSuccessIcon(() => {
+      const next = createRun(level);
+      setRun(next);
+      setCurrentQ(next.firstQ);
+      setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
+      resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+      // Next Extinction Event question starts on final line only (until another miss).
+      setExtinctionL3ShowSteps(false);
+      setExtinctionL3RecoveryMode(false);
+      setCalcRoundKey((k) => k + 1);
+    });
   }
 
   function advanceMonsterQuestionWithoutEgg() {
-    setFlash({ text: "", ok: true, icon: true });
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
-    const next = createRun(level);
-    setRun(next);
-    setCurrentQ(next.firstQ);
-    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
-    resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
-    setExtinctionL3ShowSteps(false);
-    setExtinctionL3RecoveryMode(false);
-    setCalcRoundKey((k) => k + 1);
+    queueNextQuestionAfterSuccessIcon(() => {
+      const next = createRun(level);
+      setRun(next);
+      setCurrentQ(next.firstQ);
+      setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
+      resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+      setExtinctionL3ShowSteps(false);
+      setExtinctionL3RecoveryMode(false);
+      setCalcRoundKey((k) => k + 1);
+    });
   }
 
   function showFlash(text: string, ok: boolean) {
@@ -1200,16 +1363,15 @@ export default function ArcadeLevelOneScreen() {
       return;
     }
     setEggsCollected(newEggs);
-    setFlash({ text: "", ok: true, icon: true });
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1100);
-    const next = createRun(level);
-    setRun(next);
-    setCurrentQ(next.firstQ);
-    setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
-    resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
-    setExtinctionL3RecoveryMode(false);
-    setCalcRoundKey((k) => k + 1);
+    queueNextQuestionAfterSuccessIcon(() => {
+      const next = createRun(level);
+      setRun(next);
+      setCurrentQ(next.firstQ);
+      setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
+      resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
+      setExtinctionL3RecoveryMode(false);
+      setCalcRoundKey((k) => k + 1);
+    });
   }
 
   function loseEgg() {
@@ -1311,6 +1473,9 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function handleKeypadChange(v: string) {
+    if (showKeypadDisplayHint) {
+      setHasDiscoveredKeypadDisplay(true);
+    }
     if (currentQ.subAnswers && currentQ.promptLines) {
       const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
       setSubAnswers((prev) => {
@@ -1344,9 +1509,50 @@ export default function ArcadeLevelOneScreen() {
     l3KeypadIndex !== null
       ? !isNaN(parseFloat(subAnswers[l3KeypadIndex]))
       : !isNaN(parseFloat(answer));
+  const isFullScreenOverlayActive =
+    showMonsterAnnounce || screen === "won" || screen === "gameover";
+  const isCompactQuestionTray = isMobileLandscape;
+  const useCollapsedQuestionTray = isCompactQuestionTray && isKeypadMinimized;
+  const collapsedPromptPanelClass = useCollapsedQuestionTray
+    ? "h-[78px] overflow-y-auto py-1.5 leading-5"
+    : "min-h-[60px] py-2";
+  const collapsedStepPanelClass = useCollapsedQuestionTray
+    ? "py-1"
+    : "py-2.5";
   keypadValueRef.current = keypadValue;
   handleKeypadChangeRef.current = handleKeypadChange;
   submitAnswerRef.current = submitAnswer;
+
+  useEffect(() => {
+    setIsKeypadMinimized(isCoarsePointer);
+  }, [isCoarsePointer, calcRoundKey]);
+
+  useEffect(() => {
+    if (
+      !isMobileLandscape ||
+      !currentQ.promptLines ||
+      !currentQ.subAnswers ||
+      l3ExtinctionSingleLineOnly
+    ) {
+      return;
+    }
+    const container = steppedPromptScrollRef.current;
+    const activeItem = steppedPromptItemRefs.current[subStep];
+    if (!container || !activeItem) return;
+    window.requestAnimationFrame(() => {
+      activeItem.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "smooth",
+      });
+    });
+  }, [
+    isMobileLandscape,
+    currentQ.promptLines,
+    currentQ.subAnswers,
+    l3ExtinctionSingleLineOnly,
+    subStep,
+  ]);
 
   return (
     <div
@@ -1367,11 +1573,12 @@ export default function ArcadeLevelOneScreen() {
       )}
 
       {/* ── top bar ── */}
-      <div
-        ref={topBarRef}
-        className={`absolute left-0 right-0 top-0 ${isMobileLandscape ? "z-[45]" : "z-20"} flex items-start px-3 md:px-5`}
-        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
-      >
+      {!isFullScreenOverlayActive && (
+        <div
+          ref={topBarRef}
+          className="absolute left-0 right-0 top-0 z-[45] flex items-start px-3 md:px-5"
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
+        >
         {/* Left icon buttons — keep these horizontal so small iPhones match the newer top-row layout. */}
         <div
           ref={leftControlsRef}
@@ -1488,8 +1695,8 @@ export default function ArcadeLevelOneScreen() {
               className="arcade-meter absolute z-[46] w-max cursor-pointer inline-flex flex-col items-stretch px-2 py-2 transition-transform active:scale-95"
               style={{
                 left: mobileLandscapeOdometerPos.left,
-                top: mobileLandscapeOdometerPos.top,
-                transform: "translate(-50%, -50%)",
+                top: mobileLandscapeOdometerPos.top - 2,
+                transform: "translateX(-50%)",
               }}
             >
               {currentQ.totalGiven != null ? (
@@ -1508,7 +1715,7 @@ export default function ArcadeLevelOneScreen() {
                       {odomKm.toFixed(1)}
                     </div>
                   </div>
-                  <div className="mt-2 w-full whitespace-nowrap text-center text-sm leading-none text-white">
+                  <div className="mt-2 w-full whitespace-nowrap text-center text-base leading-none text-yellow-300">
                     Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
                   </div>
                 </>
@@ -1534,7 +1741,7 @@ export default function ArcadeLevelOneScreen() {
           ref={centerControlsRef}
           className={
             isMobileLandscape
-              ? "absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pt-1"
+              ? "absolute top-[4px] left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pt-1"
               : "flex-1 flex flex-col items-center gap-1.5 pt-1"
           }
         >
@@ -1654,8 +1861,10 @@ export default function ArcadeLevelOneScreen() {
                       : "drop-shadow(0 0 5px rgba(255,255,255,0.7))"
                     : "none";
                   return (
-                    <span
+                    <button
                       key={i}
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={IS_DEV ? () => devSetEggs(i) : undefined}
                       title={
                         IS_DEV
@@ -1665,6 +1874,9 @@ export default function ArcadeLevelOneScreen() {
                       style={{
                         display: "inline-flex",
                         cursor: IS_DEV ? "pointer" : "default",
+                        background: "transparent",
+                        border: "none",
+                        padding: 0,
                       }}
                     >
                       <svg
@@ -1706,19 +1918,20 @@ export default function ArcadeLevelOneScreen() {
                           />
                         )}
                       </svg>
-                    </span>
+                    </button>
                   );
                 })}
               </div>
             ))}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* ── map ── */}
       <div
         ref={mapContainerRef}
-        className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[96px] md:bottom-[92px] ${topPanel === "map" ? "z-40" : "z-20"}`}
+        className={`absolute inset-x-0 top-[184px] bottom-[86px] md:top-[88px] md:bottom-[128px] ${topPanel === "map" ? "z-40" : "z-20"}`}
         style={isMobileLandscape ? { top: 64, bottom: 88 } : undefined}
         onClick={() => setTopPanel("map")}
       >
@@ -1976,7 +2189,9 @@ export default function ArcadeLevelOneScreen() {
                       walking={false}
                       facingLeft={facingLeft}
                     />
-                    <g transform={`translate(${tutorialHandOffsetX}, ${tutorialHandOffsetY}) scale(${tutorialHandScale})`}>
+                    <g
+                      transform={`translate(${tutorialHandOffsetX}, ${tutorialHandOffsetY}) scale(${tutorialHandScale})`}
+                    >
                       <svg
                         x="-28"
                         y="-8"
@@ -2054,7 +2269,7 @@ export default function ArcadeLevelOneScreen() {
                         {s}
                       </div>
                     </div>
-                    <div className="mt-2 w-full whitespace-nowrap text-center text-sm leading-none text-white md:text-base">
+                    <div className="mt-2 w-full whitespace-nowrap text-center text-base leading-none text-yellow-300 md:text-lg">
                       Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
                     </div>
                   </>
@@ -2078,10 +2293,11 @@ export default function ArcadeLevelOneScreen() {
       </div>
 
       {/* ── bottom bar ── */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 px-3 pb-3 md:px-5 md:pb-4 z-50`}
-        onClick={() => setTopPanel("question")}
-      >
+      {!isFullScreenOverlayActive && (
+        <div
+          className={`absolute bottom-0 left-0 right-0 px-3 md:px-5 md:pb-4 z-50 ${useCollapsedQuestionTray ? "pb-2" : "pb-3"}`}
+          onClick={() => setTopPanel("question")}
+        >
         {/* L3 distance comparison visual — appears after each step is confirmed */}
         {currentQ.subAnswers &&
           currentQ.promptLines &&
@@ -2254,12 +2470,15 @@ export default function ArcadeLevelOneScreen() {
             );
           })()}
 
-        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:gap-3">
+        <div
+          className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:gap-3"
+          style={useCollapsedQuestionTray ? { minHeight: "68px" } : undefined}
+        >
           {currentQ.promptLines && currentQ.subAnswers ? (
             l3ExtinctionSingleLineOnly ? (
               /* ── Level 3 Extinction Event: final prompt only until first wrong ── */
               <div
-                className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white cursor-pointer"
+                className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center gap-2 px-4 text-sm md:text-base font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
                 onClick={() => keypadToggleRef.current?.()}
               >
                 <ColoredPrompt
@@ -2282,7 +2501,18 @@ export default function ArcadeLevelOneScreen() {
             ) : (
               /* ── Level 3: stepped one-at-a-time ── */
               <div
-                className="arcade-panel flex min-h-0 min-w-0 flex-col gap-2 px-4 py-2.5 cursor-pointer"
+                ref={isMobileLandscape ? steppedPromptScrollRef : undefined}
+                className={`arcade-panel flex min-h-0 min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} flex-col gap-2 px-4 cursor-pointer ${collapsedStepPanelClass}`}
+                style={
+                  useCollapsedQuestionTray
+                    ? {
+                        height: "78px",
+                        maxHeight: "78px",
+                        overflowY: "auto",
+                        overscrollBehavior: "contain",
+                      }
+                    : undefined
+                }
                 onClick={() => keypadToggleRef.current?.()}
               >
                 {currentQ.promptLines.map((line, i) => {
@@ -2293,6 +2523,9 @@ export default function ArcadeLevelOneScreen() {
                   return (
                     <div
                       key={i}
+                      ref={(el) => {
+                        steppedPromptItemRefs.current[i] = el;
+                      }}
                       className={`flex items-center gap-2 transition-opacity duration-200 ${shouldDim ? "opacity-30" : ""}`}
                     >
                       <ColoredPrompt
@@ -2342,7 +2575,7 @@ export default function ArcadeLevelOneScreen() {
           ) : (
             /* ── Level 1 / 2: single row ── */
             <div
-              className="arcade-panel flex min-h-[60px] min-w-0 items-center gap-2 px-4 py-2 text-sm md:text-base font-bold leading-6 text-white cursor-pointer"
+              className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center gap-2 px-4 text-sm md:text-base font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
@@ -2360,42 +2593,34 @@ export default function ArcadeLevelOneScreen() {
               )}
             </div>
           )}
-          <div className="flex min-h-0 flex-col self-stretch">
+          <div className="flex min-h-0 flex-col self-start">
             <NumericKeypad
               value={keypadValue}
               onChange={handleKeypadChange}
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
+              showDisplayHint={showKeypadDisplayHint}
+              onDisplayHintConsumed={() => setHasDiscoveredKeypadDisplay(true)}
               roundKey={calcRoundKey}
-              defaultMinimized={true}
+              defaultMinimized={isCoarsePointer}
+              onMinimizedChange={setIsKeypadMinimized}
               toggleRef={keypadToggleRef}
               minimizeRef={keypadMinimizeRef}
             />
           </div>
         </div>
-      </div>
-
-      {/* dino name */}
-      {(!isL3MonsterRound || extinctionL3ShowSteps) && (
-        <div className="pointer-events-none absolute bottom-[90px] right-3 z-10 text-right leading-5">
-          <div
-            className="text-[10px] font-black tracking-widest uppercase"
-            style={{ color: dinoColor }}
-          >
-            {dino.name}
-          </div>
         </div>
       )}
-
-      <div ref={rightControlsRef} className="social-launchers">
-        <button
-          type="button"
-          onClick={toggleShareDrawer}
-          className={`social-launcher arcade-button ${showShareDrawer ? "is-active" : ""}`}
-          aria-expanded={showShareDrawer}
-          aria-controls="social-share-drawer"
-          aria-label="Open share panel"
-        >
+      {!isFullScreenOverlayActive && (
+        <div ref={rightControlsRef} className="social-launchers">
+          <button
+            type="button"
+            onClick={toggleShareDrawer}
+            className={`social-launcher arcade-button ${showShareDrawer ? "is-active" : ""}`}
+            aria-expanded={showShareDrawer}
+            aria-controls="social-share-drawer"
+            aria-label="Open share panel"
+          >
           <svg
             viewBox="0 0 24 24"
             className="social-launcher-icon"
@@ -2436,15 +2661,15 @@ export default function ArcadeLevelOneScreen() {
               strokeLinecap="round"
             />
           </svg>
-        </button>
-        <button
-          type="button"
-          onClick={toggleCommentsDrawer}
-          className={`social-launcher arcade-button ${showCommentsDrawer ? "is-active" : ""}`}
-          aria-expanded={showCommentsDrawer}
-          aria-controls="social-comments-drawer"
-          aria-label="Open comments panel"
-        >
+          </button>
+          <button
+            type="button"
+            onClick={toggleCommentsDrawer}
+            className={`social-launcher arcade-button ${showCommentsDrawer ? "is-active" : ""}`}
+            aria-expanded={showCommentsDrawer}
+            aria-controls="social-comments-drawer"
+            aria-label="Open comments panel"
+          >
           <svg
             viewBox="0 0 24 24"
             className="social-launcher-icon"
@@ -2459,8 +2684,9 @@ export default function ArcadeLevelOneScreen() {
               strokeLinejoin="round"
             />
           </svg>
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
 
       {isSocialDrawerOpen && (
         <div className="social-backdrop" onClick={closeSocialDrawers} />
@@ -2726,15 +2952,6 @@ export default function ArcadeLevelOneScreen() {
           }}
         >
           <div
-            className="text-7xl mb-4"
-            style={{
-              animation:
-                "icon-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards",
-            }}
-          >
-            🦕
-          </div>
-          <div
             className="text-4xl md:text-5xl font-black uppercase tracking-widest text-yellow-300 text-center px-4"
             style={{
               textShadow:
@@ -2743,7 +2960,13 @@ export default function ArcadeLevelOneScreen() {
           >
             {monsterRoundName}
           </div>
-          <div className="mt-5 text-lg text-purple-200 tracking-wide">
+          <div
+            className="mt-5 rounded-xl px-5 py-3 text-lg text-purple-100 tracking-wide"
+            style={{
+              background: "rgba(15, 23, 42, 0.72)",
+              border: "1px solid rgba(196, 181, 253, 0.22)",
+            }}
+          >
             No odometer — solve it in your head!
           </div>
           <div className="mt-2 text-xl text-yellow-400 font-black">
@@ -2753,7 +2976,13 @@ export default function ArcadeLevelOneScreen() {
       )}
 
       {screen === "won" && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-6">
+        <div
+          className="absolute inset-0 z-[80] flex items-center justify-center p-6"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, rgba(15,23,42,0.985) 0%, rgba(2,6,23,0.995) 78%)",
+          }}
+        >
           <div className="arcade-panel p-10 text-center">
             {gamePhase === "monster" ? (
               <>
