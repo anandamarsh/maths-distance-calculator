@@ -1658,6 +1658,13 @@ export default function ArcadeLevelOneScreen() {
       : !isNaN(parseFloat(answer));
   const isFullScreenOverlayActive =
     showMonsterAnnounce || screen === "won" || screen === "gameover";
+  useEffect(() => {
+    if (typeof window === "undefined" || window.parent === window) return;
+    window.parent.postMessage(
+      { type: "interactive-maths:overlay-active", active: isSocialDrawerOpen || isFullScreenOverlayActive },
+      "*",
+    );
+  }, [isFullScreenOverlayActive, isSocialDrawerOpen]);
   const isCompactQuestionTray = isMobileLandscape;
   const useCollapsedQuestionTray = isCompactQuestionTray && isKeypadMinimized;
   const collapsedPromptPanelClass = useCollapsedQuestionTray
