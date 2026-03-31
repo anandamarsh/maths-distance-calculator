@@ -240,6 +240,7 @@ body {
 }
 
 .social-drawer-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -251,14 +252,20 @@ body {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  flex-wrap: nowrap;
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .social-drawer-header h2 {
   margin: 0;
+  padding-right: 15rem;
   font-size: 0.92rem;
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .social-new-comment {
@@ -391,6 +398,15 @@ body {
     top: 0;
     right: 0;
     min-width: 17rem;
+  }
+
+  .social-drawer-header h2 {
+    padding-right: 13rem;
+  }
+
+  .social-new-comment {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.72rem;
   }
 
   .social-comments-drawer {
