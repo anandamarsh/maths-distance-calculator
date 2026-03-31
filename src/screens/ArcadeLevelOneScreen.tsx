@@ -29,7 +29,7 @@ import {
   playGameComplete,
   playKeyClick,
 } from "../sound";
-import { SocialComments, SocialShare } from "../components/Social";
+import { SocialComments, SocialShare, openCommentsComposer } from "../components/Social";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -2913,32 +2913,37 @@ export default function ArcadeLevelOneScreen() {
       >
         <div className="social-drawer-header">
           <h2>Comments</h2>
-          <button
-            type="button"
-            onClick={() => setShowCommentsDrawer(false)}
-            className="social-drawer-close"
-            aria-label="Close comments drawer"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="social-close-icon"
-              fill="none"
-              aria-hidden="true"
+          <div className="social-drawer-header-actions">
+            <button type="button" className="social-new-comment" onClick={openCommentsComposer}>
+              New comment
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCommentsDrawer(false)}
+              className="social-drawer-close"
+              aria-label="Close comments drawer"
             >
-              <path
-                d="M6 6 18 18"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-              />
-              <path
-                d="M18 6 6 18"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                className="social-close-icon"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 6 18 18"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M18 6 6 18"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="social-comments-shell">
           <SocialComments />

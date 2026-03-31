@@ -218,13 +218,13 @@ body {
 .social-backdrop {
   position: absolute;
   inset: 0;
-  z-index: 1200;
+  z-index: 10000;
   background: transparent;
 }
 
 .social-drawer {
   position: absolute;
-  z-index: 1210;
+  z-index: 10010;
   border-radius: 1.15rem;
   background: rgba(3, 10, 24, 0.88);
   backdrop-filter: blur(18px);
@@ -247,12 +247,31 @@ body {
   margin-bottom: 1rem;
 }
 
+.social-drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
 .social-drawer-header h2 {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.social-new-comment {
+  border: 1px solid rgba(250, 204, 21, 0.7);
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.08);
+  color: #fde047;
+  padding: 0.55rem 1rem;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
 .social-drawer-close {
@@ -354,6 +373,9 @@ body {
 .social-comments-drawer .social-drawer-close {
   position: static;
   color: #fde047;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
 }
 
 .social-share-drawer .social-drawer-close {
