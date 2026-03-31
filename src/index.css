@@ -218,13 +218,13 @@ body {
 .social-backdrop {
   position: absolute;
   inset: 0;
-  z-index: 86;
+  z-index: 1200;
   background: transparent;
 }
 
 .social-drawer {
   position: absolute;
-  z-index: 90;
+  z-index: 1210;
   border-radius: 1.15rem;
   background: rgba(3, 10, 24, 0.88);
   backdrop-filter: blur(18px);
@@ -294,8 +294,8 @@ body {
   right: 0;
   bottom: 0;
   width: auto;
-  height: 50vh;
-  max-height: 50vh;
+  height: 58vh;
+  max-height: 58vh;
   padding: 1rem 1rem 1.15rem;
   border-radius: 0;
   border-top: 1px solid rgba(250, 204, 21, 0.46);
@@ -353,6 +353,7 @@ body {
 
 .social-comments-drawer .social-drawer-close {
   position: static;
+  color: #fde047;
 }
 
 .social-share-drawer .social-drawer-close {
