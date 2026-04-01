@@ -2919,11 +2919,10 @@ export default function ArcadeLevelOneScreen() {
         aria-hidden={!showCommentsDrawer}
       >
         <div className="social-drawer-header">
-          <h2>Comments</h2>
+          <button type="button" className="social-new-comment" onClick={openCommentsComposer}>
+            Add Comment
+          </button>
           <div className="social-drawer-header-actions">
-            <button type="button" className="social-new-comment" onClick={openCommentsComposer}>
-              New comment
-            </button>
             <button
               type="button"
               onClick={() => setShowCommentsDrawer(false)}
