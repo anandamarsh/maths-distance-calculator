@@ -33,6 +33,40 @@ import { SocialComments, SocialShare, openCommentsComposer } from "../components
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
+const fontDataUrlCache = new Map<string, Promise<string>>();
+
+async function toDataUrl(url: string, mimeType: string) {
+  let pending = fontDataUrlCache.get(url);
+  if (!pending) {
+    pending = fetch(url)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Unable to load font asset: ${response.status}`);
+        }
+        const blob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result;
+            if (typeof result !== "string") {
+              reject(new Error("Unable to encode font asset"));
+              return;
+            }
+            resolve(result.replace(/^data:[^;]+;/, `data:${mimeType};`));
+          };
+          reader.onerror = () => reject(reader.error ?? new Error("Unable to read font asset"));
+          reader.readAsDataURL(blob);
+        });
+      })
+      .catch((error) => {
+        fontDataUrlCache.delete(url);
+        throw error;
+      });
+    fontDataUrlCache.set(url, pending);
+  }
+  return pending;
+}
+
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
 function toSVGPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
@@ -119,6 +153,24 @@ function useIsCoarsePointer() {
     return () => mq.removeEventListener("change", handler);
   }, []);
   return is;
+}
+
+function addRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
 }
 
 // ─── Trail geometry ───────────────────────────────────────────────────────────
@@ -300,17 +352,15 @@ function ColoredPrompt({
 function RexSprite({
   dino,
   dinoColor,
-  walking,
   facingLeft,
 }: {
   dino: DinoSprite;
   dinoColor: string;
-  walking: boolean;
   facingLeft: boolean;
 }) {
   return (
     <g style={{ transform: facingLeft ? "scaleX(-1)" : undefined }}>
-      <g className={walking ? "dino-walk" : ""}>
+      <g>
         {/* icon centred at (0,0), scaled to ~100px, sitting just above y=0 */}
         <svg
           x={-50}
@@ -736,7 +786,6 @@ export default function ArcadeLevelOneScreen() {
   const [minKm, setMinKm] = useState(0);
   const [maxKm, setMaxKm] = useState(0);
   const [odomKm, setOdomKm] = useState(0);
-  const [walking, setWalking] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [facingLeft, setFacingLeft] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
@@ -774,6 +823,8 @@ export default function ArcadeLevelOneScreen() {
 
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const floatingOdometerRef = useRef<HTMLButtonElement>(null);
+  const landscapeOdometerRef = useRef<HTMLButtonElement>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
   const steppedPromptScrollRef = useRef<HTMLDivElement>(null);
   const steppedPromptItemRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -790,7 +841,6 @@ export default function ArcadeLevelOneScreen() {
     top: number;
   } | null>(null);
   const draggingRef = useRef(false);
-  const walkTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const posKmRef = useRef(0);
   const minKmRef = useRef(0);
@@ -1140,9 +1190,6 @@ export default function ArcadeLevelOneScreen() {
         playStep();
         lastStepRef.current = odometerRef.current;
       }
-      setWalking(true);
-      if (walkTimerRef.current) clearTimeout(walkTimerRef.current);
-      walkTimerRef.current = window.setTimeout(() => setWalking(false), 150);
     },
     [run.config],
   );
@@ -1179,7 +1226,6 @@ export default function ArcadeLevelOneScreen() {
     setMinKm(startKm);
     setMaxKm(startKm);
     setOdomKm(0);
-    setWalking(false);
     setAnswer("");
     setSubAnswers(["", "", ""]);
     setSubStep(0);
@@ -1283,8 +1329,14 @@ export default function ArcadeLevelOneScreen() {
           clone.firstChild,
         );
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      const regularFontUrl = new URL(dsegRegularWoff2Url, window.location.href).href;
-      const boldFontUrl = new URL(dsegBoldWoff2Url, window.location.href).href;
+      const regularFontUrl = await toDataUrl(
+        new URL(dsegRegularWoff2Url, window.location.href).href,
+        "font/woff2",
+      );
+      const boldFontUrl = await toDataUrl(
+        new URL(dsegBoldWoff2Url, window.location.href).href,
+        "font/woff2",
+      );
       style.textContent = `
         @font-face {
           font-family: 'DSEG7Classic';
@@ -1297,6 +1349,10 @@ export default function ArcadeLevelOneScreen() {
           src: url('${boldFontUrl}') format('woff2');
           font-weight: 700;
           font-style: normal;
+        }
+        text {
+          font-family: 'Courier New', 'Lucida Console', monospace;
+          letter-spacing: 0.06em;
         }
       `;
       defs.appendChild(style);
@@ -1321,6 +1377,65 @@ export default function ArcadeLevelOneScreen() {
           }
           ctx.setTransform(scale, 0, 0, scale, 0, 0);
           ctx.drawImage(img, 0, 0, width, height);
+
+          const odometerEl = isMobileLandscape
+            ? landscapeOdometerRef.current
+            : floatingOdometerRef.current;
+          if (odometerEl && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce) {
+            const mapRect = map.getBoundingClientRect();
+            const odometerRect = odometerEl.getBoundingClientRect();
+            const x = odometerRect.left - mapRect.left;
+            const y = odometerRect.top - mapRect.top;
+            const withinCapture =
+              odometerRect.right > mapRect.left &&
+              odometerRect.left < mapRect.right &&
+              odometerRect.bottom > mapRect.top &&
+              odometerRect.top < mapRect.bottom;
+
+            if (withinCapture) {
+              const panelX = Math.max(0, x);
+              const panelY = Math.max(0, y);
+              const panelW = Math.min(width - panelX, odometerRect.width);
+              const panelH = Math.min(height - panelY, odometerRect.height);
+
+              if (panelW > 0 && panelH > 0) {
+                ctx.save();
+                addRoundedRectPath(ctx, panelX, panelY, panelW, panelH, 16);
+                ctx.fillStyle = "rgba(2, 6, 23, 0.92)";
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "rgba(125, 211, 252, 0.9)";
+                ctx.stroke();
+
+                ctx.shadowColor = "rgba(56, 189, 248, 0.22)";
+                ctx.shadowBlur = 24;
+                ctx.strokeStyle = "rgba(56, 189, 248, 0.15)";
+                ctx.stroke();
+                ctx.shadowColor = "transparent";
+
+                const mainValue = odomKm.toFixed(1);
+                const secondaryValue =
+                  currentQ.totalGiven != null
+                    ? `Σ ${currentQ.totalGiven.toFixed(1)} ${config.unit}`
+                    : null;
+
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "right";
+                ctx.textBaseline = "top";
+                ctx.font = `700 ${KEYPAD_DISPLAY_FONT_SIZE} 'DSEG7Classic', 'Courier New', monospace`;
+                ctx.fillText(mainValue, panelX + panelW - 12, panelY + 10);
+
+                if (secondaryValue) {
+                  ctx.fillStyle = "#fde047";
+                  ctx.textAlign = "center";
+                  ctx.font = "900 16px 'Courier New', 'Lucida Console', monospace";
+                  ctx.fillText(secondaryValue, panelX + panelW / 2, panelY + panelH - 24);
+                }
+                ctx.restore();
+              }
+            }
+          }
+
           canvas.toBlob((blobOut) => {
             if (!blobOut) {
               reject(new Error("Unable to encode PNG"));
@@ -1888,6 +2003,7 @@ export default function ArcadeLevelOneScreen() {
           gamePhase === "normal" &&
           !showMonsterAnnounce && (
             <button
+              ref={landscapeOdometerRef}
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
@@ -2337,7 +2453,6 @@ export default function ArcadeLevelOneScreen() {
                 <RexSprite
                   dino={dino}
                   dinoColor={dinoColor}
-                  walking={walking}
                   facingLeft={facingLeft}
                 />
               </g>
@@ -2389,7 +2504,6 @@ export default function ArcadeLevelOneScreen() {
                     <RexSprite
                       dino={dino}
                       dinoColor="#67e8f9"
-                      walking={false}
                       facingLeft={facingLeft}
                     />
                     <g
@@ -2437,6 +2551,7 @@ export default function ArcadeLevelOneScreen() {
             const s = odomKm.toFixed(1);
             return (
               <button
+                ref={floatingOdometerRef}
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {

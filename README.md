@@ -1,5 +1,7 @@
 # Trail Distance Calculator
 
+![Trail Distance Calculator screenshot](public/screenshots/distance-scene-2026-04-02T06-55-36-267Z.png)
+
 > An interactive arcade-style maths game where learners drag a dinosaur along a trail map, watch an odometer accumulate distance, and solve decimal distance problems.
 
 ## What It Is
