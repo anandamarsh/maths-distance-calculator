@@ -1,12 +1,16 @@
 # Trail Distance Calculator
 
-> An arcade-style maths game where kids drag a dinosaur along a trail map and calculate distances.
+> An interactive arcade-style maths game where learners drag a dinosaur along a trail map, watch an odometer accumulate distance, and solve decimal distance problems.
 
 ## What It Is
 
-Trail Distance Calculator is a drag-based, procedurally generated maths game built as a Progressive Web App. A dinosaur character lives on a randomly generated trail map connecting named towns. The child drags the dinosaur along the roads — an odometer counts the distance travelled — and answers questions about those distances.
+Trail Distance Calculator is a drag-based, procedurally generated maths game built as a Progressive Web App. A dinosaur character lives on a randomly generated trail map connecting 3 to 5 named towns with measured road segments. The learner drags the dinosaur along the roads, watches an odometer count the distance in km or miles, and answers questions about those journeys.
 
-Every session generates a completely fresh map: new town names, new distances, new colours, new dinosaur. No two games are the same.
+Every session generates a completely fresh map: new town names, new distances, new colours, and a different dinosaur character. No two games are the same.
+
+## Objective
+
+The objective is to read the route, travel it accurately, and calculate the required distance before submitting the answer. The game starts with guided odometer-based play and then raises the difficulty in the Monster Round by hiding the odometer so the player must rely on mental calculation.
 
 ## What It Teaches
 
