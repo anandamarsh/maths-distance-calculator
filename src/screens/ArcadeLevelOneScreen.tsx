@@ -30,6 +30,8 @@ import {
   playKeyClick,
 } from "../sound";
 import { SocialComments, SocialShare, openCommentsComposer } from "../components/Social";
+import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
+import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
 // ─── SVG coordinate helper ───────────────────────────────────────────────────
 
@@ -1252,6 +1254,10 @@ export default function ArcadeLevelOneScreen() {
     }
 
     try {
+      if (typeof document !== "undefined" && "fonts" in document) {
+        await document.fonts.ready;
+      }
+
       const rect = map.getBoundingClientRect();
       const width = Math.max(1, Math.ceil(rect.width));
       const height = Math.max(1, Math.ceil(rect.height));
@@ -1269,6 +1275,31 @@ export default function ArcadeLevelOneScreen() {
       bg.setAttribute("height", String(vbH));
       bg.setAttribute("fill", phaseBg.bg);
       clone.insertBefore(bg, clone.firstChild);
+
+      const defs =
+        clone.querySelector("defs") ??
+        clone.insertBefore(
+          document.createElementNS("http://www.w3.org/2000/svg", "defs"),
+          clone.firstChild,
+        );
+      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      const regularFontUrl = new URL(dsegRegularWoff2Url, window.location.href).href;
+      const boldFontUrl = new URL(dsegBoldWoff2Url, window.location.href).href;
+      style.textContent = `
+        @font-face {
+          font-family: 'DSEG7Classic';
+          src: url('${regularFontUrl}') format('woff2');
+          font-weight: 400;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'DSEG7Classic';
+          src: url('${boldFontUrl}') format('woff2');
+          font-weight: 700;
+          font-style: normal;
+        }
+      `;
+      defs.appendChild(style);
 
       const svgText = new XMLSerializer().serializeToString(clone);
       const blob = new Blob([svgText], {
