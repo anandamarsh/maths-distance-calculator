@@ -555,13 +555,13 @@ function NumericKeypad({
     ["1", "2", "3", "."],
   ];
   const buttonHeightClass = isMobileLandscape
-    ? "h-[45px]"
+    ? "h-[56px]"
     : isCoarsePointer
-      ? "h-9"
-      : "h-11 md:h-8";
+      ? "h-[45px]"
+      : "h-[55px] md:h-10";
   const base =
-    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 ${isMobileLandscape ? "text-[1.5rem]" : "text-base md:text-sm"} ${buttonHeightClass}`;
-  const digit = `${base} ${isMobileLandscape ? "text-[1.65rem]" : "text-lg md:text-base"} bg-slate-800 text-slate-100 border border-slate-600/60`;
+    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 ${isMobileLandscape ? "text-[2.25rem]" : "text-[1.5rem] md:text-[1.3125rem]"} ${buttonHeightClass}`;
+  const digit = `${base} ${isMobileLandscape ? "text-[2.5rem]" : "text-[1.7rem] md:text-[1.5rem]"} bg-slate-800 text-slate-100 border border-slate-600/60`;
   const op = `${base} bg-slate-700/80 text-slate-100 border border-slate-500/60`;
   const pressedKeyStyle = {
     background: "#67e8f9",
@@ -588,7 +588,7 @@ function NumericKeypad({
 
   return (
     <div
-      className={`relative flex min-h-0 min-w-0 ${isMobileLandscape ? "w-52" : "w-40 md:w-44"} shrink-0 flex-col self-start rounded-xl transition-[padding,gap] duration-300 ease-in-out ${shellPaddingClass} ${shellGapClass}`}
+      className={`relative flex min-h-0 min-w-0 ${isMobileLandscape ? "w-[16.25rem]" : "w-[12.5rem] md:w-[13.75rem]"} shrink-0 flex-col self-start rounded-xl transition-[padding,gap] duration-300 ease-in-out ${shellPaddingClass} ${shellGapClass}`}
       style={{
         background: "rgba(2,6,23,0.97)",
         border: "4px solid rgba(56,189,248,0.45)",
@@ -724,11 +724,11 @@ function NumericKeypad({
                 style={activeKey === btn ? pressedKeyStyle : undefined}
               >
                 {btn === "±" ? (
-                  <span className={`${isMobileLandscape ? "text-[2rem]" : "text-[1.7rem]"} leading-none`}>±</span>
+                  <span className={`${isMobileLandscape ? "text-[3rem]" : "text-[2.4rem] md:text-[2.1rem]"} leading-none`}>±</span>
                 ) : btn === "⌫" ? (
-                  <span className={`${isMobileLandscape ? "text-[2.2rem]" : "text-[2rem]"} leading-none`}>⌫</span>
+                  <span className={`${isMobileLandscape ? "text-[3.3rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>⌫</span>
                 ) : btn === "." ? (
-                  <span className={`${isMobileLandscape ? "text-[2.2rem]" : "text-[2rem]"} leading-none`}>.</span>
+                  <span className={`${isMobileLandscape ? "text-[3.3rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>.</span>
                 ) : (
                   btn
                 )}
@@ -754,7 +754,7 @@ function NumericKeypad({
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              className={isMobileLandscape ? "w-7 h-7" : "w-5 h-5"}
+              className={isMobileLandscape ? "w-9 h-9" : "w-8 h-8 md:w-7 md:h-7"}
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -2829,7 +2829,7 @@ export default function ArcadeLevelOneScreen() {
             l3ExtinctionSingleLineOnly ? (
               /* ── Level 3 Extinction Event: final prompt only until first wrong ── */
               <div
-                className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-sm md:text-base"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
+                className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-[1.3125rem] md:text-[1.5rem]"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
                 onClick={() => keypadToggleRef.current?.()}
               >
                 <ColoredPrompt
@@ -2882,7 +2882,7 @@ export default function ArcadeLevelOneScreen() {
                       <ColoredPrompt
                         text={line}
                         stopLabels={stopLabels}
-                        className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-sm leading-5"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
+                        className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-[1.3125rem] leading-[1.6rem] md:text-[1.5rem] md:leading-[1.8rem]"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
                       />
                       {IS_DEV && currentQ.subAnswers && (
                         <span
@@ -2896,24 +2896,24 @@ export default function ArcadeLevelOneScreen() {
                           {currentQ.subAnswers[i].toFixed(1)}
                         </span>
                       )}
-                      <span className={`${isMobileLandscape ? "text-[1rem]" : "text-sm"} text-slate-400`}>=</span>
+                      <span className={`${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} text-slate-400`}>=</span>
                       {isDone ? (
                         /* completed step — confirmed value */
                         <div className={`${isMobileLandscape ? "w-16" : "w-20"} flex items-center justify-end gap-1`}>
-                          <span className={`text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-sm"} font-bold`}>
+                          <span className={`text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} font-bold`}>
                             {subAnswers[i]} {config.unit}
                           </span>
                         </div>
                       ) : isCurrent ? (
                         <div
-                          className={`${isMobileLandscape ? "w-16 px-1.5 text-[1rem]" : "w-20 px-2 text-sm"} rounded-lg border-[3px] border-white/70 bg-slate-950 py-1 text-cyan-300 text-right digital-meter`}
+                          className={`${isMobileLandscape ? "w-16 px-1.5 text-[1rem]" : "w-24 px-2 text-[1.3125rem] md:w-28 md:text-[1.5rem]"} rounded-lg border-[3px] border-white/70 bg-slate-950 py-1 text-cyan-300 text-right digital-meter`}
                           aria-live="polite"
                         >
                           {subAnswers[i] || "0"}
                         </div>
                       ) : (
                         /* future step — empty placeholder */
-                        <div className={`${isMobileLandscape ? "w-16" : "w-20"} h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40`} />
+                        <div className={`${isMobileLandscape ? "w-16" : "w-24 md:w-28"} h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40`} />
                       )}
                       <div
                         className={`shrink-0 h-8 w-8 ${!isCurrent ? "opacity-30" : ""}`}
@@ -2926,7 +2926,7 @@ export default function ArcadeLevelOneScreen() {
           ) : (
             /* ── Level 1 / 2: single row ── */
             <div
-              className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-sm md:text-base"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
+              className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-[1.3125rem] md:text-[1.5rem]"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
