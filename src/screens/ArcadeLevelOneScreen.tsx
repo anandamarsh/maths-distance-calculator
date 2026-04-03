@@ -560,8 +560,8 @@ function NumericKeypad({
       ? "h-[45px]"
       : "h-[55px] md:h-10";
   const base =
-    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 ${isMobileLandscape ? "text-[2.25rem]" : "text-[1.5rem] md:text-[1.3125rem]"} ${buttonHeightClass}`;
-  const digit = `${base} ${isMobileLandscape ? "text-[2.5rem]" : "text-[1.7rem] md:text-[1.5rem]"} bg-slate-800 text-slate-100 border border-slate-600/60`;
+    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 ${isMobileLandscape ? "text-[1.6875rem]" : "text-[1.5rem] md:text-[1.3125rem]"} ${buttonHeightClass}`;
+  const digit = `${base} ${isMobileLandscape ? "text-[1.875rem]" : "text-[1.7rem] md:text-[1.5rem]"} bg-slate-800 text-slate-100 border border-slate-600/60`;
   const op = `${base} bg-slate-700/80 text-slate-100 border border-slate-500/60`;
   const pressedKeyStyle = {
     background: "#67e8f9",
@@ -724,11 +724,11 @@ function NumericKeypad({
                 style={activeKey === btn ? pressedKeyStyle : undefined}
               >
                 {btn === "±" ? (
-                  <span className={`${isMobileLandscape ? "text-[3rem]" : "text-[2.4rem] md:text-[2.1rem]"} leading-none`}>±</span>
+                  <span className={`${isMobileLandscape ? "text-[2.25rem]" : "text-[2.4rem] md:text-[2.1rem]"} leading-none`}>±</span>
                 ) : btn === "⌫" ? (
-                  <span className={`${isMobileLandscape ? "text-[3.3rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>⌫</span>
+                  <span className={`${isMobileLandscape ? "text-[2.475rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>⌫</span>
                 ) : btn === "." ? (
-                  <span className={`${isMobileLandscape ? "text-[3.3rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>.</span>
+                  <span className={`${isMobileLandscape ? "text-[2.475rem]" : "text-[2.8rem] md:text-[2.4rem]"} leading-none`}>.</span>
                 ) : (
                   btn
                 )}
@@ -754,7 +754,7 @@ function NumericKeypad({
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              className={isMobileLandscape ? "w-9 h-9" : "w-8 h-8 md:w-7 md:h-7"}
+              className={isMobileLandscape ? "w-[1.6875rem] h-[1.6875rem]" : "w-8 h-8 md:w-7 md:h-7"}
               strokeLinecap="round"
               strokeLinejoin="round"
             >
