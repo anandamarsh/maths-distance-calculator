@@ -904,6 +904,10 @@ export default function ArcadeLevelOneScreen() {
   const tutorialHandScale = isCoarsePointer ? 1.5 : 1.125;
   const tutorialHandOffsetX = isCoarsePointer ? 5 : 20;
   const tutorialHandOffsetY = isCoarsePointer ? -40 : -25;
+  const tutorialDragHintLabel = isCoarsePointer ? "Touch and Drag" : "Click and Drag";
+  const tutorialDragHintFontSize = isCoarsePointer ? 21 : 26;
+  const tutorialDragHintBoxWidth = isCoarsePointer ? 248 : 300;
+  const tutorialDragHintBoxHeight = isCoarsePointer ? 28 : 34;
   const hintRouteStart = config.stops[currentQ.route[0]];
   const hintRouteNext =
     config.stops[currentQ.route[Math.min(1, currentQ.route.length - 1)]];
@@ -2534,6 +2538,30 @@ export default function ArcadeLevelOneScreen() {
                           paintOrder="stroke"
                         />
                       </svg>
+                      <g transform="translate(0 74)">
+                        <rect
+                          x={-tutorialDragHintBoxWidth / 2}
+                          y={-tutorialDragHintBoxHeight / 2}
+                          width={tutorialDragHintBoxWidth}
+                          height={tutorialDragHintBoxHeight}
+                          rx={8}
+                          fill="rgba(15,23,42,0.88)"
+                          stroke="rgba(56,189,248,0.35)"
+                          strokeWidth={1}
+                        />
+                        <text
+                          x="0"
+                          y="2"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize={tutorialDragHintFontSize}
+                          fontWeight="900"
+                          fill="#67e8f9"
+                          letterSpacing="0.02em"
+                        >
+                          {tutorialDragHintLabel}
+                        </text>
+                      </g>
                     </g>
                   </g>
                 </g>
