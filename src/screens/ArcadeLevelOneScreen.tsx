@@ -481,6 +481,7 @@ function NumericKeypad({
   displayHintVariant?: "default" | "display-center";
 }) {
   const isCoarsePointer = useIsCoarsePointer();
+  const isMobileLandscape = useIsMobileLandscape();
   const [minimized, setMinimized] = useState(defaultMinimized);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<number | null>(null);
@@ -553,10 +554,14 @@ function NumericKeypad({
     ["4", "5", "6", "±"],
     ["1", "2", "3", "."],
   ];
-  const buttonHeightClass = isCoarsePointer ? "h-9" : "h-11 md:h-8";
+  const buttonHeightClass = isMobileLandscape
+    ? "h-[45px]"
+    : isCoarsePointer
+      ? "h-9"
+      : "h-11 md:h-8";
   const base =
-    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 text-base md:text-sm ${buttonHeightClass}`;
-  const digit = `${base} text-lg md:text-base bg-slate-800 text-slate-100 border border-slate-600/60`;
+    `rounded flex items-center justify-center font-black select-none transition-transform active:scale-95 ${isMobileLandscape ? "text-[1.5rem]" : "text-base md:text-sm"} ${buttonHeightClass}`;
+  const digit = `${base} ${isMobileLandscape ? "text-[1.65rem]" : "text-lg md:text-base"} bg-slate-800 text-slate-100 border border-slate-600/60`;
   const op = `${base} bg-slate-700/80 text-slate-100 border border-slate-500/60`;
   const pressedKeyStyle = {
     background: "#67e8f9",
@@ -579,12 +584,11 @@ function NumericKeypad({
     showDisplayHint && !isCoarsePointer && displayHintVariant === "default";
   const shellPaddingClass = minimized ? "px-1.5 py-1" : "p-1.5";
   const shellGapClass = minimized ? "gap-0" : "gap-1";
-  const shellHeightClass = minimized ? "h-[78px]" : "";
-  const displayHeightClass = minimized ? "h-[68px] md:h-10" : "h-14 md:h-12";
+  const displayHeightClass = "h-14 md:h-12";
 
   return (
     <div
-      className={`relative flex min-h-0 min-w-0 w-40 shrink-0 flex-col self-start rounded-xl md:w-44 ${shellPaddingClass} ${shellGapClass} ${shellHeightClass}`}
+      className={`relative flex min-h-0 min-w-0 ${isMobileLandscape ? "w-52" : "w-40 md:w-44"} shrink-0 flex-col self-start rounded-xl transition-[padding,gap] duration-300 ease-in-out ${shellPaddingClass} ${shellGapClass}`}
       style={{
         background: "rgba(2,6,23,0.97)",
         border: "4px solid rgba(56,189,248,0.45)",
@@ -593,7 +597,7 @@ function NumericKeypad({
       }}
     >
       <div
-        className={`relative rounded-lg px-3.5 flex shrink-0 items-center justify-end overflow-visible cursor-pointer ${displayHeightClass}`}
+        className={`relative rounded-lg px-3.5 flex shrink-0 items-center justify-end overflow-visible cursor-pointer transition-[height] duration-300 ease-in-out ${displayHeightClass}`}
         onClick={toggleMinimized}
         style={{
           fontFamily: "'DSEG7Classic', 'Courier New', monospace",
@@ -666,12 +670,11 @@ function NumericKeypad({
         )}
       </div>
       <div
-        className="flex min-h-0 flex-1 flex-col gap-0.5"
+        className="flex min-h-0 flex-col gap-0.5"
         style={{
           overflow: "hidden",
           maxHeight: minimized ? "0px" : "300px",
           opacity: minimized ? 0 : 1,
-          flex: minimized ? "0 0 auto" : "1 1 auto",
           pointerEvents: minimized ? "none" : "auto",
           transition: "max-height 0.4s ease-in-out, opacity 0.3s ease-in-out",
         }}
@@ -721,11 +724,11 @@ function NumericKeypad({
                 style={activeKey === btn ? pressedKeyStyle : undefined}
               >
                 {btn === "±" ? (
-                  <span className="text-[1.7rem] leading-none">±</span>
+                  <span className={`${isMobileLandscape ? "text-[2rem]" : "text-[1.7rem]"} leading-none`}>±</span>
                 ) : btn === "⌫" ? (
-                  <span className="text-[2rem] leading-none">⌫</span>
+                  <span className={`${isMobileLandscape ? "text-[2.2rem]" : "text-[2rem]"} leading-none`}>⌫</span>
                 ) : btn === "." ? (
-                  <span className="text-[2rem] leading-none">.</span>
+                  <span className={`${isMobileLandscape ? "text-[2.2rem]" : "text-[2rem]"} leading-none`}>.</span>
                 ) : (
                   btn
                 )}
@@ -751,7 +754,7 @@ function NumericKeypad({
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              className="w-5 h-5"
+              className={isMobileLandscape ? "w-7 h-7" : "w-5 h-5"}
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -1818,8 +1821,10 @@ export default function ArcadeLevelOneScreen() {
   const isCompactQuestionTray = isMobileLandscape;
   const useCollapsedQuestionTray = isCompactQuestionTray && isKeypadMinimized;
   const collapsedPromptPanelClass = useCollapsedQuestionTray
-    ? "h-[78px] overflow-y-auto py-1.5 leading-5"
-    : "min-h-[60px] py-2";
+    ? "h-[78px] overflow-y-auto py-1 leading-[1.25rem]"
+    : isMobileLandscape
+      ? "min-h-[52px] py-1.5"
+      : "min-h-[60px] py-2";
   const collapsedStepPanelClass = useCollapsedQuestionTray
     ? "py-1"
     : "py-2.5";
@@ -2817,14 +2822,14 @@ export default function ArcadeLevelOneScreen() {
           })()}
 
         <div
-          className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2 md:gap-3"
+          className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-stretch ${isMobileLandscape ? "gap-1.5" : "gap-2 md:gap-3"}`}
           style={useCollapsedQuestionTray ? { minHeight: "68px" } : undefined}
         >
           {currentQ.promptLines && currentQ.subAnswers ? (
             l3ExtinctionSingleLineOnly ? (
               /* ── Level 3 Extinction Event: final prompt only until first wrong ── */
               <div
-                className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center gap-2 px-4 text-sm md:text-base font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
+                className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-sm md:text-base"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
                 onClick={() => keypadToggleRef.current?.()}
               >
                 <ColoredPrompt
@@ -2848,7 +2853,7 @@ export default function ArcadeLevelOneScreen() {
               /* ── Level 3: stepped one-at-a-time ── */
               <div
                 ref={isMobileLandscape ? steppedPromptScrollRef : undefined}
-                className={`arcade-panel flex min-h-0 min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} flex-col gap-2 px-4 cursor-pointer ${collapsedStepPanelClass}`}
+                className={`arcade-panel flex min-h-0 min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} flex-col ${isMobileLandscape ? "gap-1.5 px-2" : "gap-2 px-4"} cursor-pointer ${collapsedStepPanelClass}`}
                 style={
                   useCollapsedQuestionTray
                     ? {
@@ -2872,12 +2877,12 @@ export default function ArcadeLevelOneScreen() {
                       ref={(el) => {
                         steppedPromptItemRefs.current[i] = el;
                       }}
-                      className={`flex items-center gap-2 transition-opacity duration-200 ${shouldDim ? "opacity-30" : ""}`}
+                      className={`flex items-center ${isMobileLandscape ? "gap-1.5" : "gap-2"} transition-opacity duration-200 ${shouldDim ? "opacity-30" : ""}`}
                     >
                       <ColoredPrompt
                         text={line}
                         stopLabels={stopLabels}
-                        className={`flex-1 text-sm leading-5 font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
+                        className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-sm leading-5"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
                       />
                       {IS_DEV && currentQ.subAnswers && (
                         <span
@@ -2891,24 +2896,24 @@ export default function ArcadeLevelOneScreen() {
                           {currentQ.subAnswers[i].toFixed(1)}
                         </span>
                       )}
-                      <span className="text-slate-400 text-sm">=</span>
+                      <span className={`${isMobileLandscape ? "text-[1rem]" : "text-sm"} text-slate-400`}>=</span>
                       {isDone ? (
                         /* completed step — confirmed value */
-                        <div className="w-20 flex items-center justify-end gap-1">
-                          <span className="text-green-400 text-sm font-bold">
+                        <div className={`${isMobileLandscape ? "w-16" : "w-20"} flex items-center justify-end gap-1`}>
+                          <span className={`text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-sm"} font-bold`}>
                             {subAnswers[i]} {config.unit}
                           </span>
                         </div>
                       ) : isCurrent ? (
                         <div
-                          className="w-20 rounded-lg border-[3px] border-white/70 bg-slate-950 px-2 py-1 text-sm text-cyan-300 text-right digital-meter"
+                          className={`${isMobileLandscape ? "w-16 px-1.5 text-[1rem]" : "w-20 px-2 text-sm"} rounded-lg border-[3px] border-white/70 bg-slate-950 py-1 text-cyan-300 text-right digital-meter`}
                           aria-live="polite"
                         >
                           {subAnswers[i] || "0"}
                         </div>
                       ) : (
                         /* future step — empty placeholder */
-                        <div className="w-20 h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40" />
+                        <div className={`${isMobileLandscape ? "w-16" : "w-20"} h-[34px] rounded-lg border-[2px] border-white/15 bg-slate-950/40`} />
                       )}
                       <div
                         className={`shrink-0 h-8 w-8 ${!isCurrent ? "opacity-30" : ""}`}
@@ -2921,7 +2926,7 @@ export default function ArcadeLevelOneScreen() {
           ) : (
             /* ── Level 1 / 2: single row ── */
             <div
-              className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center gap-2 px-4 text-sm md:text-base font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
+              className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-sm md:text-base"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
