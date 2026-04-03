@@ -45,12 +45,12 @@ export interface TrailQuestion {
 }
 
 const PLACE_POOL = [
-  "Greenville", "Silvergrove", "Winchester", "Sparrowtown", "Campbell",
-  "Hillsboro", "Newberg", "Fairfax", "Centerville", "Milford",
-  "Summerfield", "Dayton", "Lakewood", "Brookfield", "Cedarburg",
-  "Allenville", "Redbank", "Pinecrest", "Marshpoint", "Fox Hollow",
-  "Starfield", "Oakridge", "Willow Bay", "Stonepass", "Maple Glen",
-  "Ridgeview", "Ironwood", "Dustfall", "Crestwick", "Ashport",
+  "Newtown", "Ashfield", "Marrickville", "Leichhardt", "Erskineville",
+  "Redfern", "Tempe", "Sydenham", "Enmore", "Stanmore",
+  "Petersham", "Dulwich", "Rozelle", "Balmain", "Drummoyne",
+  "Concord", "Rhodes", "Burwood", "Strathfield", "Homebush",
+  "Croydon", "Lidcombe", "Bankstown", "Lakemba", "Belmore",
+  "Hurstville", "Kogarah", "Rockdale", "Sylvania", "Miranda",
 ];
 
 const PALETTES: TrailConfig["palette"][] = [
