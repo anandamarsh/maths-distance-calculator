@@ -717,7 +717,7 @@ function NumericKeypad({
               />
             </svg>
             <div
-              className="mt-2 rounded-full px-3 py-1 text-sm font-black uppercase tracking-[0.18em] text-cyan-200"
+              className="-mt-1 rounded-full px-3 py-1 text-sm font-black uppercase tracking-[0.18em] text-cyan-200"
               style={{
                 background: "rgba(8, 47, 73, 0.92)",
                 border: "2px solid rgba(103,232,249,0.5)",
@@ -808,7 +808,7 @@ export default function ArcadeLevelOneScreen() {
   const [odomKm, setOdomKm] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [facingLeft, setFacingLeft] = useState(false);
-  const [soundMuted, setSoundMuted] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(() => isMuted());
   const [topPanel, setTopPanel] = useState<"map" | "question">("map");
   const [flash, setFlash] = useState<{
     text: string;

@@ -1,6 +1,6 @@
 let ctx: AudioContext | null = null;
 let footToggle = false;
-let musicMuted = false;
+let musicMuted = import.meta.env.DEV;
 const MUSIC_VOLUME_SCALE = 0.25;
 const SFX_VOLUME_SCALE = 1;
 
