@@ -251,6 +251,11 @@ function shouldFaceLeftForRoute(route: number[]) {
 }
 
 const IS_DEV = import.meta.env.DEV;
+const IS_LOCALHOST_DEV =
+  IS_DEV &&
+  new Set(["localhost", "127.0.0.1", "::1"]).has(
+    globalThis.location?.hostname ?? "",
+  );
 
 /** Eggs to collect per phase (normal white → Monster Round golden). */
 const EGGS_PER_LEVEL = 10;
@@ -1299,6 +1304,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   async function handleCaptureQuestion() {
+    if (!IS_LOCALHOST_DEV) return;
     const svg = svgRef.current;
     const map = mapContainerRef.current;
     if (!svg || !map) {
@@ -1985,24 +1991,32 @@ export default function ArcadeLevelOneScreen() {
               )}
             </svg>
           </button>
-          <button
-            type="button"
-            onClick={handleCaptureQuestion}
-            title="Capture scene"
-            aria-label="Capture scene"
-            className="social-launcher arcade-button"
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-              <path
-                d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
-                stroke="white"
-                strokeWidth="1.9"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="12" cy="12.5" r="3.25" stroke="white" strokeWidth="1.9" />
-            </svg>
-          </button>
+          {IS_LOCALHOST_DEV && (
+            <button
+              type="button"
+              onClick={handleCaptureQuestion}
+              title="Capture scene"
+              aria-label="Capture scene"
+              className="social-launcher arcade-button"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                <path
+                  d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"
+                  stroke="white"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx="12"
+                  cy="12.5"
+                  r="3.25"
+                  stroke="white"
+                  strokeWidth="1.9"
+                />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
