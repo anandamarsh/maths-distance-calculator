@@ -257,6 +257,14 @@ const IS_LOCALHOST_DEV =
     globalThis.location?.hostname ?? "",
   );
 
+function readInitialLevel(): 1 | 2 | 3 {
+  if (typeof window === "undefined") return 1;
+  const raw = new URLSearchParams(window.location.search).get("level");
+  if (raw === "2") return 2;
+  if (raw === "3") return 3;
+  return 1;
+}
+
 /** Eggs to collect per phase (normal white → Monster Round golden). */
 const EGGS_PER_LEVEL = 10;
 const EGG_INDICES = Array.from({ length: EGGS_PER_LEVEL }, (_, i) => i);
@@ -789,9 +797,11 @@ function NumericKeypad({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ArcadeLevelOneScreen() {
-  const [level, setLevel] = useState<1 | 2 | 3>(1);
-  const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(1);
-  const [run, setRun] = useState(() => createRun(1));
+  const initialLevelRef = useRef<1 | 2 | 3>(readInitialLevel());
+  const initialLevel = initialLevelRef.current;
+  const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
+  const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(initialLevel);
+  const [run, setRun] = useState(() => createRun(initialLevel));
   const [screen, setScreen] = useState<"playing" | "won" | "gameover">(
     "playing",
   );
