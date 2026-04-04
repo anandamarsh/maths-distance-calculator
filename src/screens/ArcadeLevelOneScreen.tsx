@@ -2937,8 +2937,8 @@ export default function ArcadeLevelOneScreen() {
                       <span className={`${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} text-slate-400`}>=</span>
                       {isDone ? (
                         /* completed step — confirmed value */
-                        <div className={`${isMobileLandscape ? "w-16" : "w-20"} flex items-center justify-end gap-1`}>
-                          <span className={`text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} font-bold`}>
+                        <div className={`${isMobileLandscape ? "w-20" : "w-24 md:w-28"} flex items-center justify-end gap-1`}>
+                          <span className={`whitespace-nowrap text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} font-bold`}>
                             {subAnswers[i]} {config.unit}
                           </span>
                         </div>
