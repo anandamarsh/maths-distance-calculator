@@ -686,7 +686,7 @@ function NumericKeypad({
       >
         {showDisplayHandOnKeypad && !minimized && (
           <div
-            className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+            className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
             style={{
               top: "calc(58% + 30px)",
               animation: "keypad-display-finger-fade 2.4s ease-in-out infinite",
@@ -716,6 +716,18 @@ function NumericKeypad({
                 paintOrder="stroke"
               />
             </svg>
+            <div
+              className="mt-2 rounded-full px-3 py-1 text-sm font-black uppercase tracking-[0.18em] text-cyan-200"
+              style={{
+                background: "rgba(8, 47, 73, 0.92)",
+                border: "2px solid rgba(103,232,249,0.5)",
+                boxShadow: "0 0 14px rgba(103,232,249,0.18)",
+                textShadow: "0 0 10px rgba(103,232,249,0.35)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Enter the value
+            </div>
           </div>
         )}
         {rows.map((row, r) => (
