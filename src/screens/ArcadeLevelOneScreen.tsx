@@ -728,7 +728,7 @@ function NumericKeypad({
                 whiteSpace: "nowrap",
               }}
             >
-              Enter the value
+              Enter the Value
             </div>
           </div>
         )}
