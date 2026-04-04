@@ -717,13 +717,14 @@ function NumericKeypad({
               />
             </svg>
             <div
-              className="rounded-full px-3 py-1 text-sm font-black uppercase tracking-[0.18em] text-cyan-200"
+              className="rounded-full px-3 py-1 text-sm uppercase"
               style={{
                 marginTop: "-1.5rem",
-                background: "rgba(8, 47, 73, 0.92)",
-                border: "2px solid rgba(103,232,249,0.5)",
-                boxShadow: "0 0 14px rgba(103,232,249,0.18)",
-                textShadow: "0 0 10px rgba(103,232,249,0.35)",
+                background: "rgba(15,23,42,0.88)",
+                border: "1px solid rgba(56,189,248,0.35)",
+                color: "#67e8f9",
+                fontWeight: 900,
+                letterSpacing: "0.02em",
                 whiteSpace: "nowrap",
               }}
             >
