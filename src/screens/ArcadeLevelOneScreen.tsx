@@ -717,7 +717,7 @@ function NumericKeypad({
               />
             </svg>
             <div
-              className="rounded-full px-3 py-1 text-sm uppercase"
+              className="rounded-full px-3 py-1 text-sm"
               style={{
                 marginTop: "-1.5rem",
                 background: "rgba(15,23,42,0.88)",
