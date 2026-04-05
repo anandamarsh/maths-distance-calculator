@@ -31,6 +31,23 @@ function makeAttempt(level: 1 | 2 | 3, isCorrect: boolean) {
   };
 }
 
+function makeMissingLegAttempt(hiddenEdgeIndex: number, isCorrect: boolean) {
+  return {
+    config: stubConfig,
+    prompt: "What is the missing distance?",
+    questionType: "missing-leg" as const,
+    level: 2 as const,
+    hiddenEdgeIndex,
+    routeStopNames: ["A", "B", "C"],
+    unit: "km" as const,
+    correctAnswer: 5,
+    childAnswer: isCorrect ? 5 : 3,
+    isCorrect,
+    gamePhase: "normal" as const,
+    dinoName: "Rex",
+  };
+}
+
 describe("sessionLog – cumulative mode", () => {
   it("fresh startSession resets all history", () => {
     startSession(); // default resetCumulative=true
@@ -126,5 +143,41 @@ describe("sessionLog – cumulative mode", () => {
     // Levels in attempts
     const levels = summary.attempts.map(a => a.level);
     assert.deepEqual(levels, [1, 1, 2, 2, 3, 3, 3]);
+  });
+});
+
+describe("sessionLog – hiddenEdgeIndex (missing-leg bug fix)", () => {
+  it("hiddenEdgeIndex is stored and retrieved in summary attempts", () => {
+    startSession({ resetCumulative: true });
+    logAttempt(makeMissingLegAttempt(0, true));   // edge 0 is hidden
+    logAttempt(makeMissingLegAttempt(2, false));  // edge 2 is hidden
+
+    const summary = buildSummary({
+      playerName: "Tester",
+      level: 2,
+      normalEggs: 10,
+      monsterEggs: 10,
+      levelCompleted: true,
+      monsterRoundCompleted: false,
+    });
+
+    assert.equal(summary.attempts[0].hiddenEdgeIndex, 0, "first attempt hidden edge should be 0");
+    assert.equal(summary.attempts[1].hiddenEdgeIndex, 2, "second attempt hidden edge should be 2");
+  });
+
+  it("total-distance attempts have no hiddenEdgeIndex", () => {
+    startSession({ resetCumulative: true });
+    logAttempt(makeAttempt(1, true));
+
+    const summary = buildSummary({
+      playerName: "Tester",
+      level: 1,
+      normalEggs: 10,
+      monsterEggs: 10,
+      levelCompleted: true,
+      monsterRoundCompleted: false,
+    });
+
+    assert.equal(summary.attempts[0].hiddenEdgeIndex, undefined, "no hidden edge for total-distance");
   });
 });

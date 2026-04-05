@@ -11,6 +11,7 @@ export interface QuestionAttempt {
   promptLines?: [string, string, string]; // Level 3 sub-prompts
   questionType: "total-distance" | "missing-leg" | "hub-comparison";
   level: 1 | 2 | 3;
+  hiddenEdgeIndex?: number;       // Level 2: index into config.edges whose label is "?"
   // Route info
   routeStopNames: string[];       // e.g. ["Newtown", "Ashfield", "Marrickville"]
   unit: "km" | "mi";

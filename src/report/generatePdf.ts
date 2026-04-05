@@ -184,7 +184,8 @@ function drawMiniMap(
     doc.setFontSize(6);
     doc.setTextColor(COLORS.textMuted);
     const isHidden = attempt.questionType === "missing-leg" &&
-      (attempt.config.edges.indexOf(edge) === (attempt as any).hiddenEdgeIndex);
+      attempt.hiddenEdgeIndex !== undefined &&
+      attempt.config.edges.indexOf(edge) === attempt.hiddenEdgeIndex;
     const label = isHidden ? "?" : `${edge.distance} ${config.unit}`;
     doc.text(label, mx, my - 1, { align: "center" });
   }

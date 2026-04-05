@@ -1988,6 +1988,7 @@ export default function ArcadeLevelOneScreen() {
       prompt: currentQ.prompt,
       questionType: level === 1 ? "total-distance" : "missing-leg",
       level: level as 1 | 2 | 3,
+      hiddenEdgeIndex: currentQ.hiddenEdge,
       routeStopNames: currentQ.route.map(i => config.stops[i].label),
       unit: config.unit,
       correctAnswer: currentQ.answer,
