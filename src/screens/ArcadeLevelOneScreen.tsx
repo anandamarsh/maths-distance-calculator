@@ -259,6 +259,7 @@ function shouldFaceLeftForRoute(route: number[]) {
 }
 
 const IS_DEV = import.meta.env.DEV;
+const ANSWER_CHEAT_CODE = "197879";
 const IS_LOCALHOST_DEV =
   IS_DEV &&
   new Set(["localhost", "127.0.0.1", "::1"]).has(
@@ -1883,6 +1884,7 @@ export default function ArcadeLevelOneScreen() {
     // ── Level 3: stepped one-at-a-time ──
     if (currentQ.subAnswers && currentQ.promptLines) {
       if (l3ExtinctionSingleLineOnly) {
+        if (subAnswers[2].trim() === ANSWER_CHEAT_CODE) return;
         const g = parseFloat(subAnswers[2]);
         if (isNaN(g)) {
           showFlash("Enter a number!", false);
@@ -1912,6 +1914,7 @@ export default function ArcadeLevelOneScreen() {
         return;
       }
 
+      if (subAnswers[subStep].trim() === ANSWER_CHEAT_CODE) return;
       const g = parseFloat(subAnswers[subStep]);
       if (isNaN(g)) {
         showFlash("Enter a number!", false);
@@ -1972,6 +1975,7 @@ export default function ArcadeLevelOneScreen() {
     }
 
     // ── Level 1 / 2 ──
+    if (answer.trim() === ANSWER_CHEAT_CODE) return;
     const guess = parseFloat(answer);
     if (isNaN(guess)) {
       showFlash("Type a number!", false);
@@ -2036,6 +2040,7 @@ export default function ArcadeLevelOneScreen() {
       : null;
   const keypadValue =
     l3KeypadIndex !== null ? subAnswers[l3KeypadIndex] : answer;
+  const showCheatAnswer = keypadValue.trim() === ANSWER_CHEAT_CODE;
   const canKeypadSubmit =
     l3KeypadIndex !== null
       ? !isNaN(parseFloat(subAnswers[l3KeypadIndex]))
@@ -3075,7 +3080,7 @@ export default function ArcadeLevelOneScreen() {
                   text={currentQ.promptLines[2]}
                   stopLabels={stopLabels}
                 />
-                {IS_DEV && currentQ.subAnswers && (
+                {(IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
                   <span
                     className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                     style={{
@@ -3123,7 +3128,7 @@ export default function ArcadeLevelOneScreen() {
                         stopLabels={stopLabels}
                         className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-[1.3125rem] leading-[1.6rem] md:text-[1.5rem] md:leading-[1.8rem]"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
                       />
-                      {IS_DEV && currentQ.subAnswers && (
+                      {(IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
                         <span
                           className="shrink-0 rounded px-1 text-[10px] font-black"
                           style={{
@@ -3169,7 +3174,7 @@ export default function ArcadeLevelOneScreen() {
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
-              {IS_DEV && (
+              {(IS_DEV || showCheatAnswer) && (
                 <span
                   className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                   style={{
