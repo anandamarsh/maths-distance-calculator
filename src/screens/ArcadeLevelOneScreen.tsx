@@ -604,7 +604,11 @@ function NumericKeypad({
     (showDisplayHint && isCoarsePointer && displayHintVariant === "default");
   const showDisplayHandOnKeypad =
     showDisplayHint && !isCoarsePointer && displayHintVariant === "default";
-  const shellPaddingClass = minimized ? "px-1.5 py-1" : "p-1.5";
+  const shellPaddingClass = minimized
+    ? "px-1.5 py-1"
+    : isMobileLandscape
+      ? "px-1.5 pt-1.5 pb-2.5"
+      : "p-1.5";
   const shellGapClass = minimized ? "gap-0" : "gap-1";
   const displayHeightClass = "h-14 md:h-12";
 
