@@ -889,7 +889,6 @@ function LevelCompleteReportActions({
           disabled={generating}
           className="arcade-button min-w-0 shrink-0 px-3 py-3 text-sm md:px-5 md:text-base"
           style={{
-            boxShadow: "0 0 16px rgba(251,191,36,0.4), 0 6px 0 #78350f",
             borderColor: "#fbbf24",
             opacity: generating ? 0.6 : 1,
             cursor: generating ? "not-allowed" : "pointer",
