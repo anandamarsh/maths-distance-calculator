@@ -35,10 +35,9 @@ import {
   startQuestionTimer,
   logAttempt,
   buildSummary,
-  clearSession,
 } from "../report/sessionLog";
 import type { SessionSummary } from "../report/sessionLog";
-import SessionReportModal from "../components/SessionReportModal";
+import { downloadReport, shareReport } from "../report/shareReport";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
@@ -803,6 +802,125 @@ function NumericKeypad({
   );
 }
 
+function LevelCompleteReportActions({
+  summary,
+  isMobileLandscape,
+}: {
+  summary: SessionSummary;
+  isMobileLandscape: boolean;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const totalEggs = summary.normalEggs + summary.monsterEggs;
+  const canEmailReport = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shareEmail.trim());
+
+  async function handleShare() {
+    setGenerating(true);
+    try {
+      await shareReport(summary);
+    } catch (error) {
+      console.error("Report share failed:", error);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleEmailDraft() {
+    if (!canEmailReport || generating) return;
+    setGenerating(true);
+    try {
+      await downloadReport(summary);
+      const subject = `${summary.playerName || "Explorer"}'s Distance Calculator Report`;
+      const body = [
+        "Hi,",
+        "",
+        "I've attached the latest Distance Calculator report.",
+        "",
+        `Score: ${summary.correctCount}/${summary.totalQuestions}`,
+        `Accuracy: ${summary.accuracy}%`,
+        `Eggs Collected: ${totalEggs}`,
+      ].join("\n");
+      window.location.href = `mailto:${encodeURIComponent(
+        shareEmail.trim(),
+      )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } catch (error) {
+      console.error("Email draft failed:", error);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 w-full max-w-xl">
+      {!isMobileLandscape && (
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-2xl border border-emerald-300/20 bg-slate-800/70 px-3 py-3">
+            <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
+              Score
+            </div>
+            <div className="mt-1 text-xl font-black text-emerald-300 md:text-2xl">
+              {summary.correctCount}/{summary.totalQuestions}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-amber-300/20 bg-slate-800/70 px-3 py-3">
+            <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
+              Accuracy
+            </div>
+            <div className="mt-1 text-xl font-black text-yellow-300 md:text-2xl">
+              {summary.accuracy}%
+            </div>
+          </div>
+          <div className="rounded-2xl border border-fuchsia-300/20 bg-slate-800/70 px-3 py-3">
+            <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
+              Eggs
+            </div>
+            <div className="mt-1 text-xl font-black text-fuchsia-300 md:text-2xl">
+              {totalEggs}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={generating}
+          className="arcade-button min-w-0 shrink-0 px-3 py-3 text-sm md:px-5 md:text-base"
+          style={{
+            boxShadow: "0 0 16px rgba(251,191,36,0.4), 0 6px 0 #78350f",
+            borderColor: "#fbbf24",
+            opacity: generating ? 0.6 : 1,
+            cursor: generating ? "not-allowed" : "pointer",
+          }}
+        >
+          {generating ? "Creating..." : "Share Report"}
+        </button>
+        <input
+          type="email"
+          value={shareEmail}
+          onChange={(event) => setShareEmail(event.target.value)}
+          placeholder="parent@email.com"
+          className="min-w-0 flex-1 rounded-2xl border-2 border-cyan-300 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-cyan-200"
+        />
+        <button
+          type="button"
+          onClick={handleEmailDraft}
+          disabled={!canEmailReport || generating}
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400 text-slate-950 transition-opacity disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500 disabled:opacity-100"
+          aria-label="Email report"
+          title={canEmailReport ? "Download the report and open an email draft" : "Enter an email address"}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 2 11 13" />
+            <path d="m22 2-7 20-4-9-9-4Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ArcadeLevelOneScreen() {
@@ -842,7 +960,6 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
   const [hasDiscoveredKeypadDisplay, setHasDiscoveredKeypadDisplay] =
@@ -1574,6 +1691,7 @@ export default function ArcadeLevelOneScreen() {
     setGamePhase("normal");
     setFlash(null);
     setDragging(false);
+    setSessionSummary(null);
     setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     const firstStartKm = getCheckpoints(next.config)[next.firstQ.route[0]];
     resetPosition(firstStartKm);
@@ -1655,7 +1773,6 @@ export default function ArcadeLevelOneScreen() {
       monsterRoundCompleted: true,
     });
     setSessionSummary(summary);
-    setShowReportModal(true);
   }
 
   function earnMonsterEgg() {
@@ -3469,50 +3586,50 @@ export default function ArcadeLevelOneScreen() {
               "radial-gradient(ellipse at center, rgba(15,23,42,0.985) 0%, rgba(2,6,23,0.995) 78%)",
           }}
         >
-          <div className="arcade-panel p-10 text-center">
+          <div
+            className="arcade-panel w-full max-w-3xl p-6 text-center md:p-10"
+            style={{
+              background: isMobileLandscape
+                ? "rgba(15, 23, 42, 0.97)"
+                : "rgba(15, 23, 42, 0.8)",
+            }}
+          >
             {gamePhase === "monster" ? (
               <>
                 <div className="text-4xl font-black uppercase tracking-[0.18em] text-yellow-300 md:text-5xl">
                   Level {level} Complete!
                 </div>
-                <div className="mt-1 text-lg text-purple-300 font-bold">
-                  🦕 Monster Round Crushed! 🦕
+                <div className="mt-2 text-base font-bold text-purple-300 md:text-lg">
+                  Monster Round Crushed!
                 </div>
-                <div className="mt-2 flex flex-col gap-1.5 items-center">
-                  {[0, 5].map((rowStart) => (
-                    <div
-                      key={rowStart}
-                      className="flex items-center justify-center gap-1"
+                <div className="mt-4 flex items-center justify-center gap-1">
+                  {EGG_INDICES.map((i) => (
+                    <svg
+                      key={i}
+                      viewBox="0 0 512 512"
+                      width={isMobileLandscape ? "18" : "24"}
+                      height={isMobileLandscape ? "18" : "24"}
+                      style={{
+                        filter:
+                          "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))",
+                      }}
                     >
-                      {EGG_INDICES.slice(rowStart, rowStart + 5).map((i) => (
-                        <svg
-                          key={i}
-                          viewBox="0 0 512 512"
-                          width="24"
-                          height="24"
-                          style={{
-                            filter:
-                              "drop-shadow(0 0 6px rgba(250,204,21,0.95)) drop-shadow(0 0 14px rgba(251,191,36,0.6))",
-                          }}
-                        >
-                          <path
-                            d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
-                            fill="#facc15"
-                            stroke="#fbbf24"
-                            strokeWidth="18"
-                          />
-                          <ellipse
-                            cx="190"
-                            cy="150"
-                            rx="35"
-                            ry="60"
-                            fill="#fef08a"
-                            opacity="0.4"
-                            transform="rotate(-20 190 150)"
-                          />
-                        </svg>
-                      ))}
-                    </div>
+                      <path
+                        d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                        fill="#facc15"
+                        stroke="#fbbf24"
+                        strokeWidth="18"
+                      />
+                      <ellipse
+                        cx="190"
+                        cy="150"
+                        rx="35"
+                        ry="60"
+                        fill="#fef08a"
+                        opacity="0.4"
+                        transform="rotate(-20 190 150)"
+                      />
+                    </svg>
                   ))}
                 </div>
               </>
@@ -3526,7 +3643,15 @@ export default function ArcadeLevelOneScreen() {
                 </div>
               </>
             )}
-            <div className="mt-8 flex flex-col items-center gap-3">
+
+            {sessionSummary && (
+              <LevelCompleteReportActions
+                summary={sessionSummary}
+                isMobileLandscape={isMobileLandscape}
+              />
+            )}
+
+            <div className="mt-6 flex flex-col items-center gap-3">
               {level < 3 && (
                 <button
                   onClick={() => beginNewRun((level + 1) as 1 | 2 | 3)}
@@ -3538,17 +3663,6 @@ export default function ArcadeLevelOneScreen() {
             </div>
           </div>
         </div>
-      )}
-
-      {showReportModal && sessionSummary && (
-        <SessionReportModal
-          summary={sessionSummary}
-          onClose={() => {
-            setShowReportModal(false);
-            setSessionSummary(null);
-            clearSession();
-          }}
-        />
       )}
     </div>
   );

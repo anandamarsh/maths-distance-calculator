@@ -6,7 +6,8 @@ import type { SessionSummary, QuestionAttempt } from "./sessionLog";
 // ─── Color palette ───────────────────────────────────────────────────────────
 
 const COLORS = {
-  headerBg: "#1e293b",
+  headerBg: "#f1f5f9",       // light slate for header + curriculum bg
+  headerBorder: "#cbd5e1",   // border for header
   correctBg: "#f0fdf4",
   correctBorder: "#22c55e",
   correctDark: "#16a34a",    // darker green for "Your answer" when correct
@@ -17,21 +18,27 @@ const COLORS = {
   textMuted: "#64748b",
 };
 
-// ─── Curriculum metadata (from manifest teachesLevels) ───────────────────────
+// ─── Curriculum metadata (mirrors manifest teachesLevels) ────────────────────
 
 const CURRICULUM_LEVELS = [
   {
     code: "MA3-7NA",
+    stageLabel: "Stage 3 (Years 5-6)",
+    syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
     description: "Compares, orders and calculates with fractions, decimals and percentages.",
     levelDesc: "Level 1 - Adding decimal distances across multiple road segments to find a total journey distance",
   },
   {
     code: "MA3-7NA",
+    stageLabel: "Stage 3 (Years 5-6)",
+    syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
     description: "Compares, orders and calculates with fractions, decimals and percentages.",
     levelDesc: "Level 2 - Subtraction of decimals with a missing segment shown as \"?\"",
   },
   {
     code: "MA3-9MG",
+    stageLabel: "Stage 3 (Years 5-6)",
+    syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
     description: "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length.",
     levelDesc: "Level 3 - Comparison of two distances from a common point with three scaffolded input rows",
   },
@@ -58,7 +65,7 @@ function formatDuration(ms: number): string {
 }
 
 function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function formatDate(iso: string): string {
@@ -68,6 +75,46 @@ function formatDate(iso: string): string {
     month: "long",
     day: "numeric",
   });
+}
+
+// ─── Icon loader — renders SVG via canvas for maximum sharpness ──────────────
+
+async function loadIconBase64(): Promise<string | null> {
+  try {
+    // Try SVG first (vector → rasterise at high res on canvas)
+    const svgRes = await fetch("/favicon.svg");
+    if (svgRes.ok) {
+      const svgText = await svgRes.text();
+      const blob = new Blob([svgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const size = 512;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, size, size);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+        img.src = url;
+      });
+    }
+    // Fallback: 512px PNG
+    const pngRes = await fetch("/icon-512.png");
+    const pngBlob = await pngRes.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(pngBlob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 // ─── Star decorator ──────────────────────────────────────────────────────────
@@ -164,97 +211,205 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   const contentW = pageW - margin * 2;              // 180
   let curY = margin;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // HEADER BANNER
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Line 1: "Distance Calculator" centered
-  // Line 2: date (left) | "Session Report (Level N)" (center) | time (right)
+  // Load icon (best-effort — may be null if fetch fails)
+  const iconBase64 = await loadIconBase64();
 
-  const bannerH = 26;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HEADER BANNER — two columns: icon (left) | title + date (right)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const bannerH = 28;
   doc.setFillColor(COLORS.headerBg);
   doc.roundedRect(margin, curY, contentW, bannerH, 4, 4, "F");
+  doc.setDrawColor(COLORS.headerBorder);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, curY, contentW, bannerH, 4, 4, "S");
 
-  // Line 1: title centered
-  doc.setTextColor("#facc15");
-  doc.setFontSize(19);
+  const iconSize = 20;          // mm — square icon in left column
+  const iconPad = 4;            // padding inside banner
+  const iconX = margin + iconPad;
+  const iconY = curY + (bannerH - iconSize) / 2;
+
+  if (iconBase64) {
+    doc.addImage(iconBase64, "PNG", iconX, iconY, iconSize, iconSize);
+  }
+
+  // Right column: title + sub-line
+  const titleColX = margin + iconPad + iconSize + 4;
+  const titleColW = (margin + contentW) - titleColX - iconPad;
+  const titleCX = titleColX + titleColW / 2;   // center of right column
+
+  // Title — dark text on light bg
+  doc.setTextColor(COLORS.textDark);
+  doc.setFontSize(17);
   doc.setFont("helvetica", "bold");
-  doc.text("Distance Calculator", pageW / 2, curY + 9, { align: "center" });
+  doc.text("Distance Calculator", titleCX, curY + 11, { align: "center" });
 
-  // Line 2: three-column
-  const line2Y = curY + 18;
-  doc.setFontSize(8);
+  // Sub-line: date (left of col) | level (center) | time (right of col)
+  const line2Y = curY + 21;
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor("#94a3b8");
-  doc.text(sanitize(formatDate(summary.date)), margin + 6, line2Y);
+  doc.setTextColor(COLORS.textMuted);
+  doc.text(sanitize(formatDate(summary.date)), titleColX, line2Y);
   doc.text(
     `${formatTime(summary.startTime)} - ${formatTime(summary.endTime)}`,
-    pageW - margin - 6, line2Y, { align: "right" }
+    margin + contentW - iconPad, line2Y, { align: "right" }
   );
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor("#ffffff");
-  doc.text(`Session Report (Level ${summary.level})`, pageW / 2, line2Y, { align: "center" });
+  doc.setTextColor(COLORS.textDark);
+  doc.text(`Session Report (Level ${summary.level})`, titleCX, line2Y, { align: "center" });
 
-  curY += bannerH + 8;
+  curY += bannerH + 14;   // clear section break before curriculum
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SCORE BOXES
+  // CURRICULUM — no box, inline text below banner
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const curr = CURRICULUM_LEVELS[summary.level - 1];
+  const currInnerW = contentW;
+  const currLineH = 4.8;
+  const GREEN = "#16a34a";
+  const CURR_BLUE = "#1e40af";
+
+  // Measure pill
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  const pillText = curr.code;
+  const pillPadX = 3;
+  const pillH = 5;
+  const pillW = doc.getTextWidth(pillText) + pillPadX * 2;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  const stageW = doc.getTextWidth(curr.stageLabel);
+  const descAvailW = currInnerW - pillW - 4 - stageW - 4;
+  const descWrapped = doc.splitTextToSize(sanitize(curr.description), descAvailW);
+
+  // Title line
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(COLORS.textDark);
+  doc.text("NSW Mathematics Curriculum", margin, curY);
+  curY += 5.5 + 3.5;   // title height + 1rem gap
+
+  // Row: [pill] [stage] [description] on one baseline
+  const pillTopY = curY - pillH + 1.5;
+  doc.setFillColor(GREEN);
+  doc.roundedRect(margin, pillTopY, pillW, pillH, 1.5, 1.5, "F");
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor("#ffffff");
+  doc.text(pillText, margin + pillPadX, curY);
+  // Entire row is clickable (pill + stage label + description)
+  const rowH = Math.max(pillH, descWrapped.length * currLineH) + 1;
+  doc.link(margin, pillTopY, contentW, rowH, { url: curr.syllabusUrl });
+
+  const stageX = margin + pillW + 4;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(CURR_BLUE);
+  doc.text(curr.stageLabel, stageX, curY);
+  doc.text(descWrapped, stageX + stageW + 4, curY);
+  curY += Math.max(pillH + 1, descWrapped.length * currLineH) + 3.5;  // +1rem gap below
+
+  // Objective line — bold dark
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(COLORS.textDark);
+  doc.text("Objective:", margin, curY);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(COLORS.textMuted);
+  doc.text(
+    sanitize(curr.levelDesc.replace(/^Level \d+\s*[-–]\s*/i, "")),
+    margin + doc.getTextWidth("Objective:") + 2, curY
+  );
+  curY += currLineH;
+
+  // Basic / Monster round lines
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(COLORS.textDark);
+  doc.text("Basic Round:", margin, curY);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(COLORS.textMuted);
+  doc.text(
+    "Earn 10 eggs by answering trail distance questions. One new map per question.",
+    margin + doc.getTextWidth("Basic Round:") + 2, curY
+  );
+  curY += currLineH;
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(COLORS.textDark);
+  doc.text("Monster Round:", margin, curY);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(COLORS.textMuted);
+  doc.text(
+    "Defend all 10 eggs against harder questions. Wrong answers lose an egg.",
+    margin + doc.getTextWidth("Monster Round:") + 2, curY
+  );
+  curY += 8;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCORE BOXES — Score (blue) | Accuracy (red/amber/green) | Time (purple)
   // ═══════════════════════════════════════════════════════════════════════════
 
   const boxW = (contentW - 8) / 3;
-  const boxH = 26;
+  const boxH = 18;
 
-  // Box 1: Score
-  doc.setFillColor(COLORS.correctBg);
+  // Box 1: Score — blue
+  const scoreColor = "#1d4ed8";
+  const scoreBg = "#eff6ff";
+  doc.setFillColor(scoreBg);
   doc.roundedRect(margin, curY, boxW, boxH, 3, 3, "F");
-  doc.setDrawColor(COLORS.correctBorder);
+  doc.setDrawColor(scoreColor);
+  doc.setLineWidth(0.5);
   doc.roundedRect(margin, curY, boxW, boxH, 3, 3, "S");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Score", margin + boxW / 2, curY + 7, { align: "center" });
-  doc.setFontSize(17);
+  doc.text("Score", margin + boxW / 2, curY + 5.5, { align: "center" });
+  doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.correctDark);
-  doc.text(`${summary.correctCount} / ${summary.totalQuestions}`, margin + boxW / 2, curY + 19, { align: "center" });
+  doc.setTextColor(scoreColor);
+  doc.text(`${summary.correctCount} / ${summary.totalQuestions}`, margin + boxW / 2, curY + 13.5, { align: "center" });
 
-  // Box 2: Accuracy
+  // Box 2: Accuracy — red / amber / green
   const box2X = margin + boxW + 4;
-  const accColor = summary.accuracy >= 70 ? COLORS.correctDark : summary.accuracy >= 40 ? "#b45309" : COLORS.wrongBorder;
-  const accBg = summary.accuracy >= 70 ? COLORS.correctBg : summary.accuracy >= 40 ? "#fef3c7" : COLORS.wrongBg;
+  const accColor = summary.accuracy >= 80 ? "#16a34a" : summary.accuracy >= 50 ? "#f59e0b" : "#dc2626";
+  const accBg   = summary.accuracy >= 80 ? "#f0fdf4" : summary.accuracy >= 50 ? "#fffbeb" : "#fff5f5";
   doc.setFillColor(accBg);
   doc.roundedRect(box2X, curY, boxW, boxH, 3, 3, "F");
   doc.setDrawColor(accColor);
   doc.roundedRect(box2X, curY, boxW, boxH, 3, 3, "S");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Accuracy", box2X + boxW / 2, curY + 7, { align: "center" });
-  doc.setFontSize(17);
+  doc.text("Accuracy", box2X + boxW / 2, curY + 5.5, { align: "center" });
+  doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(accColor);
-  doc.text(`${summary.accuracy}%`, box2X + boxW / 2, curY + 19, { align: "center" });
+  doc.text(`${summary.accuracy}%`, box2X + boxW / 2, curY + 13.5, { align: "center" });
 
-  // Box 3: Time
+  // Box 3: Time — purple
   const box3X = margin + (boxW + 4) * 2;
-  doc.setFillColor("#ede9fe");
+  doc.setFillColor("#faf5ff");
   doc.roundedRect(box3X, curY, boxW, boxH, 3, 3, "F");
   doc.setDrawColor(COLORS.accentPurple);
   doc.roundedRect(box3X, curY, boxW, boxH, 3, 3, "S");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Total Time", box3X + boxW / 2, curY + 7, { align: "center" });
-  doc.setFontSize(17);
+  doc.text("Total Time", box3X + boxW / 2, curY + 5.5, { align: "center" });
+  doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(COLORS.accentPurple);
-  doc.text(formatDuration(summary.endTime - summary.startTime), box3X + boxW / 2, curY + 19, { align: "center" });
+  doc.text(formatDuration(summary.endTime - summary.startTime), box3X + boxW / 2, curY + 13.5, { align: "center" });
 
   curY += boxH + 7;
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // EGGS — one per attempt, centered row(s), no label
+  // EGGS — one per attempt, centered row(s)
   // white = normal correct | gold = monster correct | red = wrong
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -285,103 +440,30 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     curY += eggRowH;
   }
 
-  curY += 6;
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CURRICULUM STRIP
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  const curr = CURRICULUM_LEVELS[summary.level - 1];
-  const currLineH = 4.5;
-  const currPadTop = 7, currPadBot = 6;
-
-  // Pre-calculate how many lines the description + level desc need
-  doc.setFontSize(7);
-  const currDescLines = doc.splitTextToSize(
-    sanitize(`${curr.code} - ${curr.description}`), contentW - 12
-  ).length;
-  const levelDescLines = doc.splitTextToSize(sanitize(curr.levelDesc), contentW - 12).length;
-  const stripH = currPadTop + (currDescLines + levelDescLines + 2) * currLineH + currPadBot;
-
-  doc.setFillColor(COLORS.headerBg);
-  doc.roundedRect(margin, curY, contentW, stripH, 3, 3, "F");
-
-  // Strip title
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor("#facc15");
-  doc.text("NSW Mathematics Curriculum", margin + 6, curY + currPadTop);
-
-  let stripY = curY + currPadTop + currLineH + 1;
-
-  // Code + description
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor("#e2e8f0");
-  const codeDescText = doc.splitTextToSize(
-    sanitize(`${curr.code} - ${curr.description}`), contentW - 12
-  );
-  doc.text(codeDescText, margin + 6, stripY);
-  stripY += codeDescText.length * currLineH + 1;
-
-  // Level description
-  doc.setTextColor("#94a3b8");
-  const levelDescText = doc.splitTextToSize(sanitize(curr.levelDesc), contentW - 12);
-  doc.text(levelDescText, margin + 6, stripY);
-  stripY += levelDescText.length * currLineH + 2;
-
-  // Separator
-  doc.setDrawColor("#334155");
-  doc.setLineWidth(0.3);
-  doc.line(margin + 6, stripY, margin + contentW - 6, stripY);
-  stripY += 2;
-
-  // Round descriptions
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor("#94a3b8");
-  doc.text("Basic Round:", margin + 6, stripY);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    "Earn 10 eggs by answering trail distance questions. One new map per question.",
-    margin + 6 + doc.getTextWidth("Basic Round:") + 1.5, stripY
-  );
-  stripY += currLineH;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Monster Round:", margin + 6, stripY);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    "Defend all 10 eggs against harder questions. Wrong answers lose an egg.",
-    margin + 6 + doc.getTextWidth("Monster Round:") + 1.5, stripY
-  );
-
-  curY += stripH + 8;
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // QUESTION DETAILS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.textDark);
-  doc.text("Question Details", margin, curY);
-  curY += 7;
+  curY += 5;
 
   // Card layout constants
-  const cardHeaderH = 10;           // height of the top strip (Q# / CORRECT / time)
-  const mapW = 84;                   // ~50% of content
+  const cardHeaderH = 10;
+  const mapW = 84;
   const mapH = 38;
-  const mapX = margin + 4;
-  const textX = mapX + mapW + 5;
-  const textW = (margin + contentW) - textX - 4;
   const stripeW = 3;
+  const cardGap = 5;                 // equal gap on all four sides (top, bottom, left)
+  const cardLeft = margin + cardGap; // card starts cardGap from page margin
+  const cardRight = margin + contentW;
+  const cardContentW = cardRight - cardLeft;
+  const mapX = cardLeft + stripeW + 4;   // same gap as bodyPad (top/bottom)
+  const textX = mapX + mapW + 5;
+  const textW = cardRight - textX - 4;
 
   for (const attempt of summary.attempts) {
     const estimatedCardH = cardHeaderH + mapH + 8 + (attempt.subAnswers ? 30 : 0);
+
+    // Equal gap before card
+    curY += cardGap;
+
     if (curY + estimatedCardH > pageH - margin) {
       doc.addPage();
-      curY = margin;
+      curY = margin + cardGap;
     }
 
     const cardBorderColor = attempt.isCorrect ? COLORS.correctBorder : COLORS.wrongBorder;
@@ -389,23 +471,23 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
 
     // ── Card header strip ──────────────────────────────────────────────────
     doc.setFillColor(cardBg);
-    doc.rect(margin, curY, contentW, cardHeaderH, "F");
+    doc.rect(cardLeft, curY, cardContentW, cardHeaderH, "F");
 
-    // Left color stripe (full card height — estimated)
-    const stripeH = cardHeaderH + mapH + 4;
+    // Left color stripe (full card height — includes bodyPad)
+    const stripeH = cardHeaderH + 4 + mapH + 4;
     doc.setFillColor(cardBorderColor);
-    doc.rect(margin, curY, stripeW, stripeH, "F");
+    doc.rect(cardLeft, curY, stripeW, stripeH, "F");
 
     // Q number (vertically centred in header strip)
     const qLabel = `Q${attempt.questionNumber}`;
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(COLORS.textDark);
-    doc.text(qLabel, margin + stripeW + 3, curY + 6.8);
+    doc.text(qLabel, cardLeft + stripeW + 3, curY + 6.8);
 
     // MONSTER badge
     if (attempt.gamePhase === "monster") {
-      const badgeX = margin + stripeW + 3 + doc.getTextWidth(qLabel) + 2;
+      const badgeX = cardLeft + stripeW + 3 + doc.getTextWidth(qLabel) + 2;
       doc.setFillColor("#fef08a");
       doc.roundedRect(badgeX, curY + 2, 16, 5, 1.5, 1.5, "F");
       doc.setFontSize(5.5);
@@ -438,16 +520,17 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     curY += cardHeaderH;
 
     // ── Card body: mini map (left 50%) + question text (right 50%) ─────────
-    drawMiniMap(doc, attempt, mapX, curY, mapW, mapH);
+    const bodyPad = 4;   // gap between header strip and content
+    drawMiniMap(doc, attempt, mapX, curY + bodyPad, mapW, mapH);
 
     // Question prompt
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(COLORS.textDark);
     const promptLines = doc.splitTextToSize(sanitize(attempt.prompt), textW);
-    doc.text(promptLines, textX, curY + 5);
+    doc.text(promptLines, textX, curY + bodyPad + 5);
 
-    let textY = curY + 5 + promptLines.length * 4.5 + 2;
+    let textY = curY + bodyPad + 5 + promptLines.length * 4.5 + 2;
 
     if (attempt.subAnswers && attempt.subAnswers.length > 0) {
       // Level 3: sub-step breakdown
@@ -468,9 +551,9 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
 
-      // "Your answer" — darker green if correct, red if wrong
+      // "Given Answer" — darker green if correct, red if wrong
       doc.setTextColor(attempt.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
-      doc.text(`Your answer: ${attempt.childAnswer ?? "-"} ${attempt.unit}`, textX, textY);
+      doc.text(`Given Answer: ${attempt.childAnswer ?? "-"} ${attempt.unit}`, textX, textY);
       textY += 4.5;
 
       // "Correct answer" — always dark
@@ -479,18 +562,20 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
       textY += 4.5;
     }
 
-    curY = Math.max(curY + mapH + 4, textY + 4);
+    curY = Math.max(curY + bodyPad + mapH + 4, textY + 4);
 
     // Separator
     doc.setDrawColor("#e2e8f0");
     doc.setLineWidth(0.3);
-    doc.line(margin, curY, pageW - margin, curY);
-    curY += 5;
+    doc.line(cardLeft, curY, cardRight, curY);
+    // (next iteration will add cardGap before next card)
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ENCOURAGEMENT SECTION
   // ═══════════════════════════════════════════════════════════════════════════
+
+  curY += cardGap;
 
   if (curY + 40 > pageH - margin) {
     doc.addPage();
