@@ -962,6 +962,7 @@ export default function ArcadeLevelOneScreen() {
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
+  const [cheatAnswerUnlocked, setCheatAnswerUnlocked] = useState(false);
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
   const [hasDiscoveredKeypadDisplay, setHasDiscoveredKeypadDisplay] =
     useState(false);
@@ -2013,6 +2014,15 @@ export default function ArcadeLevelOneScreen() {
     }
     if (currentQ.subAnswers && currentQ.promptLines) {
       const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
+      if (v.trim() === ANSWER_CHEAT_CODE) {
+        setCheatAnswerUnlocked(true);
+        setSubAnswers((prev) => {
+          const next = [...prev] as [string, string, string];
+          next[idx] = "";
+          return next;
+        });
+        return;
+      }
       setSubAnswers((prev) => {
         const next = [...prev] as [string, string, string];
         next[idx] = v;
@@ -2021,6 +2031,11 @@ export default function ArcadeLevelOneScreen() {
       return;
     }
 
+    if (v.trim() === ANSWER_CHEAT_CODE) {
+      setCheatAnswerUnlocked(true);
+      setAnswer("");
+      return;
+    }
     setAnswer(v);
   }
 
@@ -2040,7 +2055,7 @@ export default function ArcadeLevelOneScreen() {
       : null;
   const keypadValue =
     l3KeypadIndex !== null ? subAnswers[l3KeypadIndex] : answer;
-  const showCheatAnswer = keypadValue.trim() === ANSWER_CHEAT_CODE;
+  const showCheatAnswer = cheatAnswerUnlocked;
   const canKeypadSubmit =
     l3KeypadIndex !== null
       ? !isNaN(parseFloat(subAnswers[l3KeypadIndex]))
