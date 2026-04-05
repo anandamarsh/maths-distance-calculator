@@ -851,7 +851,7 @@ function LevelCompleteReportActions({
   }
 
   return (
-    <div className="mt-5 w-full max-w-xl">
+    <div className="mx-auto mt-5 w-full max-w-xl">
       {!isMobileLandscape && (
         <div className="grid grid-cols-3 gap-2.5">
           <div className="rounded-2xl border border-emerald-300/20 bg-slate-800/70 px-3 py-3">
@@ -1183,7 +1183,7 @@ export default function ArcadeLevelOneScreen() {
   ]);
 
   useEffect(() => {
-    startSession();
+    startSession({ resetCumulative: true });
     startMusic();
     setSoundMuted(isMuted());
     // Teleport dino to the first question's start stop on initial load
@@ -1673,8 +1673,11 @@ export default function ArcadeLevelOneScreen() {
     resetPosition(startKm);
   }
 
-  function beginNewRun(targetLevel?: 1 | 2 | 3) {
-    startSession();
+  function beginNewRun(
+    targetLevel?: 1 | 2 | 3,
+    preserveCumulative = false,
+  ) {
+    startSession({ resetCumulative: !preserveCumulative });
     playButton();
     shuffleMusic();
     const lv = targetLevel ?? level;
@@ -1767,8 +1770,8 @@ export default function ArcadeLevelOneScreen() {
     const summary = buildSummary({
       playerName: "Explorer",
       level: level as 1 | 2 | 3,
-      normalEggs: EGGS_PER_LEVEL,
-      monsterEggs: EGGS_PER_LEVEL,
+      normalEggs: EGGS_PER_LEVEL * level,
+      monsterEggs: EGGS_PER_LEVEL * level,
       levelCompleted: true,
       monsterRoundCompleted: true,
     });
@@ -3463,8 +3466,16 @@ export default function ArcadeLevelOneScreen() {
           }}
         >
           <div
-            className="arcade-panel p-8 md:p-12 text-center mx-6 max-w-lg w-full"
+            className={`arcade-panel text-center w-full ${
+              isMobileLandscape
+                ? "h-full max-w-none rounded-none border-0 p-6"
+                : "mx-6 max-w-3xl p-6 md:p-10"
+            }`}
             style={{
+              background: isMobileLandscape
+                ? "rgba(15, 23, 42, 0.97)"
+                : "rgba(15, 23, 42, 0.8)",
+              border: isMobileLandscape ? "none" : undefined,
               boxShadow:
                 "0 0 40px rgba(251,191,36,0.35), 0 0 80px rgba(109,40,217,0.3)",
             }}
@@ -3492,55 +3503,59 @@ export default function ArcadeLevelOneScreen() {
               Including every Monster Round!
             </div>
 
-            {/* 10 golden eggs — two rows */}
-            <div className="flex flex-col gap-2 items-center mt-5">
-              {[0, 5].map((rowStart) => (
-                <div key={rowStart} className="flex justify-center gap-1.5">
-                  {EGG_INDICES.slice(rowStart, rowStart + 5).map((i) => (
-                    <svg
-                      key={i}
-                      viewBox="0 0 512 512"
-                      width="30"
-                      height="30"
-                      style={{
-                        filter:
-                          "drop-shadow(0 0 8px rgba(250,204,21,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.55))",
-                      }}
-                    >
-                      <path
-                        d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
-                        fill="#facc15"
-                        stroke="#fbbf24"
-                        strokeWidth="18"
-                      />
-                      <ellipse
-                        cx="190"
-                        cy="150"
-                        rx="35"
-                        ry="60"
-                        fill="#fef08a"
-                        opacity="0.4"
-                        transform="rotate(-20 190 150)"
-                      />
-                    </svg>
-                  ))}
-                </div>
+            <div className="mt-5 flex items-center justify-center gap-1.5">
+              {EGG_INDICES.map((i) => (
+                <svg
+                  key={i}
+                  viewBox="0 0 512 512"
+                  width={isMobileLandscape ? "18" : "30"}
+                  height={isMobileLandscape ? "18" : "30"}
+                  style={{
+                    filter:
+                      "drop-shadow(0 0 8px rgba(250,204,21,0.95)) drop-shadow(0 0 18px rgba(251,191,36,0.55))",
+                  }}
+                >
+                  <path
+                    d="M256 16C166 16 76 196 76 316c0 90 60 180 180 180s180-90 180-180c0-120-90-300-180-300z"
+                    fill="#facc15"
+                    stroke="#fbbf24"
+                    strokeWidth="18"
+                  />
+                  <ellipse
+                    cx="190"
+                    cy="150"
+                    rx="35"
+                    ry="60"
+                    fill="#fef08a"
+                    opacity="0.4"
+                    transform="rotate(-20 190 150)"
+                  />
+                </svg>
               ))}
             </div>
 
-            <button
-              onClick={() => {
-                setUnlockedLevel(1);
-                beginNewRun(1);
-              }}
-              className="arcade-button mt-8 px-10 py-4 text-lg font-black uppercase tracking-wider w-full"
-              style={{
-                boxShadow: "0 0 16px rgba(251,191,36,0.4), 0 6px 0 #78350f",
-                borderColor: "#fbbf24",
-              }}
-            >
-              Play Again
-            </button>
+            {sessionSummary && (
+              <LevelCompleteReportActions
+                summary={sessionSummary}
+                isMobileLandscape={isMobileLandscape}
+              />
+            )}
+
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => {
+                  setUnlockedLevel(1);
+                  beginNewRun(1);
+                }}
+                className="arcade-button inline-flex px-8 py-4 text-base md:text-lg"
+                style={{
+                  boxShadow: "0 0 16px rgba(251,191,36,0.4), 0 6px 0 #78350f",
+                  borderColor: "#fbbf24",
+                }}
+              >
+                Play Again
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3587,11 +3602,16 @@ export default function ArcadeLevelOneScreen() {
           }}
         >
           <div
-            className="arcade-panel w-full max-w-3xl p-6 text-center md:p-10"
+            className={`arcade-panel w-full text-center ${
+              isMobileLandscape
+                ? "h-full max-w-none rounded-none border-0 p-6"
+                : "max-w-3xl p-6 md:p-10"
+            }`}
             style={{
               background: isMobileLandscape
                 ? "rgba(15, 23, 42, 0.97)"
                 : "rgba(15, 23, 42, 0.8)",
+              border: isMobileLandscape ? "none" : undefined,
             }}
           >
             {gamePhase === "monster" ? (
@@ -3654,7 +3674,7 @@ export default function ArcadeLevelOneScreen() {
             <div className="mt-6 flex flex-col items-center gap-3">
               {level < 3 && (
                 <button
-                  onClick={() => beginNewRun((level + 1) as 1 | 2 | 3)}
+                  onClick={() => beginNewRun((level + 1) as 1 | 2 | 3, true)}
                   className="arcade-button px-8 py-4 text-base md:text-lg"
                 >
                   Next Level

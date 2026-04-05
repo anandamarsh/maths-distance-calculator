@@ -57,10 +57,12 @@ let _questionStartTime: number = Date.now();
 let _sessionStartTime: number = Date.now();
 let _questionCounter: number = 0;
 
-export function startSession() {
-  _attempts = [];
-  _questionCounter = 0;
-  _sessionStartTime = Date.now();
+export function startSession(opts?: { resetCumulative?: boolean }) {
+  if (opts?.resetCumulative ?? true) {
+    _attempts = [];
+    _questionCounter = 0;
+    _sessionStartTime = Date.now();
+  }
   startQuestionTimer();
 }
 
