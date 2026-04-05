@@ -41,21 +41,24 @@
   "teachesLevels": [
     {
       "label": "Level 1: adding decimal distances across multiple road segments to find a total journey distance",
-      "yearLabel": "Years 5-6",
+      "stageLabel": "Stage 3 (Years 5-6)",
       "syllabusCode": "MA3-7NA",
-      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40"
+      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
+      "syllabusDescription": "Compares, orders and calculates with fractions, decimals and percentages."
     },
     {
       "label": "Level 2: subtraction of decimals with a missing segment shown as \"?\"",
-      "yearLabel": "Years 5-6",
+      "stageLabel": "Stage 3 (Years 5-6)",
       "syllabusCode": "MA3-7NA",
-      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40"
+      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
+      "syllabusDescription": "Compares, orders and calculates with fractions, decimals and percentages."
     },
     {
       "label": "Level 3: comparison of two distances from a common point with three scaffolded input rows",
-      "yearLabel": "Years 5-6",
+      "stageLabel": "Stage 3 (Years 5-6)",
       "syllabusCode": "MA3-9MG",
-      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40"
+      "syllabusUrl": "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
+      "syllabusDescription": "Selects and uses the appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length."
     }
   ],
   "githubUrl": "https://github.com/anandamarsh/maths-distance-calculator",
