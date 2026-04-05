@@ -30,6 +30,15 @@ import {
   playKeyClick,
 } from "../sound";
 import { SocialComments, SocialShare, openCommentsComposer } from "../components/Social";
+import {
+  startSession,
+  startQuestionTimer,
+  logAttempt,
+  buildSummary,
+  clearSession,
+} from "../report/sessionLog";
+import type { SessionSummary } from "../report/sessionLog";
+import SessionReportModal from "../components/SessionReportModal";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
@@ -833,6 +842,8 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
   const [hasDiscoveredKeypadDisplay, setHasDiscoveredKeypadDisplay] =
     useState(false);
@@ -1055,6 +1066,7 @@ export default function ArcadeLevelOneScreen() {
   ]);
 
   useEffect(() => {
+    startSession();
     startMusic();
     setSoundMuted(isMuted());
     // Teleport dino to the first question's start stop on initial load
@@ -1545,6 +1557,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function beginNewRun(targetLevel?: 1 | 2 | 3) {
+    startSession();
     playButton();
     shuffleMusic();
     const lv = targetLevel ?? level;
@@ -1553,6 +1566,7 @@ export default function ArcadeLevelOneScreen() {
     setRun(next);
     setScreen("playing");
     setCurrentQ(next.firstQ);
+    startQuestionTimer();
     setEggsCollected(0);
     setMonsterEggs(0);
     setExtinctionL3ShowSteps(false);
@@ -1612,6 +1626,7 @@ export default function ArcadeLevelOneScreen() {
     const next = createRun(level);
     setRun(next);
     setCurrentQ(next.firstQ);
+    startQuestionTimer();
     setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
     setSubAnswers(["", "", ""]);
     setSubStep(0);
@@ -1630,10 +1645,24 @@ export default function ArcadeLevelOneScreen() {
     }, SUCCESS_ICON_DURATION_MS);
   }
 
+  function triggerSessionReport() {
+    const summary = buildSummary({
+      playerName: "Explorer",
+      level: level as 1 | 2 | 3,
+      normalEggs: EGGS_PER_LEVEL,
+      monsterEggs: EGGS_PER_LEVEL,
+      levelCompleted: true,
+      monsterRoundCompleted: true,
+    });
+    setSessionSummary(summary);
+    setShowReportModal(true);
+  }
+
   function earnMonsterEgg() {
     const newGolden = monsterEggs + 1;
     if (newGolden === EGGS_PER_LEVEL) {
       setMonsterEggs(EGGS_PER_LEVEL);
+      triggerSessionReport();
       if (level === 3) {
         // All levels complete — grand finale
         playGameComplete();
@@ -1653,6 +1682,7 @@ export default function ArcadeLevelOneScreen() {
       const next = createRun(level);
       setRun(next);
       setCurrentQ(next.firstQ);
+      startQuestionTimer();
       setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
       resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
       // Next Extinction Event question starts on final line only (until another miss).
@@ -1667,6 +1697,7 @@ export default function ArcadeLevelOneScreen() {
       const next = createRun(level);
       setRun(next);
       setCurrentQ(next.firstQ);
+      startQuestionTimer();
       setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
       resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
       setExtinctionL3ShowSteps(false);
@@ -1694,6 +1725,7 @@ export default function ArcadeLevelOneScreen() {
       const next = createRun(level);
       setRun(next);
       setCurrentQ(next.firstQ);
+      startQuestionTimer();
       setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
       resetPosition(getCheckpoints(next.config)[next.firstQ.route[0]]);
       setExtinctionL3RecoveryMode(false);
@@ -1702,6 +1734,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function loseEgg() {
+    startQuestionTimer();
     playWrong();
     if (gamePhase === "monster") {
       setMonsterEggs((e) => Math.max(0, e - 1));
@@ -1737,6 +1770,19 @@ export default function ArcadeLevelOneScreen() {
         }
         if (isMobileLandscape) keypadMinimizeRef.current?.();
         const ok = Math.abs(g - currentQ.subAnswers[2]) < 0.11;
+        logAttempt({
+          config,
+          prompt: currentQ.promptLines![2],
+          questionType: "hub-comparison",
+          level: 3,
+          routeStopNames: currentQ.route.map(i => config.stops[i].label),
+          unit: config.unit,
+          correctAnswer: currentQ.subAnswers[2],
+          childAnswer: g,
+          isCorrect: ok,
+          gamePhase,
+          dinoName: dino.nickname,
+        });
         if (ok) {
           playCorrect();
           earnMonsterEgg();
@@ -1772,6 +1818,28 @@ export default function ArcadeLevelOneScreen() {
       }
 
       // Final step (step 2)
+      const subAttemptDetails = currentQ.promptLines!.map((prompt, idx) => ({
+        step: idx,
+        prompt,
+        correctAnswer: currentQ.subAnswers![idx],
+        childAnswer: parseFloat(subAnswers[idx]) || 0,
+        isCorrect: Math.abs((parseFloat(subAnswers[idx]) || 0) - currentQ.subAnswers![idx]) < 0.11,
+      }));
+      logAttempt({
+        config,
+        prompt: currentQ.promptLines![2],
+        promptLines: currentQ.promptLines,
+        questionType: "hub-comparison",
+        level: 3,
+        routeStopNames: currentQ.route.map(i => config.stops[i].label),
+        unit: config.unit,
+        correctAnswer: currentQ.subAnswers![2],
+        childAnswer: parseFloat(subAnswers[2]) || 0,
+        subAnswers: subAttemptDetails,
+        isCorrect: ok,
+        gamePhase,
+        dinoName: dino.nickname,
+      });
       if (ok) {
         playCorrect();
         if (extinctionL3RecoveryMode && gamePhase === "monster")
@@ -1791,6 +1859,19 @@ export default function ArcadeLevelOneScreen() {
     }
     if (isMobileLandscape) keypadMinimizeRef.current?.();
     const correct = Math.abs(guess - currentQ.answer) < 0.11;
+    logAttempt({
+      config,
+      prompt: currentQ.prompt,
+      questionType: level === 1 ? "total-distance" : "missing-leg",
+      level: level as 1 | 2 | 3,
+      routeStopNames: currentQ.route.map(i => config.stops[i].label),
+      unit: config.unit,
+      correctAnswer: currentQ.answer,
+      childAnswer: guess,
+      isCorrect: correct,
+      gamePhase,
+      dinoName: dino.nickname,
+    });
     if (correct) {
       playCorrect();
       gamePhase === "monster" ? earnMonsterEgg() : earnEgg();
@@ -3457,6 +3538,17 @@ export default function ArcadeLevelOneScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {showReportModal && sessionSummary && (
+        <SessionReportModal
+          summary={sessionSummary}
+          onClose={() => {
+            setShowReportModal(false);
+            setSessionSummary(null);
+            clearSession();
+          }}
+        />
       )}
     </div>
   );
