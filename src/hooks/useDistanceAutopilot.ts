@@ -13,11 +13,12 @@ const AUTOPILOT_TIMING = {
   BEFORE_SEND: [500, 900] as [number, number],
   AFTER_SEND: [2200, 3200] as [number, number],
 } as const;
+const POST_SEND_RESULT_PAUSE_MS = 2000;
 
 const IS_AUTOMATED_BROWSER =
   typeof navigator !== "undefined" && navigator.webdriver;
 const WRONG_ANSWER_RATE = IS_AUTOMATED_BROWSER ? 0.05 : 0.2;
-const AUTOPILOT_SPEED_MULTIPLIER = IS_AUTOMATED_BROWSER ? 0.08 : 1;
+const AUTOPILOT_SPEED_MULTIPLIER = IS_AUTOMATED_BROWSER ? 0.02 : 0.25;
 
 function rand([low, high]: [number, number]): number {
   return Math.max(
@@ -56,6 +57,7 @@ export interface DistanceAutopilotCallbacks {
   clearKeypad: () => void;
   expandKeypad: () => void;
   setDragging: (dragging: boolean) => void;
+  teleportRex: (km: number) => void;
   moveRex: (km: number) => void;
   getScreenPointForKm: (km: number) => { x: number; y: number } | null;
   submitAnswer: () => void;
@@ -72,6 +74,8 @@ export interface DistanceAutopilotState {
   answerStepKey: string;
   routeKmPoints: number[];
   targetAnswer: string;
+  shouldDragRoute: boolean;
+  allowWrongAnswer: boolean;
   levelCompleteVisible: boolean;
   hasNextLevel: boolean;
 }
@@ -94,8 +98,13 @@ export function useDistanceAutopilot({
   const lastAnswerStepKeyRef = useRef<string | null>(null);
   const lastLevelCompleteKeyRef = useRef<string | null>(null);
 
-  const moveHand = useCallback((x: number, y: number, isClicking = false) => {
-    setPhantomPos({ x, y, isClicking });
+  const moveHand = useCallback((
+    x: number,
+    y: number,
+    isClicking = false,
+    anchor: "center" | "fingertip" = "fingertip",
+  ) => {
+    setPhantomPos({ x, y, isClicking, anchor });
   }, []);
 
   const clickElement = useCallback(
@@ -103,12 +112,12 @@ export function useDistanceAutopilot({
       const element = getAutopilotElement(key);
       if (!element) return false;
       const rect = element.getBoundingClientRect();
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false, "fingertip");
       await waitMs(120);
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, true);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, true, "fingertip");
       await waitMs(120);
       element.click();
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false, "fingertip");
       return true;
     },
     [moveHand],
@@ -118,6 +127,7 @@ export function useDistanceAutopilot({
     const callbacks = callbacksRef.current;
     if (!callbacks || routeKmPoints.length < 2) return;
 
+    callbacks.teleportRex(routeKmPoints[0]);
     callbacks.setDragging(true);
     for (let segmentIndex = 1; segmentIndex < routeKmPoints.length; segmentIndex += 1) {
       const start = routeKmPoints[segmentIndex - 1];
@@ -128,7 +138,7 @@ export function useDistanceAutopilot({
       for (let step = 1; step <= steps; step += 1) {
         const km = start + ((end - start) * step) / steps;
         const point = callbacks.getScreenPointForKm(km);
-        if (point) moveHand(point.x, point.y, false);
+        if (point) moveHand(point.x, point.y, false, "center");
         callbacks.moveRex(km);
         await waitMs(rand(AUTOPILOT_TIMING.DRAG_STEP));
       }
@@ -136,7 +146,7 @@ export function useDistanceAutopilot({
     callbacks.setDragging(false);
   }, [callbacksRef, moveHand]);
 
-  const typeAnswer = useCallback(async (targetAnswer: string) => {
+  const typeAnswer = useCallback(async (targetAnswer: string, allowWrongAnswer: boolean) => {
     const callbacks = callbacksRef.current;
     if (!callbacks) return;
 
@@ -145,7 +155,7 @@ export function useDistanceAutopilot({
     await waitMs(160);
 
     const answerToType =
-      Math.random() < WRONG_ANSWER_RATE
+      allowWrongAnswer && Math.random() < WRONG_ANSWER_RATE
         ? makeWrongAnswer(targetAnswer)
         : targetAnswer;
 
@@ -163,12 +173,12 @@ export function useDistanceAutopilot({
   }, [callbacksRef, clickElement]);
 
   const runQuestion = useCallback(async (questionState: DistanceAutopilotState, answerOnly: boolean) => {
-    if (!answerOnly) {
+    if (!answerOnly && questionState.shouldDragRoute) {
       await waitMs(rand(AUTOPILOT_TIMING.READ_PROMPT));
       await driveRoute(questionState.routeKmPoints);
     }
     await waitMs(rand(AUTOPILOT_TIMING.BEFORE_ANSWER));
-    await typeAnswer(questionState.targetAnswer);
+    await typeAnswer(questionState.targetAnswer, questionState.allowWrongAnswer);
   }, [driveRoute, typeAnswer]);
 
   const runLevelComplete = useCallback(async (completeState: DistanceAutopilotState) => {
@@ -179,12 +189,12 @@ export function useDistanceAutopilot({
     const input = getAutopilotElement("email-input");
     if (input) {
       const rect = input.getBoundingClientRect();
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false, "fingertip");
       await waitMs(120);
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, true);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, true, "fingertip");
       callbacks.emailModalControls.current?.setEmail("");
       await waitMs(120);
-      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false);
+      moveHand(rect.left + rect.width / 2, rect.top + rect.height / 2, false, "fingertip");
     }
 
     for (const char of autopilotEmail) {
@@ -196,6 +206,7 @@ export function useDistanceAutopilot({
     callbacks.emailModalControls.current?.setEmail(autopilotEmail);
     await clickElement("email-send");
     await callbacks.emailModalControls.current?.triggerSend?.();
+    await waitMs(POST_SEND_RESULT_PAUSE_MS);
 
     await waitMs(rand(AUTOPILOT_TIMING.AFTER_SEND));
     if (completeState.hasNextLevel) {
