@@ -3,12 +3,80 @@
 import { generateSessionPdf } from "./generatePdf";
 import type { SessionSummary } from "./sessionLog";
 
+const SITE_URL = "https://www.seemaths.com";
+const GAME_NAME = "Distance Calculator";
+const SENDER_NAME = "SeeMaths Distance Calculator";
+const CURRICULUM_BY_LEVEL = {
+  1: {
+    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
+    code: "MA3-7NA",
+    description:
+      "Compares, orders and calculates with fractions, decimals and percentages.",
+  },
+  2: {
+    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
+    code: "MA3-7NA",
+    description:
+      "Compares, orders and calculates with fractions, decimals and percentages.",
+  },
+  3: {
+    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
+    code: "MA3-9MG",
+    description:
+      "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length.",
+  },
+} as const;
+
 function getReportFileName(summary: SessionSummary): string {
   const stamp = new Date().toISOString().slice(0, 10);
   const name = (summary.playerName || "explorer")
     .toLowerCase()
     .replace(/\s+/g, "-");
   return `distance-report-${name}-${stamp}.pdf`;
+}
+
+function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return "th";
+  const lastDigit = day % 10;
+  if (lastDigit === 1) return "st";
+  if (lastDigit === 2) return "nd";
+  if (lastDigit === 3) return "rd";
+  return "th";
+}
+
+function formatSessionDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const day = date.getDate();
+  const month = date.toLocaleDateString("en-AU", { month: "short" });
+  return `${day}${getOrdinalSuffix(day)} ${month}`;
+}
+
+function formatSessionTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function formatDurationMinutes(startTime: number, endTime: number): string {
+  const minutes = Math.max(1, Math.round((endTime - startTime) / 60000));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+function getEmailMetadata(summary: SessionSummary) {
+  const curriculum = CURRICULUM_BY_LEVEL[summary.level];
+  return {
+    gameName: GAME_NAME,
+    senderName: SENDER_NAME,
+    siteUrl: SITE_URL,
+    sessionTime: formatSessionTime(summary.startTime),
+    sessionDate: formatSessionDate(summary.startTime),
+    durationText: formatDurationMinutes(summary.startTime, summary.endTime),
+    stageLabel: curriculum.stageLabel,
+    curriculumCode: curriculum.code,
+    curriculumDescription: curriculum.description,
+  };
 }
 
 async function buildReportBlob(summary: SessionSummary): Promise<Blob> {
@@ -96,7 +164,7 @@ export async function emailReport(
       correctCount: summary.correctCount,
       totalQuestions: summary.totalQuestions,
       accuracy: summary.accuracy,
-      totalEggs: summary.normalEggs + summary.monsterEggs,
+      ...getEmailMetadata(summary),
       reportFileName: getReportFileName(summary),
     }),
   });
