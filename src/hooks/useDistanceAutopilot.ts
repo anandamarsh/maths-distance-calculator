@@ -80,16 +80,20 @@ export interface DistanceAutopilotState {
   hasNextLevel: boolean;
 }
 
+export type DistanceAutopilotMode = "continuous" | "single-question";
+
 interface UseDistanceAutopilotArgs {
   callbacksRef: RefObject<DistanceAutopilotCallbacks | null>;
   autopilotEmail: string;
   state: DistanceAutopilotState;
+  mode?: DistanceAutopilotMode;
 }
 
 export function useDistanceAutopilot({
   callbacksRef,
   autopilotEmail,
   state,
+  mode = "continuous",
 }: UseDistanceAutopilotArgs) {
   const [isActive, setIsActive] = useState(false);
   const [phantomPos, setPhantomPos] = useState<PhantomPos | null>(null);
@@ -170,7 +174,13 @@ export function useDistanceAutopilot({
       callbacks.submitAnswer();
     }
     setPhantomPos(null);
-  }, [callbacksRef, clickElement]);
+    if (mode === "single-question") {
+      callbacks.setDragging(false);
+      setIsActive(false);
+      runIdRef.current += 1;
+      callbacks.onAutopilotComplete?.();
+    }
+  }, [callbacksRef, clickElement, mode]);
 
   const runQuestion = useCallback(async (questionState: DistanceAutopilotState, answerOnly: boolean) => {
     if (!answerOnly && questionState.shouldDragRoute) {

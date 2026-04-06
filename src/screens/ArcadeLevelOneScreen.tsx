@@ -1069,6 +1069,10 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
+  const [autopilotMode, setAutopilotMode] = useState<
+    "continuous" | "single-question"
+  >("continuous");
+  const [demoRetryPending, setDemoRetryPending] = useState(false);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [cheatAnswerUnlocked, setCheatAnswerUnlocked] = useState(false);
   const [hasDiscoveredDinoDrag, setHasDiscoveredDinoDrag] = useState(false);
@@ -1091,6 +1095,7 @@ export default function ArcadeLevelOneScreen() {
   const keypadToggleRef = useRef<(() => void) | null>(null);
   const keypadMinimizeRef = useRef<(() => void) | null>(null);
   const autopilotCallbacksRef = useRef<DistanceAutopilotCallbacks | null>(null);
+  const singleQuestionDemoRef = useRef(false);
   const modalControlsRef = useRef<ModalAutopilotControls | null>(null);
   const eggTargetRef = useRef(DEFAULT_EGGS_PER_LEVEL);
 
@@ -1988,6 +1993,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function submitAnswer() {
+    if (demoRetryPending) return;
     playButton();
 
     // ── Level 3: stepped one-at-a-time ──
@@ -2001,22 +2007,28 @@ export default function ArcadeLevelOneScreen() {
         }
         if (isMobileLandscape) keypadMinimizeRef.current?.();
         const ok = Math.abs(g - currentQ.subAnswers[2]) < 0.11;
-        logAttempt({
-          config,
-          prompt: currentQ.promptLines![2],
-          questionType: "hub-comparison",
-          level: 3,
-          routeStopNames: currentQ.route.map(i => config.stops[i].label),
-          unit: config.unit,
-          correctAnswer: currentQ.subAnswers[2],
-          childAnswer: g,
-          isCorrect: ok,
-          gamePhase,
-          dinoName: dino.nickname,
-        });
+        if (!singleQuestionDemoRef.current) {
+          logAttempt({
+            config,
+            prompt: currentQ.promptLines![2],
+            questionType: "hub-comparison",
+            level: 3,
+            routeStopNames: currentQ.route.map(i => config.stops[i].label),
+            unit: config.unit,
+            correctAnswer: currentQ.subAnswers[2],
+            childAnswer: g,
+            isCorrect: ok,
+            gamePhase,
+            dinoName: dino.nickname,
+          });
+        }
         if (ok) {
           playCorrect();
-          earnMonsterEgg();
+          if (singleQuestionDemoRef.current) {
+            finishSingleQuestionDemo();
+          } else {
+            earnMonsterEgg();
+          }
         } else {
           loseEgg();
         }
@@ -2050,31 +2062,39 @@ export default function ArcadeLevelOneScreen() {
       }
 
       // Final step (step 2)
-      const subAttemptDetails = currentQ.promptLines!.map((prompt, idx) => ({
-        step: idx,
-        prompt,
-        correctAnswer: currentQ.subAnswers![idx],
-        childAnswer: parseFloat(subAnswers[idx]) || 0,
-        isCorrect: Math.abs((parseFloat(subAnswers[idx]) || 0) - currentQ.subAnswers![idx]) < 0.11,
-      }));
-      logAttempt({
-        config,
-        prompt: currentQ.promptLines![2],
-        promptLines: currentQ.promptLines,
-        questionType: "hub-comparison",
-        level: 3,
-        routeStopNames: currentQ.route.map(i => config.stops[i].label),
-        unit: config.unit,
-        correctAnswer: currentQ.subAnswers![2],
-        childAnswer: parseFloat(subAnswers[2]) || 0,
-        subAnswers: subAttemptDetails,
-        isCorrect: ok,
-        gamePhase,
-        dinoName: dino.nickname,
-      });
+      const isSingleQuestionDemoAttempt = singleQuestionDemoRef.current;
+      if (!isSingleQuestionDemoAttempt) {
+        const subAttemptDetails = currentQ.promptLines!.map((prompt, idx) => ({
+          step: idx,
+          prompt,
+          correctAnswer: currentQ.subAnswers![idx],
+          childAnswer: parseFloat(subAnswers[idx]) || 0,
+          isCorrect:
+            Math.abs(
+              (parseFloat(subAnswers[idx]) || 0) - currentQ.subAnswers![idx],
+            ) < 0.11,
+        }));
+        logAttempt({
+          config,
+          prompt: currentQ.promptLines![2],
+          promptLines: currentQ.promptLines,
+          questionType: "hub-comparison",
+          level: 3,
+          routeStopNames: currentQ.route.map(i => config.stops[i].label),
+          unit: config.unit,
+          correctAnswer: currentQ.subAnswers![2],
+          childAnswer: parseFloat(subAnswers[2]) || 0,
+          subAnswers: subAttemptDetails,
+          isCorrect: ok,
+          gamePhase,
+          dinoName: dino.nickname,
+        });
+      }
       if (ok) {
         playCorrect();
-        if (extinctionL3RecoveryMode && gamePhase === "monster") {
+        if (isSingleQuestionDemoAttempt) {
+          finishSingleQuestionDemo();
+        } else if (extinctionL3RecoveryMode && gamePhase === "monster") {
           advanceMonsterQuestionWithoutEgg();
         } else if (gamePhase === "monster") {
           earnMonsterEgg();
@@ -2096,23 +2116,28 @@ export default function ArcadeLevelOneScreen() {
     }
     if (isMobileLandscape) keypadMinimizeRef.current?.();
     const correct = Math.abs(guess - currentQ.answer) < 0.11;
-    logAttempt({
-      config,
-      prompt: currentQ.prompt,
-      questionType: level === 1 ? "total-distance" : "missing-leg",
-      level: level as 1 | 2 | 3,
-      hiddenEdgeIndex: currentQ.hiddenEdge,
-      routeStopNames: currentQ.route.map(i => config.stops[i].label),
-      unit: config.unit,
-      correctAnswer: currentQ.answer,
-      childAnswer: guess,
-      isCorrect: correct,
-      gamePhase,
-      dinoName: dino.nickname,
-    });
+    const isSingleQuestionDemoAttempt = singleQuestionDemoRef.current;
+    if (!isSingleQuestionDemoAttempt) {
+      logAttempt({
+        config,
+        prompt: currentQ.prompt,
+        questionType: level === 1 ? "total-distance" : "missing-leg",
+        level: level as 1 | 2 | 3,
+        hiddenEdgeIndex: currentQ.hiddenEdge,
+        routeStopNames: currentQ.route.map(i => config.stops[i].label),
+        unit: config.unit,
+        correctAnswer: currentQ.answer,
+        childAnswer: guess,
+        isCorrect: correct,
+        gamePhase,
+        dinoName: dino.nickname,
+      });
+    }
     if (correct) {
       playCorrect();
-      if (gamePhase === "monster") {
+      if (isSingleQuestionDemoAttempt) {
+        finishSingleQuestionDemo();
+      } else if (gamePhase === "monster") {
         earnMonsterEgg();
       } else {
         earnEgg();
@@ -2123,6 +2148,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function handleKeypadChange(v: string) {
+    if (demoRetryPending) return;
     if (showKeypadDisplayHint) {
       setHasDiscoveredKeypadDisplay(true);
     }
@@ -2272,6 +2298,7 @@ export default function ArcadeLevelOneScreen() {
     deactivate: deactivateAutopilot,
     phantomPos,
   } = useDistanceAutopilot({
+    mode: autopilotMode,
     callbacksRef: autopilotCallbacksRef,
     autopilotEmail: AUTOPILOT_EMAIL,
     state: {
@@ -2283,13 +2310,14 @@ export default function ArcadeLevelOneScreen() {
       routeKmPoints: autopilotRouteKmPoints,
       targetAnswer: autopilotAnswer,
       shouldDragRoute: autopilotShouldDragRoute,
-      allowWrongAnswer: autopilotAllowWrongAnswer,
+      allowWrongAnswer:
+        autopilotMode === "single-question" ? false : autopilotAllowWrongAnswer,
       levelCompleteVisible:
         !!sessionSummary && (screen === "won" || screen === "gameover"),
       hasNextLevel: screen === "won" && level < 3,
     },
   });
-  const eggsPerLevel = isAutopilot
+  const eggsPerLevel = isAutopilot && autopilotMode === "continuous"
     ? AUTOPILOT_EGGS_PER_LEVEL
     : DEFAULT_EGGS_PER_LEVEL;
   const eggIndices = Array.from({ length: eggsPerLevel }, (_, i) => i);
@@ -2298,7 +2326,69 @@ export default function ArcadeLevelOneScreen() {
     eggTargetRef.current = eggsPerLevel;
   }, [eggsPerLevel]);
 
+  function clearSingleQuestionDemo() {
+    singleQuestionDemoRef.current = false;
+  }
+
+  function cancelAutopilotMode() {
+    clearSingleQuestionDemo();
+    deactivateAutopilot();
+  }
+
+  function spendSingleQuestionDemoPoint() {
+    if (gamePhase === "monster") {
+      setMonsterEggs((value) => Math.max(0, value - 1));
+      return;
+    }
+    setEggsCollected((value) => Math.max(0, value - 1));
+  }
+
+  function runSingleQuestionDemo() {
+    clearSingleQuestionDemo();
+    if (isAutopilot) {
+      deactivateAutopilot();
+    }
+    spendSingleQuestionDemoPoint();
+    singleQuestionDemoRef.current = true;
+    setAutopilotMode("single-question");
+    handleKeypadChange("");
+    activateAutopilot();
+  }
+
+  function finishSingleQuestionDemo() {
+    queueNextQuestionAfterSuccessIcon(() => {
+      clearSingleQuestionDemo();
+      setDemoRetryPending(true);
+    });
+  }
+
+  function handleDemoTryAgain() {
+    setDemoRetryPending(false);
+    setAnswer("");
+    setSubAnswers(["", "", ""]);
+    setSubStep(0);
+    setExtinctionL3ShowSteps(false);
+    setExtinctionL3RecoveryMode(false);
+    resetCurrentQuestion();
+  }
+
+  const isRobotVisibleActive = isAutopilot;
+  const handleRobotButtonClick = isRobotVisibleActive
+    ? cancelAutopilotMode
+    : runSingleQuestionDemo;
+  const robotTitle = isRobotVisibleActive
+    ? autopilotMode === "continuous"
+      ? "Autopilot ON — click to stop"
+      : "Show how to solve this question — click to stop"
+    : "Show how to solve this question";
+  const robotAriaLabel = isRobotVisibleActive
+    ? autopilotMode === "continuous"
+      ? "Autopilot active — click to cancel"
+      : "Question demo active — click to cancel"
+    : "Show how to solve this question";
+
   function fillCorrectAnswerAndSubmit() {
+    if (demoRetryPending) return;
     setCheatAnswerUnlocked(true);
     if (currentQ.promptLines && currentQ.subAnswers) {
       const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
@@ -2315,14 +2405,19 @@ export default function ArcadeLevelOneScreen() {
 
   useCheatCodes({
     "198081": () => {
-      if (isAutopilot) {
-        deactivateAutopilot();
+      if (demoRetryPending) return;
+      if (isAutopilot && autopilotMode === "continuous") {
+        cancelAutopilotMode();
         return;
       }
+      clearSingleQuestionDemo();
+      if (isAutopilot) deactivateAutopilot();
+      setAutopilotMode("continuous");
       handleKeypadChange("");
       activateAutopilot();
     },
     [ANSWER_CHEAT_CODE]: () => {
+      if (demoRetryPending) return;
       if (screen !== "playing" || showMonsterAnnounce) return;
       fillCorrectAnswerAndSubmit();
     },
@@ -2518,7 +2613,6 @@ export default function ArcadeLevelOneScreen() {
               </svg>
             </button>
           )}
-          {isAutopilot && <AutopilotIcon onClick={deactivateAutopilot} />}
         </div>
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
@@ -3496,6 +3590,12 @@ export default function ArcadeLevelOneScreen() {
       )}
       {!isFullScreenOverlayActive && (
         <div ref={rightControlsRef} className="social-launchers">
+          <AutopilotIcon
+            onClick={handleRobotButtonClick}
+            active={isRobotVisibleActive}
+            title={robotTitle}
+            ariaLabel={robotAriaLabel}
+          />
           <button
             type="button"
             onClick={toggleShareDrawer}
@@ -3962,6 +4062,22 @@ export default function ArcadeLevelOneScreen() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {demoRetryPending && (
+        <div className="absolute inset-0 z-[85]">
+          <div className="absolute inset-0 pointer-events-auto" />
+          <div className="absolute left-1/2 top-6 -translate-x-1/2">
+            <button
+              type="button"
+              onClick={handleDemoTryAgain}
+              className="arcade-button inline-flex px-8 py-4 text-base md:text-lg"
+              style={{ borderColor: "#fbbf24" }}
+            >
+              Try on your own
+            </button>
           </div>
         </div>
       )}
