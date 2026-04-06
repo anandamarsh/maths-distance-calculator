@@ -5,7 +5,9 @@ import type { SessionSummary } from "./sessionLog";
 
 const SITE_URL = "https://www.seemaths.com";
 const GAME_NAME = "Distance Calculator";
-const SENDER_NAME = "SeeMaths Distance Calculator";
+const SENDER_NAME = "Distance Calculator";
+const CURRICULUM_INDEX_URL =
+  "https://www.educationstandards.nsw.edu.au/wps/portal/nesa/k-10/learning-areas/mathematics/mathematics-k-10";
 const CURRICULUM_BY_LEVEL = {
   1: {
     stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
@@ -54,7 +56,8 @@ function formatSessionDate(timestamp: number): string {
   const date = new Date(timestamp);
   const day = date.getDate();
   const month = date.toLocaleDateString("en-AU", { month: "short" });
-  return `${day}${getOrdinalSuffix(day)} ${month}`;
+  const weekday = date.toLocaleDateString("en-AU", { weekday: "short" });
+  return `${weekday} ${day}${getOrdinalSuffix(day)} ${month}`;
 }
 
 function formatSessionTime(timestamp: number): string {
@@ -83,6 +86,7 @@ function getEmailMetadata(summary: SessionSummary) {
     curriculumCode: curriculum.code,
     curriculumDescription: curriculum.description,
     curriculumUrl: curriculum.syllabusUrl,
+    curriculumIndexUrl: CURRICULUM_INDEX_URL,
   };
 }
 
