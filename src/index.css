@@ -410,3 +410,15 @@ body {
     max-height: 100dvh;
   }
 }
+
+@keyframes autopilot-blink {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  25%,
+  75% {
+    opacity: 1;
+  }
+}

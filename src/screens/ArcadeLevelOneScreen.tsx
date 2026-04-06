@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { MutableRefObject } from "react";
 import {
   makeOneQuestion,
   generateTrailConfig,
@@ -38,6 +39,14 @@ import {
 } from "../report/sessionLog";
 import type { SessionSummary } from "../report/sessionLog";
 import { emailReport, shareReport } from "../report/shareReport";
+import AutopilotIcon from "../components/AutopilotIcon";
+import PhantomHand from "../components/PhantomHand";
+import { useCheatCodes } from "../hooks/useCheatCode";
+import {
+  useDistanceAutopilot,
+  type DistanceAutopilotCallbacks,
+  type ModalAutopilotControls,
+} from "../hooks/useDistanceAutopilot";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
@@ -108,6 +117,16 @@ function svgUserToMapLocal(
   const screen = pt.matrixTransform(ctm);
   const mr = mapEl.getBoundingClientRect();
   return { left: screen.x - mr.left, top: screen.y - mr.top };
+}
+
+function svgUserToViewport(svg: SVGSVGElement, x: number, y: number) {
+  const pt = svg.createSVGPoint();
+  pt.x = x;
+  pt.y = y;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const screen = pt.matrixTransform(ctm);
+  return { x: screen.x, y: screen.y };
 }
 
 function useIsMobileLandscape() {
@@ -260,6 +279,8 @@ function shouldFaceLeftForRoute(route: number[]) {
 
 const IS_DEV = import.meta.env.DEV;
 const ANSWER_CHEAT_CODE = "197879";
+const AUTOPILOT_EMAIL =
+  import.meta.env.VITE_AUTOPILOT_EMAIL ?? "amarsh.anand@gmail.com";
 const IS_LOCALHOST_DEV =
   IS_DEV &&
   new Set(["localhost", "127.0.0.1", "::1"]).has(
@@ -309,6 +330,12 @@ const MONSTER_ROUND_NAMES = [
   "JURASSIC GAUNTLET",
   "THUNDER ROUND",
 ];
+
+function pickMonsterRoundName() {
+  return MONSTER_ROUND_NAMES[
+    Math.floor(Math.random() * MONSTER_ROUND_NAMES.length)
+  ];
+}
 
 // Background per level × phase
 const PHASE_BG: Record<string, { bg: string; glow: string; tint: string }> = {
@@ -381,7 +408,10 @@ function RexSprite({
   facingLeft: boolean;
 }) {
   return (
-    <g style={{ transform: facingLeft ? "scaleX(-1)" : undefined }}>
+    <g
+      data-testid="dino-token"
+      style={{ transform: facingLeft ? "scaleX(-1)" : undefined }}
+    >
       <g>
         {/* icon centred at (0,0), scaled to ~100px, sitting just above y=0 */}
         <svg
@@ -760,6 +790,9 @@ function NumericKeypad({
                 key={btn}
                 type="button"
                 onClick={() => press(btn)}
+                data-autopilot-key={
+                  /[0-9]/.test(btn) || btn === "." ? btn : undefined
+                }
                 className={/[0-9]/.test(btn) ? digit : op}
                 style={activeKey === btn ? pressedKeyStyle : undefined}
               >
@@ -780,6 +813,7 @@ function NumericKeypad({
           <button
             type="button"
             onClick={() => press("0")}
+            data-autopilot-key="0"
             className={`${digit} flex-[2]`}
             style={activeKey === "0" ? pressedKeyStyle : undefined}
           >
@@ -789,6 +823,7 @@ function NumericKeypad({
             type="button"
             onClick={onSubmit}
             disabled={!canSubmit}
+            data-autopilot-key="submit"
             className={`${base} flex-[2] arcade-button disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <svg
@@ -810,9 +845,11 @@ function NumericKeypad({
 function LevelCompleteReportActions({
   summary,
   isMobileLandscape,
+  autopilotControlsRef,
 }: {
   summary: SessionSummary;
   isMobileLandscape: boolean;
+  autopilotControlsRef?: MutableRefObject<ModalAutopilotControls | null>;
 }) {
   const [generating, setGenerating] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
@@ -832,7 +869,7 @@ function LevelCompleteReportActions({
     }
   }
 
-  async function handleEmailSend() {
+  const handleEmailSend = useCallback(async () => {
     if (!canEmailReport || generating) return;
     setGenerating(true);
     setEmailFeedback(null);
@@ -849,7 +886,27 @@ function LevelCompleteReportActions({
     } finally {
       setGenerating(false);
     }
-  }
+  }, [canEmailReport, generating, shareEmail, summary]);
+
+  useEffect(() => {
+    if (!autopilotControlsRef) return;
+    autopilotControlsRef.current = {
+      appendChar: (char: string) => {
+        setShareEmail((current) => `${current}${char}`);
+        setEmailFeedback(null);
+        setEmailError(false);
+      },
+      setEmail: (value: string) => {
+        setShareEmail(value);
+        setEmailFeedback(null);
+        setEmailError(false);
+      },
+      triggerSend: handleEmailSend,
+    };
+    return () => {
+      autopilotControlsRef.current = null;
+    };
+  }, [autopilotControlsRef, handleEmailSend]);
 
   return (
     <div className="mx-auto mt-5 w-full max-w-xl">
@@ -899,6 +956,7 @@ function LevelCompleteReportActions({
         <input
           type="email"
           value={shareEmail}
+          data-autopilot-key="email-input"
           onChange={(event) => {
             setShareEmail(event.target.value);
             if (emailFeedback) {
@@ -913,6 +971,7 @@ function LevelCompleteReportActions({
           type="button"
           onClick={handleEmailSend}
           disabled={!canEmailReport || generating}
+          data-autopilot-key="email-send"
           className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400 text-slate-950 transition-opacity disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500 disabled:opacity-100"
           aria-label="Email report"
           title={canEmailReport ? "Send the report by email" : "Enter an email address"}
@@ -996,6 +1055,8 @@ export default function ArcadeLevelOneScreen() {
   const isMobileLandscapeRef = useRef(isMobileLandscape);
   const keypadToggleRef = useRef<(() => void) | null>(null);
   const keypadMinimizeRef = useRef<(() => void) | null>(null);
+  const autopilotCallbacksRef = useRef<DistanceAutopilotCallbacks | null>(null);
+  const modalControlsRef = useRef<ModalAutopilotControls | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -1025,7 +1086,7 @@ export default function ArcadeLevelOneScreen() {
   const lastStepRef = useRef(0);
   const gamePhaseRef = useRef<"normal" | "monster">("normal");
   const keypadValueRef = useRef("");
-  const handleKeypadChangeRef = useRef((_v: string) => {});
+  const handleKeypadChangeRef = useRef<(value: string) => void>(() => {});
   const submitAnswerRef = useRef(() => {});
 
   const { config, dino, dinoColor } = run;
@@ -1747,10 +1808,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function startMonsterRound() {
-    const name =
-      MONSTER_ROUND_NAMES[
-        Math.floor(Math.random() * MONSTER_ROUND_NAMES.length)
-      ];
+    const name = pickMonsterRoundName();
     setMonsterRoundName(name);
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
@@ -1980,9 +2038,13 @@ export default function ArcadeLevelOneScreen() {
       });
       if (ok) {
         playCorrect();
-        if (extinctionL3RecoveryMode && gamePhase === "monster")
+        if (extinctionL3RecoveryMode && gamePhase === "monster") {
           advanceMonsterQuestionWithoutEgg();
-        else gamePhase === "monster" ? earnMonsterEgg() : earnEgg();
+        } else if (gamePhase === "monster") {
+          earnMonsterEgg();
+        } else {
+          earnEgg();
+        }
       } else {
         loseEgg();
       }
@@ -2014,7 +2076,11 @@ export default function ArcadeLevelOneScreen() {
     });
     if (correct) {
       playCorrect();
-      gamePhase === "monster" ? earnMonsterEgg() : earnEgg();
+      if (gamePhase === "monster") {
+        earnMonsterEgg();
+      } else {
+        earnEgg();
+      }
     } else {
       loseEgg();
     }
@@ -2068,6 +2134,15 @@ export default function ArcadeLevelOneScreen() {
         ? 2
         : subStep
       : null;
+  const autopilotAnswer =
+    l3KeypadIndex !== null
+      ? currentQ.subAnswers?.[l3KeypadIndex].toFixed(1) ?? "0.0"
+      : currentQ.answer.toFixed(1);
+  const autopilotAnswerStepKey =
+    l3KeypadIndex !== null
+      ? `${currentQ.id}:${l3ExtinctionSingleLineOnly ? "single" : subStep}`
+      : `${currentQ.id}:final`;
+  const autopilotRouteKmPoints = currentQ.route.map((stopIndex) => checkpoints[stopIndex]);
   const keypadValue =
     l3KeypadIndex !== null ? subAnswers[l3KeypadIndex] : answer;
   const showCheatAnswer = cheatAnswerUnlocked;
@@ -2094,9 +2169,106 @@ export default function ArcadeLevelOneScreen() {
   const collapsedStepPanelClass = useCollapsedQuestionTray
     ? "py-1"
     : "py-2.5";
-  keypadValueRef.current = keypadValue;
-  handleKeypadChangeRef.current = handleKeypadChange;
-  submitAnswerRef.current = submitAnswer;
+
+  const autopilotCallbacks = useMemo<DistanceAutopilotCallbacks>(
+    () => ({
+      clearKeypad: () => handleKeypadChange(""),
+      expandKeypad: () => {
+        if (isKeypadMinimized) keypadToggleRef.current?.();
+      },
+      setDragging: (nextDragging: boolean) => {
+        draggingRef.current = nextDragging;
+        setDragging(nextDragging);
+      },
+      moveRex,
+      getScreenPointForKm: (km: number) => {
+        const svg = svgRef.current;
+        if (!svg) return null;
+        const point = posAtKm(config, km, checkpoints);
+        return svgUserToViewport(svg, point.x, point.y);
+      },
+      submitAnswer,
+      goNextLevel: () => beginNewRun((level + 1) as 1 | 2 | 3, true),
+      emailModalControls: modalControlsRef,
+    }),
+    [
+      beginNewRun,
+      checkpoints,
+      config,
+      handleKeypadChange,
+      isKeypadMinimized,
+      level,
+      moveRex,
+      submitAnswer,
+    ],
+  );
+
+  useEffect(() => {
+    autopilotCallbacksRef.current = autopilotCallbacks;
+  }, [autopilotCallbacks]);
+
+  const {
+    isActive: isAutopilot,
+    activate: activateAutopilot,
+    deactivate: deactivateAutopilot,
+    phantomPos,
+  } = useDistanceAutopilot({
+    callbacksRef: autopilotCallbacksRef,
+    autopilotEmail: AUTOPILOT_EMAIL,
+    state: {
+      screen,
+      level,
+      showMonsterAnnounce,
+      roundKey: calcRoundKey,
+      answerStepKey: autopilotAnswerStepKey,
+      routeKmPoints: autopilotRouteKmPoints,
+      targetAnswer: autopilotAnswer,
+      levelCompleteVisible:
+        !!sessionSummary && (screen === "won" || screen === "gameover"),
+      hasNextLevel: screen === "won" && level < 3,
+    },
+  });
+
+  function fillCorrectAnswerAndSubmit() {
+    setCheatAnswerUnlocked(true);
+    if (currentQ.promptLines && currentQ.subAnswers) {
+      const idx = l3ExtinctionSingleLineOnly ? 2 : subStep;
+      setSubAnswers((prev) => {
+        const next = [...prev] as [string, string, string];
+        next[idx] = autopilotAnswer;
+        return next;
+      });
+    } else {
+      setAnswer(autopilotAnswer);
+    }
+    window.setTimeout(() => submitAnswerRef.current(), 30);
+  }
+
+  useCheatCodes({
+    "198081": () => {
+      if (isAutopilot) {
+        deactivateAutopilot();
+        return;
+      }
+      handleKeypadChange("");
+      activateAutopilot();
+    },
+    [ANSWER_CHEAT_CODE]: () => {
+      if (screen !== "playing" || showMonsterAnnounce) return;
+      fillCorrectAnswerAndSubmit();
+    },
+  });
+  const shouldShowDinoDragHint = showDinoDragHint && !isAutopilot;
+  const shouldShowKeypadDisplayHint =
+    showKeypadDisplayHint && !isAutopilot;
+  const shouldShowMonsterKeypadDisplayHint =
+    showMonsterKeypadDisplayHint && !isAutopilot;
+
+  useEffect(() => {
+    keypadValueRef.current = keypadValue;
+    handleKeypadChangeRef.current = handleKeypadChange;
+    submitAnswerRef.current = submitAnswer;
+  }, [keypadValue, handleKeypadChange, submitAnswer]);
 
   useEffect(() => {
     setIsKeypadMinimized(isCoarsePointer);
@@ -2277,6 +2449,7 @@ export default function ArcadeLevelOneScreen() {
               </svg>
             </button>
           )}
+          {isAutopilot && <AutopilotIcon onClick={deactivateAutopilot} />}
         </div>
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
@@ -2770,7 +2943,7 @@ export default function ArcadeLevelOneScreen() {
                 </g>
               )}
 
-              {showDinoDragHint && (
+              {shouldShowDinoDragHint && (
                 <g
                   transform={`translate(${hintRouteStart.x}, ${hintRouteStart.y - 44})`}
                   style={{ pointerEvents: "none" }}
@@ -3225,18 +3398,21 @@ export default function ArcadeLevelOneScreen() {
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
               showDisplayHint={
-                showKeypadDisplayHint || showMonsterKeypadDisplayHint
+                shouldShowKeypadDisplayHint ||
+                shouldShowMonsterKeypadDisplayHint
               }
               onDisplayHintConsumed={() => {
-                if (showKeypadDisplayHint) {
+                if (shouldShowKeypadDisplayHint) {
                   setHasDiscoveredKeypadDisplay(true);
                 }
-                if (showMonsterKeypadDisplayHint) {
+                if (shouldShowMonsterKeypadDisplayHint) {
                   setHasDiscoveredMonsterKeypadDisplay(true);
                 }
               }}
               displayHintVariant={
-                showMonsterKeypadDisplayHint ? "display-center" : "default"
+                shouldShowMonsterKeypadDisplayHint
+                  ? "display-center"
+                  : "default"
               }
               roundKey={calcRoundKey}
               defaultMinimized={isCoarsePointer}
@@ -3573,6 +3749,7 @@ export default function ArcadeLevelOneScreen() {
               <LevelCompleteReportActions
                 summary={sessionSummary}
                 isMobileLandscape={isMobileLandscape}
+                autopilotControlsRef={isAutopilot ? modalControlsRef : undefined}
               />
             )}
 
@@ -3703,6 +3880,7 @@ export default function ArcadeLevelOneScreen() {
               <LevelCompleteReportActions
                 summary={sessionSummary}
                 isMobileLandscape={isMobileLandscape}
+                autopilotControlsRef={isAutopilot ? modalControlsRef : undefined}
               />
             )}
 
@@ -3710,6 +3888,7 @@ export default function ArcadeLevelOneScreen() {
               {level < 3 && (
                 <button
                   onClick={() => beginNewRun((level + 1) as 1 | 2 | 3, true)}
+                  data-autopilot-key="next-level"
                   className="arcade-button px-8 py-4 text-base md:text-lg"
                 >
                   Next Level
@@ -3719,6 +3898,8 @@ export default function ArcadeLevelOneScreen() {
           </div>
         </div>
       )}
+
+      <PhantomHand pos={phantomPos} />
     </div>
   );
 }
