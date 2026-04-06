@@ -145,6 +145,15 @@ function drawMiniMap(
 ) {
   const config = attempt.config;
   const padding = 10;
+  const routeStopNames = new Set(attempt.routeStopNames);
+  const routeEdgeKeys = new Set<string>();
+
+  for (let i = 1; i < attempt.routeStopNames.length; i += 1) {
+    const a = attempt.routeStopNames[i - 1];
+    const b = attempt.routeStopNames[i];
+    routeEdgeKeys.add(`${a}::${b}`);
+    routeEdgeKeys.add(`${b}::${a}`);
+  }
 
   doc.setFillColor("#f1f5f9");
   doc.roundedRect(x, y, width, height, 3, 3, "F");
@@ -170,35 +179,37 @@ function drawMiniMap(
     };
   }
 
-  doc.setDrawColor("#94a3b8");
   doc.setLineWidth(0.8);
   for (const edge of config.edges) {
     const fromStop = config.stops.find(s => s.id === edge.from)!;
     const toStop = config.stops.find(s => s.id === edge.to)!;
     const from = mapCoord(fromStop.x, fromStop.y);
     const to = mapCoord(toStop.x, toStop.y);
+    const isRouteEdge = routeEdgeKeys.has(`${fromStop.label}::${toStop.label}`);
+    const isHidden = attempt.questionType === "missing-leg" &&
+      attempt.hiddenEdgeIndex !== undefined &&
+      attempt.config.edges.indexOf(edge) === attempt.hiddenEdgeIndex;
+
+    doc.setDrawColor(isRouteEdge ? "#3b82f6" : "#94a3b8");
     doc.line(from.px, from.py, to.px, to.py);
 
     const mx = (from.px + to.px) / 2;
     const my = (from.py + to.py) / 2;
-    doc.setFontSize(6);
-    doc.setTextColor(COLORS.textMuted);
-    const isHidden = attempt.questionType === "missing-leg" &&
-      attempt.hiddenEdgeIndex !== undefined &&
-      attempt.config.edges.indexOf(edge) === attempt.hiddenEdgeIndex;
     const label = isHidden ? "?" : `${edge.distance} ${config.unit}`;
-    doc.text(label, mx, my - 1, { align: "center" });
+    doc.setFontSize(isHidden ? 9 : 6);
+    doc.setFont("helvetica", isHidden ? "bold" : "normal");
+    doc.setTextColor(isHidden ? COLORS.wrongBorder : COLORS.textMuted);
+    doc.text(label, mx, my - 3.2, { align: "center" });
   }
 
-  const routeStopNames = new Set(attempt.routeStopNames);
   for (const stop of config.stops) {
     const { px, py } = mapCoord(stop.x, stop.y);
     const isOnRoute = routeStopNames.has(stop.label);
     doc.setFillColor(isOnRoute ? "#3b82f6" : "#94a3b8");
-    doc.circle(px, py, isOnRoute ? 2.5 : 1.8, "F");
+    doc.circle(px, py, 1.8, "F");
     doc.setFontSize(5.5);
     doc.setTextColor(isOnRoute ? COLORS.textDark : COLORS.textMuted);
-    doc.text(sanitize(stop.label), px, py + 4.5, { align: "center" });
+    doc.text(sanitize(stop.label), px, py + 6.2, { align: "center" });
   }
 }
 
@@ -457,7 +468,20 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   const textW = cardRight - textX - 4;
 
   for (const attempt of summary.attempts) {
-    const estimatedCardH = cardHeaderH + mapH + 8 + (attempt.subAnswers ? 30 : 0);
+    const promptLinesEstimate = doc.splitTextToSize(sanitize(attempt.prompt), textW);
+    let subAnswerHeightEstimate = 0;
+    if (attempt.subAnswers && attempt.subAnswers.length > 0) {
+      doc.setFontSize(7.5);
+      for (const sub of attempt.subAnswers) {
+        const subLine = sanitize(
+          `${sub.prompt}: answered ${sub.childAnswer} (correct: ${sub.correctAnswer})`,
+        );
+        const wrapped = doc.splitTextToSize(subLine, textW - 5);
+        subAnswerHeightEstimate += wrapped.length * 4.2 + 2.4;
+      }
+    }
+    const estimatedCardH =
+      cardHeaderH + Math.max(mapH + 8, promptLinesEstimate.length * 4.5 + 10 + subAnswerHeightEstimate);
 
     // Equal gap before card
     curY += cardGap;
@@ -528,7 +552,7 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(COLORS.textDark);
-    const promptLines = doc.splitTextToSize(sanitize(attempt.prompt), textW);
+    const promptLines = promptLinesEstimate;
     doc.text(promptLines, textX, curY + bodyPad + 5);
 
     let textY = curY + bodyPad + 5 + promptLines.length * 4.5 + 2;
@@ -543,9 +567,30 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
         doc.text(subIcon, textX, textY);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(COLORS.textDark);
-        const subLine = sanitize(`${sub.prompt}: answered ${sub.childAnswer} (correct: ${sub.correctAnswer})`);
-        doc.text(doc.splitTextToSize(subLine, textW - 5), textX + 4, textY);
-        textY += 5;
+        const promptWrapped = doc.splitTextToSize(
+          sanitize(`${sub.prompt}:`),
+          textW - 5,
+        );
+        doc.text(promptWrapped, textX + 4, textY);
+        textY += promptWrapped.length * 4.2;
+
+        const answerX = textX + 4;
+        const answerPrefix = "answered ";
+        const answerValue = sanitize(String(sub.childAnswer));
+        const answerSuffix = sanitize(` (correct: ${sub.correctAnswer})`);
+
+        doc.setTextColor(COLORS.textDark);
+        doc.text(answerPrefix, answerX, textY);
+
+        const answerValueX = answerX + doc.getTextWidth(answerPrefix);
+        doc.setTextColor(sub.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
+        doc.text(answerValue, answerValueX, textY);
+
+        const answerSuffixX = answerValueX + doc.getTextWidth(answerValue);
+        doc.setTextColor(COLORS.textDark);
+        doc.text(answerSuffix, answerSuffixX, textY);
+
+        textY += 5.2;
       }
     } else {
       // Single answer
