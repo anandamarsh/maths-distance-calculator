@@ -12,18 +12,24 @@ const CURRICULUM_BY_LEVEL = {
     code: "MA3-7NA",
     description:
       "Compares, orders and calculates with fractions, decimals and percentages.",
+    syllabusUrl:
+      "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
   2: {
     stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
     code: "MA3-7NA",
     description:
       "Compares, orders and calculates with fractions, decimals and percentages.",
+    syllabusUrl:
+      "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
   3: {
     stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
     code: "MA3-9MG",
     description:
       "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length.",
+    syllabusUrl:
+      "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
 } as const;
 
@@ -76,6 +82,7 @@ function getEmailMetadata(summary: SessionSummary) {
     stageLabel: curriculum.stageLabel,
     curriculumCode: curriculum.code,
     curriculumDescription: curriculum.description,
+    curriculumUrl: curriculum.syllabusUrl,
   };
 }
 
