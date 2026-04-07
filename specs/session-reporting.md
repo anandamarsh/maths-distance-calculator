@@ -1,0 +1,290 @@
+# Session Reporting
+
+**Files:**
+- `src/report/sessionLog.ts` — data collection
+- `src/report/generatePdf.ts` — PDF generation
+- `src/report/shareReport.ts` — download, Web Share API, email
+- `src/screens/ArcadeLevelOneScreen.tsx` — inline `LevelCompleteReportActions` component
+- `api/send-report.ts` — Vercel serverless email endpoint
+
+---
+
+## Data types (`sessionLog.ts`)
+
+### `QuestionAttempt`
+
+```ts
+export interface QuestionAttempt {
+  questionNumber: number;
+  // Map context
+  config: TrailConfig;              // full trail config for re-rendering mini-map in PDF
+  // Question details
+  prompt: string;                   // e.g. "How far from Newtown to Ashfield?"
+  promptLines?: [string, string, string];  // Level 3 sub-prompts
+  questionType: "total-distance" | "missing-leg" | "hub-comparison";
+  level: 1 | 2 | 3;
+  hiddenEdgeIndex?: number;         // Level 2: index into config.edges shown as "?"
+  // Route info
+  routeStopNames: string[];         // e.g. ["Newtown", "Ashfield", "Marrickville"]
+  unit: "km" | "mi";
+  // Answers
+  correctAnswer: number;
+  childAnswer: number | null;
+  subAnswers?: {                    // Level 3 only
+    step: number;
+    prompt: string;
+    correctAnswer: number;
+    childAnswer: number;
+    isCorrect: boolean;
+  }[];
+  isCorrect: boolean;
+  // Timing
+  timestamp: number;                // Date.now() when answered
+  timeTakenMs: number;              // ms from question shown to answer submitted
+  // Phase
+  gamePhase: "normal" | "monster";
+  // Dino
+  dinoName: string;                 // e.g. "Blaze"
+}
+```
+
+### `SessionSummary`
+
+```ts
+export interface SessionSummary {
+  playerName: string;               // "Explorer" (no player name entry currently)
+  level: 1 | 2 | 3;
+  date: string;                     // ISO date string
+  startTime: number;                // Date.now()
+  endTime: number;                  // Date.now()
+  totalQuestions: number;
+  correctCount: number;
+  accuracy: number;                 // 0-100, rounded
+  normalEggs: number;
+  monsterEggs: number;
+  levelCompleted: boolean;
+  monsterRoundCompleted: boolean;
+  attempts: QuestionAttempt[];
+}
+```
+
+---
+
+## Session log API (`sessionLog.ts`)
+
+Module-level state (not React state):
+```ts
+let _attempts: QuestionAttempt[] = [];
+let _questionStartTime: number = Date.now();
+let _sessionStartTime: number = Date.now();
+let _questionCounter: number = 0;
+```
+
+```ts
+export function startSession(opts?: { resetCumulative?: boolean }): void
+// Resets attempts/counter/startTime if resetCumulative (default true).
+// Always resets question timer.
+// Call on mount, level restart, level select.
+
+export function startQuestionTimer(): void
+// Records start time for current question.
+// Call at the beginning of each round.
+
+export function logAttempt(attempt: Omit<QuestionAttempt, "questionNumber" | "timeTakenMs" | "timestamp">): void
+// Appends an attempt. Increments counter. Calculates timeTakenMs.
+// Resets question timer for next question.
+// Do NOT call during single-question demo mode.
+
+export function buildSummary(opts: {
+  playerName: string;
+  level: 1 | 2 | 3;
+  normalEggs: number;
+  monsterEggs: number;
+  levelCompleted: boolean;
+  monsterRoundCompleted: boolean;
+}): SessionSummary
+
+export function clearSession(): void
+export function getAttemptCount(): number
+```
+
+---
+
+## PDF generation (`generatePdf.ts`)
+
+```ts
+export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
+```
+
+Returns an A4 portrait PDF blob.
+
+### PDF sections (top to bottom)
+
+1. **Header banner** (28mm tall, rounded, `#f1f5f9` bg)
+   - App icon (20×20mm from `/favicon.svg`, fallback `/icon-512.png`)
+   - Title: "Distance Calculator" (17pt bold)
+   - Subtitle: "Level N Session Report" (9pt bold, centred)
+   - Date (left) + start–end time formatted (right), 7.5pt muted
+
+2. **Game description** (9pt bold heading + 8pt objective line)
+   - "About This Game"
+   - "Objective: [level-specific description]"
+
+3. **Score boxes** (3 equal boxes, 18mm tall)
+   - Score (`correctCount / totalQuestions`): blue (`#1d4ed8`, bg `#eff6ff`)
+   - Accuracy: green ≥80%, amber ≥50%, red <50%
+   - Time (session duration): purple (`#a855f7`, bg `#faf5ff`)
+
+4. **Egg row** (ellipses, correct=yellow `#facc15`, wrong=red `#ef4444`)
+   - Shows `normalEggs + monsterEggs` with colour coding
+
+5. **Question cards** (one per attempt)
+   - Header: coloured left stripe (green/red), Q number, CORRECT/WRONG, time taken
+   - Body: mini trail map (left, ~70×42mm) + question text & answers (right)
+   - Level 2: edge shown as "?" in mini map
+   - Level 3: shows all 3 sub-steps with individual correct/wrong indicators
+
+6. **Encouragement section** (lavender `#ede9fe`, star decorators)
+   - ≥90% → "Outstanding work! 🌟"
+   - ≥70% → "Great effort! Keep it up! 🎉"
+   - ≥50% → "Good try! Practice makes perfect! 💪"
+   - <50% → "Keep going — you're learning! 🌱"
+   - Tip line if any wrong answers
+
+7. **Footer** — "Generated by SeeMaths" + "www.seemaths.com" at page bottom
+
+### Mini trail map in question cards
+
+Each question card shows a scaled-down version of the trail:
+- Trail line colour matches the question's `config.palette`
+- Route stops are marked
+- The question route is highlighted
+- Level 2: hidden edge shown as a dashed line with "?" label
+- Level 3: both hub arms shown, hub stop circled
+
+### DSEG7 font embedding
+
+The PDF uses the DSEG7 font for the odometer value shown in the mini trail
+diagram. The screen pre-fetches `dsegRegularWoff2Url` and `dsegBoldWoff2Url`
+as base64 data URLs and passes them to `generateSessionPdf`.
+
+---
+
+## Share / download (`shareReport.ts`)
+
+### Constants
+
+```ts
+const SITE_URL = "https://www.seemaths.com";
+const GAME_NAME = "Distance Calculator";
+const SENDER_NAME = "Distance Calculator";
+const CURRICULUM_BY_LEVEL = {
+  1: { stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
+       code: "MA3-7NA",
+       description: "Compares, orders and calculates with fractions, decimals and percentages." },
+  2: { /* same as Level 1 */ },
+  3: { stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
+       code: "MA3-9MG",
+       description: "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length." },
+};
+```
+
+### Functions
+
+```ts
+export async function downloadReport(summary: SessionSummary): Promise<void>
+// Generates PDF, triggers browser download.
+
+export async function shareReport(summary: SessionSummary): Promise<boolean>
+// Tries Web Share API with PDF file. Falls back to downloadReport() if unavailable.
+// Returns true on success, false if user cancelled.
+
+export async function emailReport(summary: SessionSummary, email: string): Promise<void>
+// Generates PDF → base64 → POST /api/send-report.
+// Throws on failure.
+
+export function canNativeShare(): boolean
+// Returns true if navigator.canShare({ files: [pdf] }) is supported.
+```
+
+### Email payload sent to `/api/send-report`
+
+```ts
+{
+  email, pdfBase64,
+  playerName, correctCount, totalQuestions, accuracy,
+  gameName, senderName, siteUrl,
+  sessionTime, sessionDate, durationText,
+  stageLabel, curriculumCode, curriculumDescription,
+  curriculumUrl, curriculumIndexUrl,
+  reportFileName,
+}
+```
+
+Note: unlike the template, email body strings are NOT pre-translated
+(i18n is not yet implemented). The server uses English template strings.
+
+---
+
+## Email API (`api/send-report.ts`)
+
+**Endpoint:** `POST /api/send-report`
+**Body size limit:** 10MB (for base64 PDF)
+
+**Required env vars:**
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+
+**Validation:**
+- Email format: `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`
+- `pdfBase64` must be non-empty
+
+**Behaviour:**
+- Sends via Resend API with PDF as attachment
+- Returns `{ ok: true }` on success, error object on failure
+
+---
+
+## `LevelCompleteReportActions` component
+
+Inline component in `ArcadeLevelOneScreen.tsx`.
+
+```tsx
+function LevelCompleteReportActions({
+  summary,
+  isMobileLandscape,
+  autopilotControlsRef,
+}: {
+  summary: SessionSummary;
+  isMobileLandscape: boolean;
+  autopilotControlsRef?: MutableRefObject<ModalAutopilotControls | null>;
+})
+```
+
+### Content
+
+- Stats: score, accuracy, total eggs (normal + monster)
+- **Share Report button** — calls `shareReport()`, shows loading state
+- **Email input** + **Send button** — calls `emailReport()`, shows success/error
+- **Next Level** button (if more levels remain) — `data-autopilot-key="next-level"`
+- **Play Again** button — restarts current level
+
+### Data-autopilot-key attributes
+
+```tsx
+<input data-autopilot-key="email-input" ... />
+<button data-autopilot-key="email-send" ... />
+<button data-autopilot-key="next-level" ... />  // if hasNextLevel
+```
+
+### `ModalAutopilotControls` wiring
+
+```ts
+autopilotControlsRef.current = {
+  appendChar: (char) => setShareEmail(prev => prev + char),
+  setEmail: (value) => setShareEmail(value),
+  triggerSend: handleEmailSend,
+};
+```
+
+Cleared on unmount.
