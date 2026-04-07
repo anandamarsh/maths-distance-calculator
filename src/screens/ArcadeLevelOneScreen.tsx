@@ -41,6 +41,8 @@ import type { SessionSummary } from "../report/sessionLog";
 import { emailReport, shareReport } from "../report/shareReport";
 import AutopilotIcon from "../components/AutopilotIcon";
 import PhantomHand from "../components/PhantomHand";
+import LanguageSwitcher from "../components/LanguageSwitcher";
+import { useT } from "../i18n";
 import { useCheatCodes } from "../hooks/useCheatCode";
 import {
   useDistanceAutopilot,
@@ -888,6 +890,7 @@ function LevelCompleteReportActions({
   isMobileLandscape: boolean;
   autopilotControlsRef?: MutableRefObject<ModalAutopilotControls | null>;
 }) {
+  const t = useT();
   const [generating, setGenerating] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [emailFeedback, setEmailFeedback] = useState<string | null>(null);
@@ -913,12 +916,12 @@ function LevelCompleteReportActions({
     setEmailError(false);
     try {
       await emailReport(summary, shareEmail);
-      setEmailFeedback(`Report sent to ${shareEmail.trim()}`);
+      setEmailFeedback(t("report.sendSuccess", { email: shareEmail.trim() }));
     } catch (error) {
       console.error("Email send failed:", error);
       setEmailError(true);
       setEmailFeedback(
-        error instanceof Error ? error.message : "Failed to send report.",
+        error instanceof Error ? error.message : t("report.sendFail"),
       );
     } finally {
       setGenerating(false);
@@ -951,7 +954,7 @@ function LevelCompleteReportActions({
         <div className="grid grid-cols-3 gap-2.5">
           <div className="rounded-2xl border border-emerald-300/20 bg-slate-800/70 px-3 py-3">
             <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
-              Score
+              {t("report.score")}
             </div>
             <div className="mt-1 text-xl font-black text-emerald-300 md:text-2xl">
               {summary.correctCount}/{summary.totalQuestions}
@@ -959,7 +962,7 @@ function LevelCompleteReportActions({
           </div>
           <div className="rounded-2xl border border-amber-300/20 bg-slate-800/70 px-3 py-3">
             <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
-              Accuracy
+              {t("report.accuracy")}
             </div>
             <div className="mt-1 text-xl font-black text-yellow-300 md:text-2xl">
               {summary.accuracy}%
@@ -967,7 +970,7 @@ function LevelCompleteReportActions({
           </div>
           <div className="rounded-2xl border border-fuchsia-300/20 bg-slate-800/70 px-3 py-3">
             <div className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-slate-400">
-              Eggs
+              {t("report.eggs")}
             </div>
             <div className="mt-1 text-xl font-black text-fuchsia-300 md:text-2xl">
               {totalEggs}
@@ -988,7 +991,7 @@ function LevelCompleteReportActions({
             cursor: generating ? "not-allowed" : "pointer",
           }}
         >
-          {generating ? "Creating..." : "Share Report"}
+          {generating ? t("report.creating") : t("report.shareReport")}
         </button>
         <input
           type="email"
@@ -1001,7 +1004,7 @@ function LevelCompleteReportActions({
               setEmailError(false);
             }
           }}
-          placeholder="parent@email.com"
+          placeholder={t("report.emailPlaceholder")}
           className="min-w-0 flex-1 rounded-2xl border-2 border-cyan-300 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-cyan-200"
         />
         <button
@@ -1010,8 +1013,8 @@ function LevelCompleteReportActions({
           disabled={!canEmailReport || generating}
           data-autopilot-key="email-send"
           className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/25 bg-cyan-400 text-slate-950 transition-opacity disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500 disabled:opacity-100"
-          aria-label="Email report"
-          title={canEmailReport ? "Send the report by email" : "Enter an email address"}
+          aria-label={t("report.emailAria")}
+          title={canEmailReport ? t("report.sendTitle") : t("report.enterEmail")}
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 2 11 13" />
@@ -1024,7 +1027,7 @@ function LevelCompleteReportActions({
           emailError ? "text-rose-300" : "text-emerald-300"
         }`}
       >
-        {emailFeedback ?? <span className="opacity-0">Failed to send report email.</span>}
+        {emailFeedback ?? <span className="opacity-0">{t("report.sendFail")}</span>}
       </div>
     </div>
   );
@@ -1033,6 +1036,7 @@ function LevelCompleteReportActions({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ArcadeLevelOneScreen() {
+  const t = useT();
   const initialLevelRef = useRef<1 | 2 | 3>(readInitialLevel());
   const initialLevel = initialLevelRef.current;
   const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
@@ -1536,7 +1540,7 @@ export default function ArcadeLevelOneScreen() {
     };
     const shareData: ShareData = {
       title: document.title || "Trail Distances",
-      text: "Check out this maths game on Interactive Maths!",
+      text: t("social.shareTitle"),
       url: "https://interactive-maths.vercel.app/",
     };
     const looksMobileOrPwa =
@@ -2002,7 +2006,7 @@ export default function ArcadeLevelOneScreen() {
         if (subAnswers[2].trim() === ANSWER_CHEAT_CODE) return;
         const g = parseFloat(subAnswers[2]);
         if (isNaN(g)) {
-          showFlash("Enter a number!", false);
+          showFlash(t("game.enterNumber"), false);
           return;
         }
         if (isMobileLandscape) keypadMinimizeRef.current?.();
@@ -2038,7 +2042,7 @@ export default function ArcadeLevelOneScreen() {
       if (subAnswers[subStep].trim() === ANSWER_CHEAT_CODE) return;
       const g = parseFloat(subAnswers[subStep]);
       if (isNaN(g)) {
-        showFlash("Enter a number!", false);
+        showFlash(t("game.enterNumber"), false);
         return;
       }
       if (isMobileLandscape) keypadMinimizeRef.current?.();
@@ -2051,7 +2055,7 @@ export default function ArcadeLevelOneScreen() {
         } else {
           // Intermediate wrong: flash only, no egg loss, stay on same step
           playWrong();
-          showFlash("Try again!", false);
+          showFlash(t("game.tryAgain"), false);
           setSubAnswers((prev) => {
             const next = [...prev] as [string, string, string];
             next[subStep] = "";
@@ -2111,7 +2115,7 @@ export default function ArcadeLevelOneScreen() {
     if (answer.trim() === ANSWER_CHEAT_CODE) return;
     const guess = parseFloat(answer);
     if (isNaN(guess)) {
-      showFlash("Type a number!", false);
+      showFlash(t("game.typeNumber"), false);
       return;
     }
     if (isMobileLandscape) keypadMinimizeRef.current?.();
@@ -2378,14 +2382,14 @@ export default function ArcadeLevelOneScreen() {
     : runSingleQuestionDemo;
   const robotTitle = isRobotVisibleActive
     ? autopilotMode === "continuous"
-      ? "Autopilot ON — click to stop"
-      : "Show how to solve this question — click to stop"
-    : "Show how to solve this question";
+      ? t("autopilot.clickToStop")
+      : t("toolbar.showSolve") + " — click to stop"
+    : t("toolbar.showSolve");
   const robotAriaLabel = isRobotVisibleActive
     ? autopilotMode === "continuous"
-      ? "Autopilot active — click to cancel"
+      ? t("autopilot.ariaCancel")
       : "Question demo active — click to cancel"
-    : "Show how to solve this question";
+    : t("toolbar.showSolve");
 
   function fillCorrectAnswerAndSubmit() {
     if (demoRetryPending) return;
@@ -2498,7 +2502,7 @@ export default function ArcadeLevelOneScreen() {
         >
           <button
             onClick={resetCurrentQuestion}
-            title="Reset"
+            title={t("toolbar.restart")}
             className="arcade-button w-10 h-10 flex items-center justify-center p-2"
           >
             <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
@@ -2527,7 +2531,7 @@ export default function ArcadeLevelOneScreen() {
           </button>
           <button
             onClick={handleToggleMute}
-            title={soundMuted ? "Unmute" : "Mute"}
+            title={soundMuted ? t("audio.unmute") : t("audio.mute")}
             className="arcade-button w-10 h-10 flex items-center justify-center p-2"
             style={
               soundMuted
@@ -2587,6 +2591,7 @@ export default function ArcadeLevelOneScreen() {
               )}
             </svg>
           </button>
+          <LanguageSwitcher />
           {IS_LOCALHOST_DEV && (
             <button
               type="button"
@@ -2692,7 +2697,7 @@ export default function ArcadeLevelOneScreen() {
                   key={lv}
                   onClick={() => !locked && beginNewRun(lv)}
                   disabled={locked}
-                  title={locked ? `Complete Level ${lv - 1} first` : undefined}
+                  title={locked ? t("level.completePrev", { n: lv - 1 }) : undefined}
                   className="w-9 h-8 rounded text-xs font-black border-2 transition-colors"
                   style={{
                     background: locked
@@ -3875,13 +3880,13 @@ export default function ArcadeLevelOneScreen() {
                   "0 0 24px rgba(250,204,21,0.8), 0 0 48px rgba(250,204,21,0.35)",
               }}
             >
-              You Did It!
+              {t("game.youDidIt")}
             </div>
             <div className="mt-2 text-base md:text-lg text-purple-200 font-bold tracking-wide">
-              All 3 Levels Mastered
+              {t("game.allMastered")}
             </div>
             <div className="mt-1 text-sm text-purple-400">
-              Including every Monster Round!
+              {t("game.everyMonsterRound")}
             </div>
 
             <div className="mt-5 flex items-center justify-center gap-1.5">
@@ -3932,7 +3937,7 @@ export default function ArcadeLevelOneScreen() {
                 className="arcade-button inline-flex px-8 py-4 text-base md:text-lg"
                 style={{ borderColor: "#fbbf24" }}
               >
-                Play Again
+                {t("report.playAgain")}
               </button>
             </div>
           </div>
@@ -3964,10 +3969,10 @@ export default function ArcadeLevelOneScreen() {
               border: "1px solid rgba(196, 181, 253, 0.22)",
             }}
           >
-            No odometer — solve it in your head!
+            {t("game.monsterRoundHint")}
           </div>
           <div className="mt-2 text-xl text-yellow-400 font-black">
-            Collect {eggsPerLevel} Golden Eggs ✨
+            {t("game.collectGoldenEggs", { count: eggsPerLevel })}
           </div>
         </div>
       )}
@@ -3999,7 +4004,7 @@ export default function ArcadeLevelOneScreen() {
                   Level {level} Complete!
                 </div>
                 <div className="mt-2 text-base font-bold text-purple-300 md:text-lg">
-                  Monster Round Crushed!
+                  {t("game.monsterCrushed")}
                 </div>
                 <div className="mt-4 flex items-center justify-center gap-1">
                   {eggIndices.map((i) => (
@@ -4035,10 +4040,10 @@ export default function ArcadeLevelOneScreen() {
             ) : (
               <>
                 <div className="text-4xl font-black uppercase tracking-[0.18em] text-emerald-400 md:text-5xl">
-                  Level {level} Clear!
+                  {t("game.levelClear", { level })}
                 </div>
                 <div className="mt-2 text-xl text-yellow-300">
-                  All {eggsPerLevel} eggs collected!
+                  {t("game.allEggsCollected", { count: eggsPerLevel })}
                 </div>
               </>
             )}
@@ -4058,7 +4063,7 @@ export default function ArcadeLevelOneScreen() {
                   data-autopilot-key="next-level"
                   className="arcade-button px-8 py-4 text-base md:text-lg"
                 >
-                  Next Level
+                  {t("report.nextLevel")}
                 </button>
               )}
             </div>
@@ -4076,7 +4081,7 @@ export default function ArcadeLevelOneScreen() {
               className="arcade-button inline-flex px-8 py-4 text-base md:text-lg"
               style={{ borderColor: "#fbbf24" }}
             >
-              Try on your own
+              {t("game.tryOnYourOwn")}
             </button>
           </div>
         </div>
