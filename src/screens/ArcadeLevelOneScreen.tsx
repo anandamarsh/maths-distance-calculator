@@ -282,6 +282,7 @@ function shouldFaceLeftForRoute(route: number[]) {
 
 const IS_DEV = import.meta.env.DEV;
 const ANSWER_CHEAT_CODE = "197879";
+const AUTOPILOT_CHEAT_CODE = "198081";
 const AUTOPILOT_EMAIL =
   import.meta.env.VITE_AUTOPILOT_EMAIL ?? "amarsh.anand@gmail.com";
 const IS_LOCALHOST_DEV =
@@ -2275,6 +2276,7 @@ export default function ArcadeLevelOneScreen() {
       expandKeypad: () => {
         if (isKeypadMinimized) keypadToggleRef.current?.();
       },
+      setKeypadValue: (value: string) => handleKeypadChange(value),
       setDragging: (nextDragging: boolean) => {
         draggingRef.current = nextDragging;
         setDragging(nextDragging);
@@ -2337,7 +2339,9 @@ export default function ArcadeLevelOneScreen() {
       targetAnswer: autopilotAnswer,
       shouldDragRoute: autopilotShouldDragRoute,
       allowWrongAnswer:
-        autopilotMode === "single-question" ? false : autopilotAllowWrongAnswer,
+        singleQuestionDemoRef.current || autopilotMode === "single-question"
+          ? false
+          : autopilotAllowWrongAnswer,
       levelCompleteVisible:
         !!sessionSummary && (screen === "won" || screen === "gameover"),
       hasNextLevel: screen === "won" && level < 3,
@@ -2354,6 +2358,19 @@ export default function ArcadeLevelOneScreen() {
 
   function clearSingleQuestionDemo() {
     singleQuestionDemoRef.current = false;
+  }
+
+  function toggleContinuousAutopilot() {
+    if (demoRetryPending) return;
+    if (isAutopilot && autopilotMode === "continuous") {
+      cancelAutopilotMode();
+      return;
+    }
+    clearSingleQuestionDemo();
+    if (isAutopilot) deactivateAutopilot();
+    setAutopilotMode("continuous");
+    handleKeypadChange("");
+    activateAutopilot();
   }
 
   function cancelAutopilotMode() {
@@ -2430,18 +2447,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   useCheatCodes({
-    "198081": () => {
-      if (demoRetryPending) return;
-      if (isAutopilot && autopilotMode === "continuous") {
-        cancelAutopilotMode();
-        return;
-      }
-      clearSingleQuestionDemo();
-      if (isAutopilot) deactivateAutopilot();
-      setAutopilotMode("continuous");
-      handleKeypadChange("");
-      activateAutopilot();
-    },
+    [AUTOPILOT_CHEAT_CODE]: toggleContinuousAutopilot,
     [ANSWER_CHEAT_CODE]: () => {
       if (demoRetryPending) return;
       if (screen !== "playing" || showMonsterAnnounce) return;

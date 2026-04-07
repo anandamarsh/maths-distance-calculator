@@ -127,8 +127,17 @@ export default async function handler(req: any, res: any) {
       subject: emailSubject,
       html: payload?.emailHtml || `
         <p>${escapeHtml(emailGreeting)}</p>
-        <p>${escapeHtml(emailBodyIntro)}</p>
-        <p>${escapeHtml(emailCurriculumIntro)} <a href="${escapeHtml(curriculumUrl)}">${escapeHtml(curriculumText)}</a></p>
+        <p>
+          ${escapeHtml(playerName)} played <strong>${escapeHtml(gameName)}</strong> at
+          <a href="${escapeHtml(siteUrl)}"><strong>SeeMaths</strong></a> at
+          <strong>${escapeHtml(sessionTime)}</strong> on <strong>${escapeHtml(sessionDate)}</strong>
+          for <strong>${escapeHtml(durationText)}</strong>. Score:
+          <strong>${escapeHtml(scoreLine)}</strong>, Accuracy: <strong>${escapeHtml(accuracy)}</strong>.
+        </p>
+        <p>
+          ${escapeHtml(emailCurriculumIntro)}
+          <a href="${escapeHtml(curriculumUrl)}"><strong>${escapeHtml(curriculumText)}</strong></a>
+        </p>
         <p>
           ${escapeHtml(emailRegards)}<br />
           ${escapeHtml(gameName)}<br />

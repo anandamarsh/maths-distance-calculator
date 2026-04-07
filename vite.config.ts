@@ -92,13 +92,27 @@ function localApiPlugin() {
               ? String(payload.emailHtml)
               : (() => {
                   const emailGreeting = String(payload.emailGreeting || 'Hi there,')
-                  const emailBodyIntro = String(payload.emailBodyIntro || '')
                   const emailCurriculumIntro = String(payload.emailCurriculumIntro || '')
                   const emailRegards = String(payload.emailRegards || 'Regards,')
+                  const playerName = String(payload.playerName || 'Explorer')
+                  const sessionTime = String(payload.sessionTime || 'Unknown time')
+                  const sessionDate = String(payload.sessionDate || 'Unknown date')
+                  const durationText = String(payload.durationText || 'an unknown duration')
+                  const scoreLine = `${payload.correctCount ?? 0}/${payload.totalQuestions ?? 0}`
+                  const accuracy = `${payload.accuracy ?? 0}%`
                   return `
                     <p>${escapeHtml(emailGreeting)}</p>
-                    <p>${escapeHtml(emailBodyIntro)}</p>
-                    <p>${escapeHtml(emailCurriculumIntro)} <a href="${escapeHtml(curriculumUrl)}">${escapeHtml(curriculumText)}</a></p>
+                    <p>
+                      ${escapeHtml(playerName)} played <strong>${escapeHtml(gameName)}</strong> at
+                      <a href="${escapeHtml(siteUrl)}"><strong>SeeMaths</strong></a> at
+                      <strong>${escapeHtml(sessionTime)}</strong> on <strong>${escapeHtml(sessionDate)}</strong>
+                      for <strong>${escapeHtml(durationText)}</strong>. Score:
+                      <strong>${escapeHtml(scoreLine)}</strong>, Accuracy: <strong>${escapeHtml(accuracy)}</strong>.
+                    </p>
+                    <p>
+                      ${escapeHtml(emailCurriculumIntro)}
+                      <a href="${escapeHtml(curriculumUrl)}"><strong>${escapeHtml(curriculumText)}</strong></a>
+                    </p>
                     <p>${escapeHtml(emailRegards)}<br />${escapeHtml(gameName)}<br /><a href="${escapeHtml(siteUrl)}">SeeMaths</a></p>
                   `
                 })()

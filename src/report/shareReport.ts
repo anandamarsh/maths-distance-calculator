@@ -75,20 +75,25 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
   const curriculum = CURRICULUM_BY_LEVEL[summary.level];
   const fmt = getLocaleFormat(locale);
   const t = getT(locale);
+  const enT = getT("en");
   const sessionTime = formatSessionTime(summary.startTime, fmt.intlLocale, fmt.timeOptions);
   const sessionDate = formatSessionDate(summary.startTime, fmt.intlLocale);
   const durationText = formatDurationMinutes(summary.startTime, summary.endTime);
   const scoreLine = `${summary.correctCount}/${summary.totalQuestions}`;
   const accuracy = `${summary.accuracy}%`;
   const stageLabel = t("curriculum.stageLabel");
-  const curriculumDescription = t(curriculum.descKey);
+  const curriculumDescription = enT(curriculum.descKey);
   return {
+    locale,
+    playerName: summary.playerName || "Explorer",
     gameName: GAME_NAME,
     senderName: SENDER_NAME,
     siteUrl: SITE_URL,
     sessionTime,
     sessionDate,
     durationText,
+    scoreLine,
+    accuracy,
     stageLabel,
     curriculumCode: curriculum.code,
     curriculumDescription,
@@ -118,10 +123,68 @@ function escapeHtml(s: string): string {
 
 function buildEmailHtml(meta: ReturnType<typeof getEmailMetadata>): string {
   const currText = `${meta.curriculumCode} - ${meta.curriculumDescription}`;
+  const stageLink = `<a href="${escapeHtml(meta.curriculumIndexUrl)}"><strong>${escapeHtml(meta.stageLabel)}</strong></a>`;
+  const skillLink = `<a href="${escapeHtml(meta.curriculumUrl)}"><strong>${escapeHtml(currText)}</strong></a>`;
+  const curriculumIntroHtml = escapeHtml(meta.emailCurriculumIntro).replace(
+    escapeHtml(meta.stageLabel),
+    stageLink,
+  );
+
+  if (meta.locale.startsWith("hi")) {
+    return `
+      <p>${escapeHtml(meta.emailGreeting)}</p>
+      <p>
+        <strong>${escapeHtml(meta.playerName)}</strong> ने
+        <strong>${escapeHtml(meta.gameName)}</strong>
+        <a href="${escapeHtml(meta.siteUrl)}"><strong>SeeMaths</strong></a>
+        पर <strong>${escapeHtml(meta.sessionDate)}</strong> को
+        <strong>${escapeHtml(meta.sessionTime)}</strong> बजे
+        <strong>${escapeHtml(meta.durationText)}</strong> के लिए खेला। स्कोर:
+        <strong>${escapeHtml(meta.scoreLine)}</strong>, सटीकता:
+        <strong>${escapeHtml(meta.accuracy)}</strong>।
+      </p>
+      <p>
+        ${curriculumIntroHtml}
+        ${skillLink}
+      </p>
+      <p>${escapeHtml(meta.emailRegards)}<br />${escapeHtml(GAME_NAME)}<br /><a href="${escapeHtml(SITE_URL)}">SeeMaths</a></p>
+    `;
+  }
+
+  if (meta.locale.startsWith("zh")) {
+    return `
+      <p>${escapeHtml(meta.emailGreeting)}</p>
+      <p>
+        <strong>${escapeHtml(meta.playerName)}</strong> 于
+        <strong>${escapeHtml(meta.sessionDate)}</strong>
+        <strong>${escapeHtml(meta.sessionTime)}</strong>
+        在 <a href="${escapeHtml(meta.siteUrl)}"><strong>SeeMaths</strong></a>
+        玩了 <strong>${escapeHtml(meta.gameName)}</strong>，时长
+        <strong>${escapeHtml(meta.durationText)}</strong>。得分：
+        <strong>${escapeHtml(meta.scoreLine)}</strong>，正确率：
+        <strong>${escapeHtml(meta.accuracy)}</strong>。
+      </p>
+      <p>
+        ${curriculumIntroHtml}
+        ${skillLink}
+      </p>
+      <p>${escapeHtml(meta.emailRegards)}<br />${escapeHtml(GAME_NAME)}<br /><a href="${escapeHtml(SITE_URL)}">SeeMaths</a></p>
+    `;
+  }
+
   return `
     <p>${escapeHtml(meta.emailGreeting)}</p>
-    <p>${escapeHtml(meta.emailBodyIntro)}</p>
-    <p>${escapeHtml(meta.emailCurriculumIntro)} <a href="${escapeHtml(meta.curriculumUrl)}">${escapeHtml(currText)}</a></p>
+    <p>
+      ${escapeHtml(meta.playerName)} played <strong>${escapeHtml(meta.gameName)}</strong> at
+      <a href="${escapeHtml(meta.siteUrl)}"><strong>SeeMaths</strong></a> at
+      <strong>${escapeHtml(meta.sessionTime)}</strong> on <strong>${escapeHtml(meta.sessionDate)}</strong>
+      for <strong>${escapeHtml(meta.durationText)}</strong>. Score:
+      <strong>${escapeHtml(meta.scoreLine)}</strong>, Accuracy: <strong>${escapeHtml(meta.accuracy)}</strong>.
+    </p>
+    <p>
+      ${curriculumIntroHtml}
+      ${skillLink}
+    </p>
     <p>${escapeHtml(meta.emailRegards)}<br />${escapeHtml(GAME_NAME)}<br /><a href="${escapeHtml(SITE_URL)}">SeeMaths</a></p>
   `;
 }
@@ -209,10 +272,8 @@ export async function emailReport(
     body: JSON.stringify({
       email: email.trim(),
       pdfBase64: await blobToBase64(blob),
-      playerName: summary.playerName || "Explorer",
       correctCount: summary.correctCount,
       totalQuestions: summary.totalQuestions,
-      accuracy: summary.accuracy,
       ...((meta) => ({ ...meta, emailHtml: buildEmailHtml(meta) }))(getEmailMetadata(summary, locale)),
       reportFileName: getReportFileName(summary),
     }),

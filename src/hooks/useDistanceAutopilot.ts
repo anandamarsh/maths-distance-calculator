@@ -56,6 +56,7 @@ export interface ModalAutopilotControls {
 export interface DistanceAutopilotCallbacks {
   clearKeypad: () => void;
   expandKeypad: () => void;
+  setKeypadValue: (value: string) => void;
   setDragging: (dragging: boolean) => void;
   teleportRex: (km: number) => void;
   moveRex: (km: number) => void;
@@ -167,6 +168,9 @@ export function useDistanceAutopilot({
       await clickElement(char);
       await waitMs(rand(AUTOPILOT_TIMING.BETWEEN_KEYS));
     }
+
+    // Ensure the keyed value matches the intended answer even if a simulated tap misses.
+    callbacks.setKeypadValue(answerToType);
 
     await waitMs(rand(AUTOPILOT_TIMING.BEFORE_SUBMIT));
     const clicked = await clickElement("submit");
