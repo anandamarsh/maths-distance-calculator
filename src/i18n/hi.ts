@@ -51,6 +51,9 @@ const hi: Translations = {
   "game.tryAgain": "फिर कोशिश करें!",
   "game.typeNumber": "एक संख्या टाइप करें!",
   "game.enterNumber": "एक संख्या दर्ज करें!",
+  "game.touchAndDrag": "छूकर खींचें",
+  "game.clickAndDrag": "क्लिक करके खींचें",
+  "game.enterValue": "मान दर्ज करें",
   "game.collectGoldenEggs": "{count} सोने के अंडे इकट्ठा करें ✨",
   "game.youDidIt": "आपने कर दिखाया!",
   "game.allMastered": "सभी 3 स्तर पूरे किए",
@@ -90,6 +93,8 @@ const hi: Translations = {
   "pdf.tip": "सुझाव: वापस जाएं और जो प्रश्न छूट गए उन्हें हल करें।",
   "pdf.footer": "SeeMaths द्वारा बनाया गया",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.durationMin": "मि",
+  "pdf.durationSec": "से",
   "pdf.nswCurriculum": "NSW गणित पाठ्यक्रम",
   "pdf.basicRound": "बेसिक राउंड:",
   "pdf.basicRoundDesc": "रास्ते की दूरियों के सवाल हल करके 10 अंडे जीतें। हर सवाल के लिए नया नक्शा।",
@@ -122,12 +127,15 @@ const hi: Translations = {
   "email.notConfigured": "ईमेल सेवा कॉन्फ़िगर नहीं है।",
   "email.sendFailed": "रिपोर्ट भेजने में विफल।",
 
+  // Curriculum
+  "curriculum.stageLabel": "चरण 3 (5-6 वर्ष)",
+  "curriculum.descL1L2": "भिन्न, दशमलव और प्रतिशत के साथ तुलना, क्रम और गणना करता है।",
+  "curriculum.descL3": "लंबाई और दूरी मापने के लिए उचित इकाई का चयन, परिमाप की गणना, और लंबाई की इकाइयों के बीच रूपांतरण।",
+
   // Language switcher
   "lang.label": "भाषा",
   "lang.en": "English",
   "lang.zh": "中文",
-  "lang.es": "Español",
-  "lang.ru": "Русский",
   "lang.hi": "हिन्दी",
   "lang.other": "अन्य...",
   "lang.translating": "अनुवाद हो रहा है...",

@@ -69,6 +69,7 @@ export default async function handler(req: any, res: any) {
         emailBodyIntro?: string;
         emailCurriculumIntro?: string;
         emailRegards?: string;
+        emailHtml?: string;
       }
     | null;
 
@@ -124,7 +125,7 @@ export default async function handler(req: any, res: any) {
       from: `${senderName} <${from}>`,
       to: [email],
       subject: emailSubject,
-      html: `
+      html: payload?.emailHtml || `
         <p>${escapeHtml(emailGreeting)}</p>
         <p>${escapeHtml(emailBodyIntro)}</p>
         <p>${escapeHtml(emailCurriculumIntro)} <a href="${escapeHtml(curriculumUrl)}">${escapeHtml(curriculumText)}</a></p>

@@ -68,6 +68,30 @@ export const DINO_SPRITES: DinoSprite[] = [
   },
 ];
 
-export function randomDino(): DinoSprite {
-  return DINO_SPRITES[Math.floor(Math.random() * DINO_SPRITES.length)];
+// Locale-specific nicknames (used in question prompts)
+const DINO_NICKNAMES_HI: Record<string, string> = {
+  "velociraptor":       "ज्वाला",
+  "ninja-velociraptor": "छाया",
+  "diplodocus":         "लंबू",
+  "parasaurolophus":    "शिखर",
+  "dimetrodon":         "कंटक",
+  "pterodactylus":      "नखर",
+};
+
+const DINO_NICKNAMES_ZH: Record<string, string> = {
+  "velociraptor":       "烈焰",
+  "ninja-velociraptor": "暗影",
+  "diplodocus":         "长颈",
+  "parasaurolophus":    "峰冠",
+  "dimetrodon":         "棘背",
+  "pterodactylus":      "利爪",
+};
+
+export function randomDino(locale = "en"): DinoSprite {
+  const base = DINO_SPRITES[Math.floor(Math.random() * DINO_SPRITES.length)];
+  const nicknameMap = locale === "hi" ? DINO_NICKNAMES_HI : locale === "zh" ? DINO_NICKNAMES_ZH : null;
+  if (nicknameMap && nicknameMap[base.id]) {
+    return { ...base, nickname: nicknameMap[base.id] };
+  }
+  return base;
 }

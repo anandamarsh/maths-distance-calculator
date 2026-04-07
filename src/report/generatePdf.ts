@@ -19,29 +19,23 @@ const COLORS = {
   textMuted: "#64748b",
 };
 
-// ─── Curriculum metadata (mirrors manifest teachesLevels) ────────────────────
+// ─── Curriculum metadata ─────────────────────────────────────────────────────
 
 const CURRICULUM_LEVELS = [
   {
     code: "MA3-7NA",
-    stageLabel: "Stage 3 (Years 5-6)",
+    descKey: "curriculum.descL1L2" as const,
     syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
-    description: "Compares, orders and calculates with fractions, decimals and percentages.",
-    levelDesc: "Level 1 - Adding decimal distances across multiple road segments to find a total journey distance",
   },
   {
     code: "MA3-7NA",
-    stageLabel: "Stage 3 (Years 5-6)",
+    descKey: "curriculum.descL1L2" as const,
     syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
-    description: "Compares, orders and calculates with fractions, decimals and percentages.",
-    levelDesc: "Level 2 - Subtraction of decimals with a missing segment shown as \"?\"",
   },
   {
     code: "MA3-9MG",
-    stageLabel: "Stage 3 (Years 5-6)",
+    descKey: "curriculum.descL3" as const,
     syllabusUrl: "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
-    description: "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length.",
-    levelDesc: "Level 3 - Comparison of two distances from a common point with three scaffolded input rows",
   },
 ];
 
@@ -58,12 +52,29 @@ function sanitize(text: string, useUnicode = false): string {
     .replace(/[^\x00-\xFF]/g, "?");
 }
 
+// ─── Script-aware text wrapper ───────────────────────────────────────────────
+// jsPDF's splitTextToSize uses glyph-width tables that don't cover Devanagari
+// or CJK. For these scripts we use character-count based word wrapping.
+
+function splitTextForPdf(text: string, doc: jsPDF, maxWidth: number): string[] {
+  const hasDevanagari = /[\u0900-\u097F]/.test(text);
+
+  if (!hasDevanagari) {
+    return doc.splitTextToSize(text, maxWidth);
+  }
+
+  // jsPDF sums raw Unicode codepoint advance widths without Devanagari shaping.
+  // Matra and virama codepoints (ि ी ु ू े ै ो ौ ् etc.) are counted as full-width
+  // glyphs even though they combine visually with the preceding consonant.
+  // This causes ~1.5–1.8x overestimation of actual rendered line width.
+  // Compensating by passing a wider target to splitTextToSize gives correct wrapping.
+  return doc.splitTextToSize(text, maxWidth * 1.7);
+}
+
 // ─── Font URL → locale mapping for non-Latin scripts ─────────────────────────
 
 const UNICODE_FONT_MAP: Partial<Record<string, string>> = {
   hi: "/fonts/NotoSansDevanagari-Regular.ttf",
-  ru: "/fonts/NotoSans-Regular.ttf",
-  es: "/fonts/NotoSans-Regular.ttf",
   en: "/fonts/NotoSans-Regular.ttf",
   zh: "/fonts/NotoSans-Regular.ttf",
 };
@@ -85,20 +96,17 @@ async function loadFontBase64(locale: string): Promise<{ name: string; base64: s
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatDuration(ms: number): string {
+function formatDuration(ms: number, minLabel = "m", secLabel = "s"): string {
   const totalSec = Math.round(ms / 1000);
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
-  if (min === 0) return `${sec}s`;
-  return `${min}m ${sec}s`;
+  if (min === 0) return `${sec}${secLabel}`;
+  return `${min}${minLabel} ${sec}${secLabel}`;
 }
 
-function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-}
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString([], {
+  return new Date(iso).toLocaleDateString("en-AU", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -171,6 +179,8 @@ function drawMiniMap(
   y: number,
   width: number,
   height: number,
+  fontName = "helvetica",
+  useUnicode = false,
 ) {
   const config = attempt.config;
   const padding = 10;
@@ -236,9 +246,10 @@ function drawMiniMap(
     const isOnRoute = routeStopNames.has(stop.label);
     doc.setFillColor(isOnRoute ? "#3b82f6" : "#94a3b8");
     doc.circle(px, py, 1.8, "F");
+    doc.setFont(fontName, "normal");
     doc.setFontSize(5.5);
     doc.setTextColor(isOnRoute ? COLORS.textDark : COLORS.textMuted);
-    doc.text(sanitize(stop.label), px, py + 6.2, { align: "center" });
+    doc.text(sanitize(stop.label, useUnicode), px, py + 6.2, { align: "center" });
   }
 }
 
@@ -292,20 +303,20 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   const titleColW = (margin + contentW) - titleColX - iconPad;
   const titleCX = titleColX + titleColW / 2;   // center of right column
 
-  // Title — dark text on light bg
+  // Title — always use helvetica (title is ASCII "Distance Calculator")
   doc.setTextColor(COLORS.textDark);
   doc.setFontSize(17);
-  doc.setFont(fontName, "bold");
-  doc.text(sanitize(t("pdf.title"), useUnicode), titleCX, curY + 11, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.text(t("pdf.title"), titleCX, curY + 11, { align: "center" });
 
-  // Sub-line: date (left of col) | level (center) | time (right of col)
+  // Sub-line: date (left of col) | level (center) | duration (right of col)
   const line2Y = curY + 21;
   doc.setFontSize(7.5);
-  doc.setFont(fontName, "normal");
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text(sanitize(formatDate(summary.date)), titleColX, line2Y);
+  doc.text(formatDate(summary.date), titleColX, line2Y);
   doc.text(
-    `${formatTime(summary.startTime)} - ${formatTime(summary.endTime)}`,
+    formatDuration(summary.endTime - summary.startTime),
     margin + contentW - iconPad, line2Y, { align: "right" }
   );
 
@@ -321,12 +332,13 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   // ═══════════════════════════════════════════════════════════════════════════
 
   const curr = CURRICULUM_LEVELS[summary.level - 1];
-  const currInnerW = contentW;
   const currLineH = 4.8;
   const GREEN = "#16a34a";
   const CURR_BLUE = "#1e40af";
+  const stageLabel = t("curriculum.stageLabel");
+  const currDescription = sanitize(t(curr.descKey), useUnicode);
 
-  // Measure pill
+  // Measure pill using helvetica (reliable width measurement for ASCII code)
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   const pillText = curr.code;
@@ -334,38 +346,43 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   const pillH = 5;
   const pillW = doc.getTextWidth(pillText) + pillPadX * 2;
 
-  doc.setFontSize(8);
-  doc.setFont(fontName, "normal");
-  const stageW = doc.getTextWidth(curr.stageLabel);
-  const descAvailW = currInnerW - pillW - 4 - stageW - 4;
-  const descWrapped = doc.splitTextToSize(sanitize(curr.description), descAvailW);
-
   // Title line
   doc.setFontSize(9);
   doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
   doc.text(sanitize(t("pdf.nswCurriculum"), useUnicode), margin, curY);
-  curY += 5.5 + 3.5;   // title height + 1rem gap
+  curY += 5.5 + 2;   // title height + gap
 
-  // Row: [pill] [stage] [description] on one baseline
+  // Row: [pill] [stage label + description, wrapped]
   const pillTopY = curY - pillH + 1.5;
   doc.setFillColor(GREEN);
   doc.roundedRect(margin, pillTopY, pillW, pillH, 1.5, 1.5, "F");
   doc.setFontSize(7.5);
-  doc.setFont(fontName, "bold");
+  doc.setFont("helvetica", "bold");
   doc.setTextColor("#ffffff");
   doc.text(pillText, margin + pillPadX, curY);
-  // Entire row is clickable (pill + stage label + description)
-  const rowH = Math.max(pillH, descWrapped.length * currLineH) + 1;
-  doc.link(margin, pillTopY, contentW, rowH, { url: curr.syllabusUrl });
 
   const stageX = margin + pillW + 4;
-  doc.setFontSize(8);
+  const stageDescW = contentW - pillW - 4;
+  // Combine stage label and description into one wrapped block
+  const stageAndDesc = sanitize(stageLabel, useUnicode) + " " + currDescription;
+  // Set correct font/size before measuring so splitTextToSize uses right metrics
+  doc.setFont(fontName, "normal");
+  doc.setFontSize(7.5);
+  const stageDescWrapped = splitTextForPdf(stageAndDesc, doc, stageDescW);
+
+  doc.setFontSize(7.5);
   doc.setFont(fontName, "normal");
   doc.setTextColor(CURR_BLUE);
-  doc.text(curr.stageLabel, stageX, curY);
-  doc.text(descWrapped, stageX + stageW + 4, curY);
-  curY += Math.max(pillH + 1, descWrapped.length * currLineH) + 3.5;  // +1rem gap below
+  doc.text(stageDescWrapped[0] ?? "", stageX, curY);
+  if (stageDescWrapped.length > 1) {
+    doc.setTextColor(COLORS.textMuted);
+    doc.text(stageDescWrapped.slice(1), stageX, curY + currLineH);
+  }
+
+  // Entire row is clickable
+  doc.link(margin, pillTopY, contentW, pillH + 1, { url: curr.syllabusUrl });
+  curY += stageDescWrapped.length * currLineH + 3;  // gap below
 
   // Objective line — bold dark
   const objectiveText =
@@ -503,7 +520,7 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
 
   // Card layout constants
   const cardHeaderH = 10;
-  const mapW = 84;
+  const mapW = 72;
   const mapH = 38;
   const stripeW = 3;
   const cardGap = 5;                 // equal gap on all four sides (top, bottom, left)
@@ -511,21 +528,24 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   const cardRight = margin + contentW;
   const cardContentW = cardRight - cardLeft;
   const mapX = cardLeft + stripeW + 4;   // same gap as bodyPad (top/bottom)
-  const textX = mapX + mapW + 5;
-  const textW = cardRight - textX - 4;
+  const textX = mapX + mapW + 4;
+  const textW = cardRight - textX - 3;
+
+  // Set font/size to match actual render settings so splitTextToSize measures correctly
+  doc.setFont(fontName, "normal");
+  doc.setFontSize(8.5);
 
   for (const attempt of summary.attempts) {
-    const promptLinesEstimate = doc.splitTextToSize(sanitize(attempt.prompt, useUnicode), textW);
+    doc.setFont(fontName, "bold");
+    doc.setFontSize(8.5);
+    const promptLinesEstimate = splitTextForPdf(sanitize(attempt.prompt, useUnicode), doc, textW);
     let subAnswerHeightEstimate = 0;
     if (attempt.subAnswers && attempt.subAnswers.length > 0) {
+      doc.setFont(fontName, "normal");
       doc.setFontSize(7.5);
       for (const sub of attempt.subAnswers) {
-        const subLine = sanitize(
-          `${sub.prompt}: ${t("pdf.answered", { value: String(sub.childAnswer) })} ${t("pdf.correctIn", { value: sub.correctAnswer })}`,
-          useUnicode,
-        );
-        const wrapped = doc.splitTextToSize(subLine, textW - 5);
-        subAnswerHeightEstimate += wrapped.length * 4.2 + 2.4;
+        const promptLines = splitTextForPdf(sanitize(sub.prompt, useUnicode), doc, textW - 8);
+        subAnswerHeightEstimate += promptLines.length * 4.2 + 0.5 + 5.0; // prompt + answer line
       }
     }
     const estimatedCardH =
@@ -594,7 +614,7 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
 
     // ── Card body: mini map (left 50%) + question text (right 50%) ─────────
     const bodyPad = 4;   // gap between header strip and content
-    drawMiniMap(doc, attempt, mapX, curY + bodyPad, mapW, mapH);
+    drawMiniMap(doc, attempt, mapX, curY + bodyPad, mapW, mapH, fontName, useUnicode);
 
     // Question prompt
     doc.setFontSize(8.5);
@@ -610,35 +630,37 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
       doc.setFontSize(7.5);
       for (const sub of attempt.subAnswers) {
         const subIcon = sub.isCorrect ? "+" : "x";
+        // Render sub-prompt text (without ":") — split to fit column
+        const sanitizedSubPrompt = sanitize(sub.prompt, useUnicode);
+        const promptWrapped = splitTextForPdf(sanitizedSubPrompt, doc, textW - 8);
+        // Append ":" to last line
+        if (promptWrapped.length > 0) promptWrapped[promptWrapped.length - 1] += ":";
+
         doc.setFont(fontName, "bold");
         doc.setTextColor(sub.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
         doc.text(subIcon, textX, textY);
         doc.setFont(fontName, "normal");
         doc.setTextColor(COLORS.textDark);
-        const promptWrapped = doc.splitTextToSize(
-          sanitize(`${sub.prompt}:`, useUnicode),
-          textW - 5,
-        );
         doc.text(promptWrapped, textX + 4, textY);
-        textY += promptWrapped.length * 4.2;
+        textY += promptWrapped.length * 4.2 + 0.5;
 
-        const answerX = textX + 4;
+        // Answer line — all on one line: prefix + colored value + suffix
         const answerPrefix = sanitize(t("pdf.answered", { value: "" }), useUnicode);
         const answerValue = sanitize(String(sub.childAnswer));
         const answerSuffix = sanitize(t("pdf.correctIn", { value: sub.correctAnswer }), useUnicode);
 
+        doc.setFontSize(7);
         doc.setTextColor(COLORS.textDark);
-        doc.text(answerPrefix, answerX, textY);
-
-        const answerValueX = answerX + doc.getTextWidth(answerPrefix);
+        const ansX = textX + 4;
+        doc.text(answerPrefix, ansX, textY);
+        const ansValueX = ansX + doc.getTextWidth(answerPrefix);
         doc.setTextColor(sub.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
-        doc.text(answerValue, answerValueX, textY);
-
-        const answerSuffixX = answerValueX + doc.getTextWidth(answerValue);
+        doc.text(answerValue, ansValueX, textY);
         doc.setTextColor(COLORS.textDark);
-        doc.text(answerSuffix, answerSuffixX, textY);
+        doc.text(answerSuffix, ansValueX + doc.getTextWidth(answerValue), textY);
+        doc.setFontSize(7.5);
 
-        textY += 5.2;
+        textY += 5.0;
       }
     } else {
       // Single answer

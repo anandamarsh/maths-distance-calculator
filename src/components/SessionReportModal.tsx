@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { SessionSummary } from "../report/sessionLog";
 import { downloadReport, shareReport, canNativeShare } from "../report/shareReport";
+import { useLocale } from "../i18n";
 
 interface Props {
   summary: SessionSummary;
@@ -13,30 +14,31 @@ export default function SessionReportModal({ summary, onClose }: Props) {
   const [generating, setGenerating] = useState(false);
   const [done, setDone] = useState(false);
   const showShareButton = canNativeShare();
+  const { locale } = useLocale();
 
   const handleDownload = useCallback(async () => {
     setGenerating(true);
     try {
-      await downloadReport(summary);
+      await downloadReport(summary, locale);
       setDone(true);
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
       setGenerating(false);
     }
-  }, [summary]);
+  }, [summary, locale]);
 
   const handleShare = useCallback(async () => {
     setGenerating(true);
     try {
-      await shareReport(summary);
+      await shareReport(summary, locale);
       setDone(true);
     } catch (err) {
       console.error("Share failed:", err);
     } finally {
       setGenerating(false);
     }
-  }, [summary]);
+  }, [summary, locale]);
 
   return (
     <div className="absolute inset-0 z-[90] flex items-center justify-center p-6"

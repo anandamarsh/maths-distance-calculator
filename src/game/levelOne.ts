@@ -34,12 +34,16 @@ export interface TrailConfig {
 export interface TrailQuestion {
   id: string;
   route: number[];       // stop indices
-  prompt: string;
+  prompt: string;        // pre-baked locale string (used in PDF / session log)
+  promptKey: string;     // translation key — re-render via t(promptKey, promptVars) for reactive UI
+  promptVars: Record<string, string | number>;
   answer: number;
   hiddenEdge?: number;   // Level 2: index of the edge whose label is "?"
   totalGiven?: number;   // Level 2: total distance shown to the child
   // Level 3: "how much farther"
   promptLines?: [string, string, string];
+  promptLineKeys?: [string, string, string];
+  promptLineVars?: [Record<string, string | number>, Record<string, string | number>, Record<string, string | number>];
   subAnswers?: [number, number, number];  // answers for each of the 3 lines
   hubStop?: number;      // common stop index
   legA?: number;         // edge index going one way
@@ -53,6 +57,24 @@ const PLACE_POOL = [
   "Concord", "Rhodes", "Burwood", "Strathfield", "Homebush",
   "Croydon", "Lidcombe", "Bankstown", "Lakemba", "Belmore",
   "Hurstville", "Kogarah", "Rockdale", "Sylvania", "Miranda",
+];
+
+// Delhi-area stations for Hindi locale
+const PLACE_POOL_HI = [
+  "कनॉट प्लेस", "लाजपत नगर", "करोल बाग", "चाँदनी चौक", "सरोजिनी नगर",
+  "नेहरू प्लेस", "द्वारका", "रोहिणी", "पटेल नगर", "जनकपुरी",
+  "सफदरजंग", "लोधी रोड", "मयूर विहार", "वसंत कुंज", "मालवीय नगर",
+  "हौज खास", "साकेत", "राजेंद्र नगर", "पहाड़गंज", "आईएनए",
+  "खान मार्केट", "इंद्रप्रस्थ", "शाहदरा", "जहाँगीरपुरी", "पीतमपुरा",
+  "नई दिल्ली", "गुड़गाँव", "नोएडा", "फरीदाबाद", "गाजियाबाद",
+];
+
+// Beijing/Chinese city areas for Chinese locale
+const PLACE_POOL_ZH = [
+  "王府井", "西单", "三里屯", "朝阳", "海淀", "丰台", "石景山",
+  "通州", "顺义", "大兴", "房山", "密云", "怀柔", "延庆", "平谷",
+  "昌平", "门头沟", "亦庄", "望京", "中关村", "五道口", "国贸",
+  "建国门", "复兴门", "木樨地", "马甸", "知春路", "清河", "北京南", "天安门",
 ];
 
 const PALETTES: TrailConfig["palette"][] = [
@@ -108,12 +130,16 @@ export function routeDistance(route: number[], edges: TrailEdge[]) {
   return Number(total.toFixed(1));
 }
 
-function buildPrompt(route: number[], stops: TrailStop[], dinoName: string, t: TFunction): string {
+function buildL1Prompt(route: number[], stops: TrailStop[], dinoName: string, t: TFunction): {
+  prompt: string; key: string; vars: Record<string, string | number>;
+} {
   const names = route.map((i) => stops[i].label);
   if (names.length === 2) {
-    return t("game.prompt.l1TwoStop", { dino: dinoName, from: names[0], to: names[1] });
+    const vars = { dino: dinoName, from: names[0], to: names[1] };
+    return { prompt: t("game.prompt.l1TwoStop", vars), key: "game.prompt.l1TwoStop", vars };
   }
-  return t("game.prompt.l1MultiStop", { dino: dinoName, stops: names.join(t("game.stopSeparator")) });
+  const vars = { dino: dinoName, stops: names.join(t("game.stopSeparator")) };
+  return { prompt: t("game.prompt.l1MultiStop", vars), key: "game.prompt.l1MultiStop", vars };
 }
 
 function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
@@ -128,10 +154,11 @@ function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
   return route;
 }
 
-export function generateTrailConfig(level = 1): TrailConfig {
+export function generateTrailConfig(level = 1, locale = "en"): TrailConfig {
   // Level 2 needs more stops so questions can span up to 5 segments.
   const stopCount = level >= 2 ? randomInt(5, 6) : randomInt(3, 5);
-  const labels = shuffle(PLACE_POOL).slice(0, stopCount);
+  const pool = locale === "hi" ? PLACE_POOL_HI : locale === "zh" ? PLACE_POOL_ZH : PLACE_POOL;
+  const labels = shuffle(pool).slice(0, stopCount);
   const palette = PALETTES[randomInt(0, PALETTES.length - 1)];
   const unit: "km" | "mi" = Math.random() > 0.45 ? "km" : "mi";
 
@@ -189,10 +216,13 @@ export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoNa
     const sig = route.join("-");
     if (seen.has(sig)) continue;
     seen.add(sig);
+    const { prompt, key: promptKey, vars: promptVars } = buildL1Prompt(route, config.stops, dinoName, t);
     questions.push({
       id: `q1-${questions.length + 1}`,
       route,
-      prompt: buildPrompt(route, config.stops, dinoName, t),
+      prompt,
+      promptKey,
+      promptVars,
       answer: routeDistance(route, config.edges),
     });
   }
@@ -233,19 +263,29 @@ export function generateLevelThreeQuestions(config: TrailConfig, count = 5, t: T
         : [rightName, leftName, distB, distA];
     const answer = Number((farDist - nearDist).toFixed(1));
 
+    const l3MainVars = { hub: hubName, far: farName, near: nearName };
+    const l3LineVars: [Record<string, string>, Record<string, string>, Record<string, string>] = [
+      { from: hubName, to: leftName },
+      { from: hubName, to: rightName },
+      l3MainVars,
+    ];
     questions.push({
       id: `q3-${questions.length + 1}`,
       route: [hub - 1, hub, hub + 1],
-      prompt: t("game.prompt.l3HowMuchFarther", { hub: hubName, far: farName, near: nearName }),
+      prompt: t("game.prompt.l3HowMuchFarther", l3MainVars),
+      promptKey: "game.prompt.l3HowMuchFarther",
+      promptVars: l3MainVars,
       answer,
       hubStop: hub,
       legA: edgeLeft,
       legB: edgeRight,
       promptLines: [
-        t("game.prompt.l3SubFromTo", { from: hubName, to: leftName }),
-        t("game.prompt.l3SubFromTo", { from: hubName, to: rightName }),
-        t("game.prompt.l3HowMuchFarther", { hub: hubName, far: farName, near: nearName }),
+        t("game.prompt.l3SubFromTo", l3LineVars[0]),
+        t("game.prompt.l3SubFromTo", l3LineVars[1]),
+        t("game.prompt.l3HowMuchFarther", l3MainVars),
       ],
+      promptLineKeys: ["game.prompt.l3SubFromTo", "game.prompt.l3SubFromTo", "game.prompt.l3HowMuchFarther"],
+      promptLineVars: l3LineVars,
       subAnswers: [distA, distB, answer],
     });
   }
@@ -286,10 +326,13 @@ export function generateLevelTwoQuestions(config: TrailConfig, count = 5, t: TFu
     const hidFrom = config.stops[hiddenEdge].label;
     const hidTo = config.stops[hiddenEdge + 1].label;
 
+    const l2Vars = { from, to, total: total.toFixed(1), unit: config.unit, hidFrom, hidTo };
     questions.push({
       id: `q2-${questions.length + 1}`,
       route,
-      prompt: t("game.prompt.l2MissingLeg", { from, to, total: total.toFixed(1), unit: config.unit, hidFrom, hidTo }),
+      prompt: t("game.prompt.l2MissingLeg", l2Vars),
+      promptKey: "game.prompt.l2MissingLeg",
+      promptVars: l2Vars,
       answer: config.edges[hiddenEdge].distance,
       hiddenEdge,
       totalGiven: total,

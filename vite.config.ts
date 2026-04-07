@@ -76,25 +76,32 @@ function localApiPlugin() {
             }
 
             const reportFileName = String(payload.reportFileName || 'distance-report.pdf')
-            const scoreLine = `${payload.correctCount ?? 0}/${payload.totalQuestions ?? 0}`
-            const accuracy = `${payload.accuracy ?? 0}%`
             const senderName = String(payload.senderName || 'Distance Calculator')
             const gameName = String(payload.gameName || 'Distance Calculator')
             const siteUrl = String(payload.siteUrl || 'https://www.seemaths.com')
-            const sessionTime = String(payload.sessionTime || 'Unknown time')
-            const sessionDate = String(payload.sessionDate || 'Unknown date')
-            const durationText = String(payload.durationText || 'an unknown duration')
-            const stageLabel = String(payload.stageLabel || 'NSW Curriculum')
-            const curriculumCode = String(payload.curriculumCode || 'N/A')
-            const curriculumDescription = String(
-              payload.curriculumDescription || 'No curriculum description supplied.',
-            )
             const curriculumUrl = String(payload.curriculumUrl || 'https://www.seemaths.com')
-            const curriculumIndexUrl = String(
-              payload.curriculumIndexUrl ||
-                'https://www.educationstandards.nsw.edu.au/wps/portal/nesa/k-10/learning-areas/mathematics/mathematics-k-10',
-            )
-            const curriculumText = `${curriculumCode} - ${curriculumDescription}`
+            const curriculumCode = String(payload.curriculumCode || 'N/A')
+            const curriculumDescription = String(payload.curriculumDescription || '')
+            const curriculumText = curriculumDescription
+              ? `${curriculumCode} - ${curriculumDescription}`
+              : curriculumCode
+
+            // Use pre-translated strings if provided, otherwise fall back to English
+            const emailSubject = String(payload.emailSubject || `${gameName} Report`)
+            const emailHtml = payload.emailHtml
+              ? String(payload.emailHtml)
+              : (() => {
+                  const emailGreeting = String(payload.emailGreeting || 'Hi there,')
+                  const emailBodyIntro = String(payload.emailBodyIntro || '')
+                  const emailCurriculumIntro = String(payload.emailCurriculumIntro || '')
+                  const emailRegards = String(payload.emailRegards || 'Regards,')
+                  return `
+                    <p>${escapeHtml(emailGreeting)}</p>
+                    <p>${escapeHtml(emailBodyIntro)}</p>
+                    <p>${escapeHtml(emailCurriculumIntro)} <a href="${escapeHtml(curriculumUrl)}">${escapeHtml(curriculumText)}</a></p>
+                    <p>${escapeHtml(emailRegards)}<br />${escapeHtml(gameName)}<br /><a href="${escapeHtml(siteUrl)}">SeeMaths</a></p>
+                  `
+                })()
 
             const resendResponse = await fetch('https://api.resend.com/emails', {
               method: 'POST',
@@ -105,26 +112,8 @@ function localApiPlugin() {
               body: JSON.stringify({
                 from: `${senderName} <${from}>`,
                 to: [email],
-                subject: `${gameName} Report`,
-                html: `
-                  <p>Hi there,</p>
-                  <p>
-                    A player played <strong>${escapeHtml(gameName)}</strong> at
-                    <a href="${escapeHtml(siteUrl)}">SeeMaths</a>
-                    at <strong>${escapeHtml(sessionTime)}</strong> on <strong>${escapeHtml(sessionDate)}</strong> for
-                    <strong>${escapeHtml(durationText)}</strong>. They scored <strong>${escapeHtml(scoreLine)}</strong>
-                    and had an accuracy of <strong>${escapeHtml(accuracy)}</strong>.
-                  </p>
-                  <p>
-                    This game is equivalent to <a href="${escapeHtml(curriculumIndexUrl)}"><strong>${escapeHtml(stageLabel)}</strong></a> on topic
-                    <a href="${escapeHtml(curriculumUrl)}"><strong>${escapeHtml(curriculumText)}</strong></a>.
-                  </p>
-                  <p>
-                    Regards,<br />
-                    ${escapeHtml(gameName)}<br />
-                    <a href="${escapeHtml(siteUrl)}">SeeMaths</a>
-                  </p>
-                `,
+                subject: emailSubject,
+                html: emailHtml,
                 attachments: [{ filename: reportFileName, content: pdfBase64 }],
               }),
             })

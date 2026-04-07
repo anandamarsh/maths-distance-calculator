@@ -6,27 +6,21 @@ import { createElement } from "react";
 import type { Translations, TranslationKey, TFunction } from "./types";
 import en from "./en";
 import zh from "./zh";
-import es from "./es";
-import ru from "./ru";
 import hi from "./hi";
 
 // --- Built-in locale map ---
 
-export const BUILT_IN_LOCALES: Record<string, Translations> = { en, zh, es, ru, hi };
+export const BUILT_IN_LOCALES: Record<string, Translations> = { en, zh, hi };
 
 export const LOCALE_NAMES: Record<string, string> = {
   en: "English",
   zh: "中文",
-  es: "Español",
-  ru: "Русский",
   hi: "हिन्दी",
 };
 
 const INTL_LOCALE_MAP: Record<string, string> = {
   en: "en-AU",
   zh: "zh-CN",
-  es: "es-ES",
-  ru: "ru-RU",
   hi: "hi-IN",
 };
 

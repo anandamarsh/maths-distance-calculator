@@ -11,26 +11,20 @@ const CURRICULUM_INDEX_URL =
   "https://www.educationstandards.nsw.edu.au/wps/portal/nesa/k-10/learning-areas/mathematics/mathematics-k-10";
 const CURRICULUM_BY_LEVEL = {
   1: {
-    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
     code: "MA3-7NA",
-    description:
-      "Compares, orders and calculates with fractions, decimals and percentages.",
+    descKey: "curriculum.descL1L2" as const,
     syllabusUrl:
       "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
   2: {
-    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
     code: "MA3-7NA",
-    description:
-      "Compares, orders and calculates with fractions, decimals and percentages.",
+    descKey: "curriculum.descL1L2" as const,
     syllabusUrl:
       "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
   3: {
-    stageLabel: "Stage 3 (Years 5-6) NSW Curriculum",
     code: "MA3-9MG",
-    description:
-      "Selects and uses appropriate unit and device to measure lengths and distances, calculates perimeters, and converts between units of length.",
+    descKey: "curriculum.descL3" as const,
     syllabusUrl:
       "https://www.educationstandards.nsw.edu.au/wps/wcm/connect/ffb1e831-46fc-4db6-975c-7be286334e74/stage-statements-and-outcomes-programming-tool-k-10-landscape.pdf?CVID=&MOD=AJPERES#page=40",
   },
@@ -86,6 +80,8 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
   const durationText = formatDurationMinutes(summary.startTime, summary.endTime);
   const scoreLine = `${summary.correctCount}/${summary.totalQuestions}`;
   const accuracy = `${summary.accuracy}%`;
+  const stageLabel = t("curriculum.stageLabel");
+  const curriculumDescription = t(curriculum.descKey);
   return {
     gameName: GAME_NAME,
     senderName: SENDER_NAME,
@@ -93,9 +89,9 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
     sessionTime,
     sessionDate,
     durationText,
-    stageLabel: curriculum.stageLabel,
+    stageLabel,
     curriculumCode: curriculum.code,
-    curriculumDescription: curriculum.description,
+    curriculumDescription,
     curriculumUrl: curriculum.syllabusUrl,
     curriculumIndexUrl: CURRICULUM_INDEX_URL,
     // Pre-translated email body strings
@@ -110,12 +106,27 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
       accuracy,
     }),
     emailCurriculumIntro: t("email.curriculumIntro", {
-      stageLabel: curriculum.stageLabel,
+      stageLabel,
       curriculumCode: curriculum.code,
-      curriculumDescription: curriculum.description,
+      curriculumDescription,
     }),
     emailRegards: t("email.regards"),
   };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function buildEmailHtml(meta: ReturnType<typeof getEmailMetadata>): string {
+  const currText = `${meta.curriculumCode} - ${meta.curriculumDescription}`;
+  return `
+    <p>${escapeHtml(meta.emailGreeting)}</p>
+    <p>${escapeHtml(meta.emailBodyIntro)}</p>
+    <p>${escapeHtml(meta.emailCurriculumIntro)} <a href="${escapeHtml(meta.curriculumUrl)}">${escapeHtml(currText)}</a></p>
+    <p>${escapeHtml(meta.emailRegards)}<br />${escapeHtml(GAME_NAME)}<br /><a href="${escapeHtml(SITE_URL)}">SeeMaths</a></p>
+  `;
 }
 
 async function buildReportBlob(summary: SessionSummary, locale = "en"): Promise<Blob> {
@@ -205,7 +216,7 @@ export async function emailReport(
       correctCount: summary.correctCount,
       totalQuestions: summary.totalQuestions,
       accuracy: summary.accuracy,
-      ...getEmailMetadata(summary, locale),
+      ...((meta) => ({ ...meta, emailHtml: buildEmailHtml(meta) }))(getEmailMetadata(summary, locale)),
       reportFileName: getReportFileName(summary),
     }),
   });

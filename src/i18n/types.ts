@@ -53,6 +53,9 @@ export type Translations = {
   "game.tryAgain": string;
   "game.typeNumber": string;
   "game.enterNumber": string;
+  "game.touchAndDrag": string;
+  "game.clickAndDrag": string;
+  "game.enterValue": string;
   "game.collectGoldenEggs": string;
   "game.youDidIt": string;
   "game.allMastered": string;
@@ -92,6 +95,8 @@ export type Translations = {
   "pdf.tip": string;
   "pdf.footer": string;
   "pdf.footerUrl": string;
+  "pdf.durationMin": string;   // "m" abbreviation for minutes
+  "pdf.durationSec": string;   // "s" abbreviation for seconds
   "pdf.nswCurriculum": string;
   "pdf.basicRound": string;
   "pdf.basicRoundDesc": string;
@@ -124,12 +129,15 @@ export type Translations = {
   "email.notConfigured": string;
   "email.sendFailed": string;
 
+  // Curriculum (translated values substituted into email/PDF)
+  "curriculum.stageLabel": string;
+  "curriculum.descL1L2": string;
+  "curriculum.descL3": string;
+
   // Language switcher
   "lang.label": string;
   "lang.en": string;
   "lang.zh": string;
-  "lang.es": string;
-  "lang.ru": string;
   "lang.hi": string;
   "lang.other": string;
   "lang.translating": string;

@@ -51,6 +51,9 @@ const zh: Translations = {
   "game.tryAgain": "再试一次！",
   "game.typeNumber": "请输入一个数字！",
   "game.enterNumber": "请输入一个数字！",
+  "game.touchAndDrag": "触摸并拖动",
+  "game.clickAndDrag": "点击并拖动",
+  "game.enterValue": "输入数值",
   "game.collectGoldenEggs": "收集 {count} 个金蛋 ✨",
   "game.youDidIt": "你做到了！",
   "game.allMastered": "全部 3 关通关",
@@ -90,6 +93,8 @@ const zh: Translations = {
   "pdf.tip": "提示：回去再试试那些答错的题目。",
   "pdf.footer": "由 SeeMaths 生成",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.durationMin": "分",
+  "pdf.durationSec": "秒",
   "pdf.nswCurriculum": "NSW数学课程",
   "pdf.basicRound": "基础关卡：",
   "pdf.basicRoundDesc": "回答路线距离题目，赢取10个蛋。每题一张新地图。",
@@ -122,12 +127,15 @@ const zh: Translations = {
   "email.notConfigured": "邮件服务未配置。",
   "email.sendFailed": "发送报告失败。",
 
+  // Curriculum
+  "curriculum.stageLabel": "第三阶段（5-6年级）",
+  "curriculum.descL1L2": "对分数、小数和百分比进行比较、排序和计算。",
+  "curriculum.descL3": "选择并使用适当的单位和工具测量长度与距离，计算周长，并在长度单位之间进行换算。",
+
   // Language switcher
   "lang.label": "语言",
   "lang.en": "English",
   "lang.zh": "中文",
-  "lang.es": "Español",
-  "lang.ru": "Русский",
   "lang.hi": "हिन्दी",
   "lang.other": "其他...",
   "lang.translating": "翻译中...",

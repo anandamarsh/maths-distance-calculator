@@ -305,9 +305,9 @@ const SUCCESS_ICON_DURATION_MS = 1100;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
-function createRun(level: number, t: TFunction) {
-  const config = generateTrailConfig(level);
-  const dino = randomDino();
+function createRun(level: number, t: TFunction, locale: string) {
+  const config = generateTrailConfig(level, locale);
+  const dino = randomDino(locale);
   const dinoColor = DINO_COLORS[Math.floor(Math.random() * DINO_COLORS.length)];
   const firstQ = makeOneQuestion(config, level, dino.nickname, t);
   return { config, firstQ, dino, dinoColor };
@@ -325,19 +325,15 @@ const DINO_COLORS = [
   "#facc15",
 ];
 
-const MONSTER_ROUND_NAMES = [
-  "MONSTER ROUND",
-  "TITAN CHALLENGE",
-  "DINO STORM",
-  "EXTINCTION EVENT",
-  "JURASSIC GAUNTLET",
-  "THUNDER ROUND",
-];
+const MONSTER_ROUND_NAMES: Record<string, string[]> = {
+  en: ["MONSTER ROUND", "TITAN CHALLENGE", "DINO STORM", "EXTINCTION EVENT", "JURASSIC GAUNTLET", "THUNDER ROUND"],
+  hi: ["मॉन्स्टर राउंड", "टाइटन चुनौती", "डायनो तूफान", "विनाश राउंड", "बिजली राउंड", "महायुद्ध"],
+  zh: ["怪兽关卡", "泰坦挑战", "恐龙风暴", "灭绝事件", "侏罗纪挑战", "雷霆关卡"],
+};
 
-function pickMonsterRoundName() {
-  return MONSTER_ROUND_NAMES[
-    Math.floor(Math.random() * MONSTER_ROUND_NAMES.length)
-  ];
+function pickMonsterRoundName(locale: string) {
+  const names = MONSTER_ROUND_NAMES[locale] ?? MONSTER_ROUND_NAMES.en;
+  return names[Math.floor(Math.random() * names.length)];
 }
 
 // Background per level × phase
@@ -538,6 +534,7 @@ function StopMarker({
         stroke="rgba(0,0,0,0.8)"
         strokeWidth={3}
         paintOrder="stroke"
+        style={{ wordSpacing: "0px" }}
       >
         {stop.label}
       </text>
@@ -574,6 +571,7 @@ function NumericKeypad({
 }) {
   const isCoarsePointer = useIsCoarsePointer();
   const isMobileLandscape = useIsMobileLandscape();
+  const t = useT();
   const [minimized, setMinimized] = useState(defaultMinimized);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<number | null>(null);
@@ -819,7 +817,7 @@ function NumericKeypad({
                 whiteSpace: "nowrap",
               }}
             >
-              Enter the Value
+              {t("game.enterValue")}
             </div>
           </div>
         )}
@@ -1039,11 +1037,12 @@ function LevelCompleteReportActions({
 
 export default function ArcadeLevelOneScreen() {
   const t = useT();
+  const { locale } = useLocale();
   const initialLevelRef = useRef<1 | 2 | 3>(readInitialLevel());
   const initialLevel = initialLevelRef.current;
   const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
   const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(initialLevel);
-  const [run, setRun] = useState(() => createRun(initialLevel, t));
+  const [run, setRun] = useState(() => createRun(initialLevel, t, locale));
   const [screen, setScreen] = useState<"playing" | "won" | "gameover">(
     "playing",
   );
@@ -1188,7 +1187,7 @@ export default function ArcadeLevelOneScreen() {
   const tutorialHandScale = isCoarsePointer ? 1.5 : 1.125;
   const tutorialHandOffsetX = isCoarsePointer ? 5 : 20;
   const tutorialHandOffsetY = isCoarsePointer ? -40 : -25;
-  const tutorialDragHintLabel = isCoarsePointer ? "Touch and Drag" : "Click and Drag";
+  const tutorialDragHintLabel = isCoarsePointer ? t("game.touchAndDrag") : t("game.clickAndDrag");
   const tutorialDragHintFontSize = isCoarsePointer ? 21 : 26;
   const tutorialDragHintBoxWidth = isCoarsePointer ? 248 : 300;
   const tutorialDragHintBoxHeight = isCoarsePointer ? 28 : 34;
@@ -1805,7 +1804,7 @@ export default function ArcadeLevelOneScreen() {
     playButton();
     shuffleMusic();
     const lv = targetLevel ?? level;
-    const next = createRun(lv, t);
+    const next = createRun(lv, t, locale);
     if (targetLevel) setLevel(targetLevel);
     setRun(next);
     setScreen("playing");
@@ -1846,7 +1845,7 @@ export default function ArcadeLevelOneScreen() {
       startMonsterRound();
     } else {
       setEggsCollected(target);
-      const next = createRun(level, t);
+      const next = createRun(level, t, locale);
       setRun(next);
       setCurrentQ(next.firstQ);
       setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
@@ -1855,7 +1854,7 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function startMonsterRound() {
-    const name = pickMonsterRoundName();
+    const name = pickMonsterRoundName(locale);
     setMonsterRoundName(name);
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
@@ -1865,7 +1864,7 @@ export default function ArcadeLevelOneScreen() {
     playMonsterStart();
     switchToMonsterMusic();
     // Fresh run so the child gets a new map to think through without the odometer
-    const next = createRun(level, t);
+    const next = createRun(level, t, locale);
     setRun(next);
     setCurrentQ(next.firstQ);
     startQuestionTimer();
@@ -1920,7 +1919,7 @@ export default function ArcadeLevelOneScreen() {
     setMonsterEggs(newGolden);
     playGoldenEgg();
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t);
+      const next = createRun(level, t, locale);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -1935,7 +1934,7 @@ export default function ArcadeLevelOneScreen() {
 
   function advanceMonsterQuestionWithoutEgg() {
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t);
+      const next = createRun(level, t, locale);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -1963,7 +1962,7 @@ export default function ArcadeLevelOneScreen() {
     }
     setEggsCollected(newEggs);
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t);
+      const next = createRun(level, t, locale);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -3451,7 +3450,7 @@ export default function ArcadeLevelOneScreen() {
                 onClick={() => keypadToggleRef.current?.()}
               >
                 <ColoredPrompt
-                  text={currentQ.promptLines[2]}
+                  text={currentQ.promptLineKeys ? t(currentQ.promptLineKeys[2] as Parameters<typeof t>[0], currentQ.promptLineVars?.[2]) : currentQ.promptLines[2]}
                   stopLabels={stopLabels}
                 />
                 {(IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
@@ -3484,7 +3483,10 @@ export default function ArcadeLevelOneScreen() {
                 }
                 onClick={() => keypadToggleRef.current?.()}
               >
-                {currentQ.promptLines.map((line, i) => {
+                {currentQ.promptLines.map((_line, i) => {
+                  const line = currentQ.promptLineKeys
+                    ? t(currentQ.promptLineKeys[i] as Parameters<typeof t>[0], currentQ.promptLineVars?.[i])
+                    : _line;
                   const isDone = i < subStep;
                   const isCurrent = i === subStep;
                   const shouldDim =
@@ -3547,7 +3549,7 @@ export default function ArcadeLevelOneScreen() {
               className={`arcade-panel flex min-w-0 ${useCollapsedQuestionTray ? "self-start" : "self-stretch"} items-center ${isMobileLandscape ? "gap-1.5 px-2 text-[1rem]" : "gap-2 px-4 text-[1.3125rem] md:text-[1.5rem]"} font-bold text-white cursor-pointer ${collapsedPromptPanelClass}`}
               onClick={() => keypadToggleRef.current?.()}
             >
-              <ColoredPrompt text={currentQ.prompt} stopLabels={stopLabels} />
+              <ColoredPrompt text={t(currentQ.promptKey as Parameters<typeof t>[0], currentQ.promptVars)} stopLabels={stopLabels} />
               {(IS_DEV || showCheatAnswer) && (
                 <span
                   className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
@@ -4003,7 +4005,7 @@ export default function ArcadeLevelOneScreen() {
             {gamePhase === "monster" ? (
               <>
                 <div className="text-4xl font-black uppercase tracking-[0.18em] text-yellow-300 md:text-5xl">
-                  Level {level} Complete!
+                  {t("game.levelClear", { level })}
                 </div>
                 <div className="mt-2 text-base font-bold text-purple-300 md:text-lg">
                   {t("game.monsterCrushed")}

@@ -29,8 +29,8 @@ test("Hindi locale: autopilot sends real email report to amarsh.anand@gmail.com"
     await page.waitForTimeout(25);
   }
 
-  // Wait for Level 1 to complete — autopilot fills email and sends
-  await expect(page.getByText("Level 1 Complete!")).toBeVisible({ timeout: 180_000 });
+  // Wait for Level 1 to complete — in Hindi: "स्तर 1 पूरा!"
+  await expect(page.getByText(/स्तर 1 पूरा|Level 1 Complete/)).toBeVisible({ timeout: 180_000 });
 
   // Wait for the API call to be made (autopilot sends email automatically)
   await page.waitForFunction(() => {
