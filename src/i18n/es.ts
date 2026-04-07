@@ -90,6 +90,26 @@ const es: Translations = {
   "pdf.tip": "Consejo: Vuelve y prueba las preguntas que fallaste.",
   "pdf.footer": "Generado por SeeMaths",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.nswCurriculum": "Plan de estudios de matemáticas de NSW",
+  "pdf.basicRound": "Ronda básica:",
+  "pdf.basicRoundDesc": "Gana 10 huevos respondiendo preguntas de distancia. Un mapa nuevo por pregunta.",
+  "pdf.monsterRoundLabel": "Ronda monstruo:",
+  "pdf.monsterRoundDesc": "Defiende 10 huevos contra preguntas difíciles. Las respuestas incorrectas pierden un huevo.",
+  "pdf.monsterBadge": "MONSTRUO",
+  "pdf.answered": "respondió {value}",
+  "pdf.correctIn": "(correcto: {value})",
+  "pdf.tipAreas": "Consejo: ¡Practica {areas} la próxima vez!",
+  "pdf.areaAddingDistances": "sumar distancias",
+  "pdf.areaFindingMissing": "encontrar distancias faltantes",
+  "pdf.areaComparingDistances": "comparar distancias",
+
+  // Question prompt templates
+  "game.prompt.l1TwoStop": "{dino} quiere ir de {from} a {to}. ¿Cuánto debe viajar {dino}?",
+  "game.prompt.l1MultiStop": "{dino} va por {stops}. ¿Cuánto debe viajar {dino} en total?",
+  "game.prompt.l2MissingLeg": "La distancia total de {from} a {to} es {total} {unit}. ¿Cuál es la distancia faltante de {hidFrom} a {hidTo}?",
+  "game.prompt.l3HowMuchFarther": "Desde {hub}, ¿cuánto más lejos está {far} que {near}?",
+  "game.prompt.l3SubFromTo": "¿Cuánto hay de {from} a {to}?",
+  "game.stopSeparator": " → ",
 
   // Email
   "email.subject": "Informe de {gameName}",

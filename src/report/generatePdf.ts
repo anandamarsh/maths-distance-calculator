@@ -2,6 +2,7 @@
 
 import { jsPDF } from "jspdf";
 import type { SessionSummary, QuestionAttempt } from "./sessionLog";
+import type { TFunction } from "../i18n/types";
 
 // ─── Color palette ───────────────────────────────────────────────────────────
 
@@ -46,12 +47,40 @@ const CURRICULUM_LEVELS = [
 
 // ─── Text sanitiser (jsPDF built-in fonts are Latin-1 only) ─────────────────
 
-function sanitize(text: string): string {
+function sanitize(text: string, useUnicode = false): string {
+  if (useUnicode) {
+    return text.replace(/→/g, "→").replace(/–/g, "-").replace(/—/g, "-");
+  }
   return text
     .replace(/→/g, "->")
     .replace(/–/g, "-")
     .replace(/—/g, "-")
     .replace(/[^\x00-\xFF]/g, "?");
+}
+
+// ─── Font URL → locale mapping for non-Latin scripts ─────────────────────────
+
+const UNICODE_FONT_MAP: Partial<Record<string, string>> = {
+  hi: "/fonts/NotoSansDevanagari-Regular.ttf",
+  ru: "/fonts/NotoSans-Regular.ttf",
+  es: "/fonts/NotoSans-Regular.ttf",
+  en: "/fonts/NotoSans-Regular.ttf",
+  zh: "/fonts/NotoSans-Regular.ttf",
+};
+
+async function loadFontBase64(locale: string): Promise<{ name: string; base64: string } | null> {
+  const url = UNICODE_FONT_MAP[locale] ?? "/fonts/NotoSans-Regular.ttf";
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return { name: locale === "hi" ? "NotoSansDevanagari" : "NotoSans", base64: btoa(binary) };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -215,13 +244,25 @@ function drawMiniMap(
 
 // ─── Main PDF generation ─────────────────────────────────────────────────────
 
-export async function generateSessionPdf(summary: SessionSummary): Promise<Blob> {
+export async function generateSessionPdf(summary: SessionSummary, t: TFunction, locale = "en"): Promise<Blob> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();   // 210
   const pageH = doc.internal.pageSize.getHeight();  // 297
   const margin = 15;
   const contentW = pageW - margin * 2;              // 180
   let curY = margin;
+
+  // Load Unicode font for the locale
+  const fontData = await loadFontBase64(locale);
+  const fontName = fontData?.name ?? "helvetica";
+  const useUnicode = fontData !== null;
+  if (fontData) {
+    const fileName = `${fontData.name}-Regular.ttf`;
+    doc.addFileToVFS(fileName, fontData.base64);
+    doc.addFont(fileName, fontData.name, "normal");
+    doc.addFont(fileName, fontData.name, "bold");
+    doc.setFont(fontData.name, "normal");
+  }
 
   // Load icon (best-effort — may be null if fetch fails)
   const iconBase64 = await loadIconBase64();
@@ -254,13 +295,13 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   // Title — dark text on light bg
   doc.setTextColor(COLORS.textDark);
   doc.setFontSize(17);
-  doc.setFont("helvetica", "bold");
-  doc.text("Distance Calculator", titleCX, curY + 11, { align: "center" });
+  doc.setFont(fontName, "bold");
+  doc.text(sanitize(t("pdf.title"), useUnicode), titleCX, curY + 11, { align: "center" });
 
   // Sub-line: date (left of col) | level (center) | time (right of col)
   const line2Y = curY + 21;
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
   doc.text(sanitize(formatDate(summary.date)), titleColX, line2Y);
   doc.text(
@@ -269,9 +310,9 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   );
 
   doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
-  doc.text(`Session Report (Level ${summary.level})`, titleCX, line2Y, { align: "center" });
+  doc.text(sanitize(t("pdf.sessionReport", { n: summary.level }), useUnicode), titleCX, line2Y, { align: "center" });
 
   curY += bannerH + 14;   // clear section break before curriculum
 
@@ -294,16 +335,16 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   const pillW = doc.getTextWidth(pillText) + pillPadX * 2;
 
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   const stageW = doc.getTextWidth(curr.stageLabel);
   const descAvailW = currInnerW - pillW - 4 - stageW - 4;
   const descWrapped = doc.splitTextToSize(sanitize(curr.description), descAvailW);
 
   // Title line
   doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
-  doc.text("NSW Mathematics Curriculum", margin, curY);
+  doc.text(sanitize(t("pdf.nswCurriculum"), useUnicode), margin, curY);
   curY += 5.5 + 3.5;   // title height + 1rem gap
 
   // Row: [pill] [stage] [description] on one baseline
@@ -311,7 +352,7 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   doc.setFillColor(GREEN);
   doc.roundedRect(margin, pillTopY, pillW, pillH, 1.5, 1.5, "F");
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor("#ffffff");
   doc.text(pillText, margin + pillPadX, curY);
   // Entire row is clickable (pill + stage label + description)
@@ -320,45 +361,51 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
 
   const stageX = margin + pillW + 4;
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   doc.setTextColor(CURR_BLUE);
   doc.text(curr.stageLabel, stageX, curY);
   doc.text(descWrapped, stageX + stageW + 4, curY);
   curY += Math.max(pillH + 1, descWrapped.length * currLineH) + 3.5;  // +1rem gap below
 
   // Objective line — bold dark
+  const objectiveText =
+    summary.level === 1 ? t("pdf.objectiveLevel1") :
+    summary.level === 2 ? t("pdf.objectiveLevel2") :
+                          t("pdf.objectiveLevel3");
   doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
-  doc.text("Objective:", margin, curY);
-  doc.setFont("helvetica", "normal");
+  doc.text(sanitize(t("pdf.objectiveLabel"), useUnicode), margin, curY);
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
   doc.text(
-    sanitize(curr.levelDesc.replace(/^Level \d+\s*[-–]\s*/i, "")),
-    margin + doc.getTextWidth("Objective:") + 2, curY
+    sanitize(objectiveText, useUnicode),
+    margin + doc.getTextWidth(sanitize(t("pdf.objectiveLabel"), useUnicode)) + 2, curY
   );
   curY += currLineH;
 
   // Basic / Monster round lines
-  doc.setFont("helvetica", "bold");
+  const basicRoundLabel = sanitize(t("pdf.basicRound"), useUnicode);
+  const monsterRoundLabel = sanitize(t("pdf.monsterRoundLabel"), useUnicode);
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
-  doc.text("Basic Round:", margin, curY);
-  doc.setFont("helvetica", "normal");
+  doc.text(basicRoundLabel, margin, curY);
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
   doc.text(
-    "Earn 10 eggs by answering trail distance questions. One new map per question.",
-    margin + doc.getTextWidth("Basic Round:") + 2, curY
+    sanitize(t("pdf.basicRoundDesc"), useUnicode),
+    margin + doc.getTextWidth(basicRoundLabel) + 2, curY
   );
   curY += currLineH;
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.textDark);
-  doc.text("Monster Round:", margin, curY);
-  doc.setFont("helvetica", "normal");
+  doc.text(monsterRoundLabel, margin, curY);
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
   doc.text(
-    "Defend all 10 eggs against harder questions. Wrong answers lose an egg.",
-    margin + doc.getTextWidth("Monster Round:") + 2, curY
+    sanitize(t("pdf.monsterRoundDesc"), useUnicode),
+    margin + doc.getTextWidth(monsterRoundLabel) + 2, curY
   );
   curY += 8;
 
@@ -378,11 +425,11 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   doc.setLineWidth(0.5);
   doc.roundedRect(margin, curY, boxW, boxH, 3, 3, "S");
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Score", margin + boxW / 2, curY + 5.5, { align: "center" });
+  doc.text(sanitize(t("pdf.scoreLabel"), useUnicode), margin + boxW / 2, curY + 5.5, { align: "center" });
   doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(scoreColor);
   doc.text(`${summary.correctCount} / ${summary.totalQuestions}`, margin + boxW / 2, curY + 13.5, { align: "center" });
 
@@ -395,11 +442,11 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   doc.setDrawColor(accColor);
   doc.roundedRect(box2X, curY, boxW, boxH, 3, 3, "S");
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Accuracy", box2X + boxW / 2, curY + 5.5, { align: "center" });
+  doc.text(sanitize(t("pdf.accuracyLabel"), useUnicode), box2X + boxW / 2, curY + 5.5, { align: "center" });
   doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(accColor);
   doc.text(`${summary.accuracy}%`, box2X + boxW / 2, curY + 13.5, { align: "center" });
 
@@ -410,11 +457,11 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   doc.setDrawColor(COLORS.accentPurple);
   doc.roundedRect(box3X, curY, boxW, boxH, 3, 3, "S");
   doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontName, "normal");
   doc.setTextColor(COLORS.textMuted);
-  doc.text("Total Time", box3X + boxW / 2, curY + 5.5, { align: "center" });
+  doc.text(sanitize(t("pdf.timeLabel"), useUnicode), box3X + boxW / 2, curY + 5.5, { align: "center" });
   doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.accentPurple);
   doc.text(formatDuration(summary.endTime - summary.startTime), box3X + boxW / 2, curY + 13.5, { align: "center" });
 
@@ -468,13 +515,14 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
   const textW = cardRight - textX - 4;
 
   for (const attempt of summary.attempts) {
-    const promptLinesEstimate = doc.splitTextToSize(sanitize(attempt.prompt), textW);
+    const promptLinesEstimate = doc.splitTextToSize(sanitize(attempt.prompt, useUnicode), textW);
     let subAnswerHeightEstimate = 0;
     if (attempt.subAnswers && attempt.subAnswers.length > 0) {
       doc.setFontSize(7.5);
       for (const sub of attempt.subAnswers) {
         const subLine = sanitize(
-          `${sub.prompt}: answered ${sub.childAnswer} (correct: ${sub.correctAnswer})`,
+          `${sub.prompt}: ${t("pdf.answered", { value: String(sub.childAnswer) })} ${t("pdf.correctIn", { value: sub.correctAnswer })}`,
+          useUnicode,
         );
         const wrapped = doc.splitTextToSize(subLine, textW - 5);
         subAnswerHeightEstimate += wrapped.length * 4.2 + 2.4;
@@ -504,9 +552,9 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     doc.rect(cardLeft, curY, stripeW, stripeH, "F");
 
     // Q number (vertically centred in header strip)
-    const qLabel = `Q${attempt.questionNumber}`;
+    const qLabel = sanitize(t("pdf.questionLabel", { n: attempt.questionNumber }), useUnicode);
     doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontName, "bold");
     doc.setTextColor(COLORS.textDark);
     doc.text(qLabel, cardLeft + stripeW + 3, curY + 6.8);
 
@@ -517,18 +565,18 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
       doc.roundedRect(badgeX, curY + 2, 16, 5, 1.5, 1.5, "F");
       doc.setFontSize(5.5);
       doc.setTextColor("#92400e");
-      doc.text("MONSTER", badgeX + 8, curY + 5.7, { align: "center" });
+      doc.text(sanitize(t("pdf.monsterBadge"), useUnicode), badgeX + 8, curY + 5.7, { align: "center" });
     }
 
     // CORRECT / WRONG + time — same line, right-aligned as a group
     const timeStr = formatDuration(attempt.timeTakenMs);
     doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontName, "normal");
     const timeW2 = doc.getTextWidth(timeStr);
 
     doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    const icon = attempt.isCorrect ? "CORRECT" : "WRONG";
+    doc.setFont(fontName, "bold");
+    const icon = sanitize(attempt.isCorrect ? t("pdf.correct") : t("pdf.wrong"), useUnicode);
     const iconW = doc.getTextWidth(icon);
 
     const groupRight = pageW - margin - 4;
@@ -538,7 +586,7 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     doc.text(icon, groupStart, curY + 6.8);
 
     doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontName, "normal");
     doc.setTextColor(COLORS.textMuted);
     doc.text(timeStr, groupRight, curY + 6.8, { align: "right" });
 
@@ -550,7 +598,7 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
 
     // Question prompt
     doc.setFontSize(8.5);
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontName, "bold");
     doc.setTextColor(COLORS.textDark);
     const promptLines = promptLinesEstimate;
     doc.text(promptLines, textX, curY + bodyPad + 5);
@@ -562,22 +610,22 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
       doc.setFontSize(7.5);
       for (const sub of attempt.subAnswers) {
         const subIcon = sub.isCorrect ? "+" : "x";
-        doc.setFont("helvetica", "bold");
+        doc.setFont(fontName, "bold");
         doc.setTextColor(sub.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
         doc.text(subIcon, textX, textY);
-        doc.setFont("helvetica", "normal");
+        doc.setFont(fontName, "normal");
         doc.setTextColor(COLORS.textDark);
         const promptWrapped = doc.splitTextToSize(
-          sanitize(`${sub.prompt}:`),
+          sanitize(`${sub.prompt}:`, useUnicode),
           textW - 5,
         );
         doc.text(promptWrapped, textX + 4, textY);
         textY += promptWrapped.length * 4.2;
 
         const answerX = textX + 4;
-        const answerPrefix = "answered ";
+        const answerPrefix = sanitize(t("pdf.answered", { value: "" }), useUnicode);
         const answerValue = sanitize(String(sub.childAnswer));
-        const answerSuffix = sanitize(` (correct: ${sub.correctAnswer})`);
+        const answerSuffix = sanitize(t("pdf.correctIn", { value: sub.correctAnswer }), useUnicode);
 
         doc.setTextColor(COLORS.textDark);
         doc.text(answerPrefix, answerX, textY);
@@ -595,16 +643,16 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
     } else {
       // Single answer
       doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
+      doc.setFont(fontName, "normal");
 
       // "Given Answer" — darker green if correct, red if wrong
       doc.setTextColor(attempt.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
-      doc.text(`Given Answer: ${attempt.childAnswer ?? "-"} ${attempt.unit}`, textX, textY);
+      doc.text(sanitize(t("pdf.givenAnswer", { value: `${attempt.childAnswer ?? "-"} ${attempt.unit}` }), useUnicode), textX, textY);
       textY += 4.5;
 
       // "Correct answer" — always dark
       doc.setTextColor(COLORS.textDark);
-      doc.text(`Correct answer: ${attempt.correctAnswer} ${attempt.unit}`, textX, textY);
+      doc.text(sanitize(t("pdf.correctAnswer", { value: `${attempt.correctAnswer} ${attempt.unit}` }), useUnicode), textX, textY);
       textY += 4.5;
     }
 
@@ -646,35 +694,35 @@ export async function generateSessionPdf(summary: SessionSummary): Promise<Blob>
 
   // Encouragement text centered
   doc.setFontSize(13);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontName, "bold");
   doc.setTextColor(COLORS.accentPurple);
   const encouragement =
-    summary.accuracy >= 90 ? "Amazing work! You're a distance champion!" :
-    summary.accuracy >= 70 ? "Great job! You're getting really good at this!" :
-    summary.accuracy >= 50 ? "Nice effort! Keep practising and you'll be a pro!" :
-                             "Good try! Every attempt makes you stronger!";
-  doc.text(encouragement, pageW / 2, curY + 13, { align: "center" });
+    summary.accuracy >= 90 ? t("pdf.encourage90") :
+    summary.accuracy >= 70 ? t("pdf.encourage70") :
+    summary.accuracy >= 50 ? t("pdf.encourage50") :
+                             t("pdf.encourageBelow");
+  doc.text(sanitize(encouragement, useUnicode), pageW / 2, curY + 13, { align: "center" });
 
   const wrongAttempts = summary.attempts.filter(a => !a.isCorrect);
   if (wrongAttempts.length > 0) {
     doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontName, "normal");
     doc.setTextColor(COLORS.textMuted);
     const typeLabels: Record<string, string> = {
-      "total-distance": "adding distances",
-      "missing-leg": "finding missing distances",
-      "hub-comparison": "comparing distances",
+      "total-distance": t("pdf.areaAddingDistances"),
+      "missing-leg": t("pdf.areaFindingMissing"),
+      "hub-comparison": t("pdf.areaComparingDistances"),
     };
     const areas = [...new Set(wrongAttempts.map(a => a.questionType))]
-      .map(t => typeLabels[t] || t).join(", ");
-    doc.text(`Tip: Try practising ${areas} next time!`, pageW / 2, curY + 22, { align: "center" });
+      .map(qt => typeLabels[qt] || qt).join(", ");
+    doc.text(sanitize(t("pdf.tipAreas", { areas }), useUnicode), pageW / 2, curY + 22, { align: "center" });
   }
 
   // Footer
   doc.setFontSize(7);
   doc.setTextColor("#94a3b8");
-  doc.text("Generated by SeeMaths - Distance Calculator", pageW / 2, pageH - 8, { align: "center" });
-  doc.text("https://www.seemaths.com", pageW / 2, pageH - 4, { align: "center" });
+  doc.text(sanitize(t("pdf.footer"), useUnicode), pageW / 2, pageH - 8, { align: "center" });
+  doc.text(sanitize(t("pdf.footerUrl"), useUnicode), pageW / 2, pageH - 4, { align: "center" });
 
   return doc.output("blob");
 }

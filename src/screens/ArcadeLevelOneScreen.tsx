@@ -43,6 +43,7 @@ import AutopilotIcon from "../components/AutopilotIcon";
 import PhantomHand from "../components/PhantomHand";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useT, useLocale } from "../i18n";
+import type { TFunction } from "../i18n/types";
 import { useCheatCodes } from "../hooks/useCheatCode";
 import {
   useDistanceAutopilot,
@@ -304,11 +305,11 @@ const SUCCESS_ICON_DURATION_MS = 1100;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
-function createRun(level: number) {
+function createRun(level: number, t: TFunction) {
   const config = generateTrailConfig(level);
   const dino = randomDino();
   const dinoColor = DINO_COLORS[Math.floor(Math.random() * DINO_COLORS.length)];
-  const firstQ = makeOneQuestion(config, level, dino.nickname);
+  const firstQ = makeOneQuestion(config, level, dino.nickname, t);
   return { config, firstQ, dino, dinoColor };
 }
 
@@ -902,7 +903,7 @@ function LevelCompleteReportActions({
   async function handleShare() {
     setGenerating(true);
     try {
-      await shareReport(summary);
+      await shareReport(summary, locale);
     } catch (error) {
       console.error("Report share failed:", error);
     } finally {
@@ -1042,7 +1043,7 @@ export default function ArcadeLevelOneScreen() {
   const initialLevel = initialLevelRef.current;
   const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
   const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(initialLevel);
-  const [run, setRun] = useState(() => createRun(initialLevel));
+  const [run, setRun] = useState(() => createRun(initialLevel, t));
   const [screen, setScreen] = useState<"playing" | "won" | "gameover">(
     "playing",
   );
@@ -1804,7 +1805,7 @@ export default function ArcadeLevelOneScreen() {
     playButton();
     shuffleMusic();
     const lv = targetLevel ?? level;
-    const next = createRun(lv);
+    const next = createRun(lv, t);
     if (targetLevel) setLevel(targetLevel);
     setRun(next);
     setScreen("playing");
@@ -1845,7 +1846,7 @@ export default function ArcadeLevelOneScreen() {
       startMonsterRound();
     } else {
       setEggsCollected(target);
-      const next = createRun(level);
+      const next = createRun(level, t);
       setRun(next);
       setCurrentQ(next.firstQ);
       setFacingLeft(shouldFaceLeftForRoute(next.firstQ.route));
@@ -1864,7 +1865,7 @@ export default function ArcadeLevelOneScreen() {
     playMonsterStart();
     switchToMonsterMusic();
     // Fresh run so the child gets a new map to think through without the odometer
-    const next = createRun(level);
+    const next = createRun(level, t);
     setRun(next);
     setCurrentQ(next.firstQ);
     startQuestionTimer();
@@ -1919,7 +1920,7 @@ export default function ArcadeLevelOneScreen() {
     setMonsterEggs(newGolden);
     playGoldenEgg();
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level);
+      const next = createRun(level, t);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -1934,7 +1935,7 @@ export default function ArcadeLevelOneScreen() {
 
   function advanceMonsterQuestionWithoutEgg() {
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level);
+      const next = createRun(level, t);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -1962,7 +1963,7 @@ export default function ArcadeLevelOneScreen() {
     }
     setEggsCollected(newEggs);
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level);
+      const next = createRun(level, t);
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();

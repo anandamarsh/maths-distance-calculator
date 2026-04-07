@@ -1,3 +1,5 @@
+import type { TFunction } from "../i18n/types";
+
 export interface TrailStop {
   id: string;
   label: string;
@@ -106,10 +108,12 @@ export function routeDistance(route: number[], edges: TrailEdge[]) {
   return Number(total.toFixed(1));
 }
 
-function buildPrompt(route: number[], stops: TrailStop[], dinoName: string) {
+function buildPrompt(route: number[], stops: TrailStop[], dinoName: string, t: TFunction): string {
   const names = route.map((i) => stops[i].label);
-  if (names.length === 2) return `${dinoName} wants to go from ${names[0]} to ${names[1]}. How far should ${dinoName} travel?`;
-  return `${dinoName} goes from ${names.join(" → ")}. How far should ${dinoName} travel in total?`;
+  if (names.length === 2) {
+    return t("game.prompt.l1TwoStop", { dino: dinoName, from: names[0], to: names[1] });
+  }
+  return t("game.prompt.l1MultiStop", { dino: dinoName, stops: names.join(t("game.stopSeparator")) });
 }
 
 function buildQuestionRoute(stopCount: number, hopCount: number): number[] {
@@ -159,21 +163,21 @@ export function generateTrailConfig(level = 1): TrailConfig {
 
 // ─── Single-question generator (used after each correct/wrong answer) ────────
 
-export function makeOneQuestion(config: TrailConfig, level: number, dinoName = "Rex"): TrailQuestion {
+export function makeOneQuestion(config: TrailConfig, level: number, dinoName = "Rex", t: TFunction): TrailQuestion {
   if (level === 2) {
-    const q = generateLevelTwoQuestions(config, 1);
+    const q = generateLevelTwoQuestions(config, 1, t);
     if (q.length) return q[0];
   }
   if (level === 3) {
-    const q = generateLevelThreeQuestions(config, 1);
+    const q = generateLevelThreeQuestions(config, 1, t);
     if (q.length) return q[0];
   }
-  return generateLevelOneQuestions(config, 1, dinoName)[0];
+  return generateLevelOneQuestions(config, 1, dinoName, t)[0];
 }
 
 // ─── Level 1: find total distance ────────────────────────────────────────────
 
-export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoName = "Rex"): TrailQuestion[] {
+export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoName = "Rex", t: TFunction): TrailQuestion[] {
   const questions: TrailQuestion[] = [];
   const seen = new Set<string>();
   let attempts = 0;
@@ -188,7 +192,7 @@ export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoNa
     questions.push({
       id: `q1-${questions.length + 1}`,
       route,
-      prompt: buildPrompt(route, config.stops, dinoName),
+      prompt: buildPrompt(route, config.stops, dinoName, t),
       answer: routeDistance(route, config.edges),
     });
   }
@@ -197,7 +201,7 @@ export function generateLevelOneQuestions(config: TrailConfig, count = 5, dinoNa
 
 // ─── Level 3: how much farther ───────────────────────────────────────────────
 
-export function generateLevelThreeQuestions(config: TrailConfig, count = 5): TrailQuestion[] {
+export function generateLevelThreeQuestions(config: TrailConfig, count = 5, t: TFunction): TrailQuestion[] {
   const n = config.stops.length;
   if (n < 3) return [];           // need at least 2 edges
 
@@ -232,15 +236,15 @@ export function generateLevelThreeQuestions(config: TrailConfig, count = 5): Tra
     questions.push({
       id: `q3-${questions.length + 1}`,
       route: [hub - 1, hub, hub + 1],
-      prompt: `From ${hubName}, how much farther is it to ${farName} than to ${nearName}?`,
+      prompt: t("game.prompt.l3HowMuchFarther", { hub: hubName, far: farName, near: nearName }),
       answer,
       hubStop: hub,
       legA: edgeLeft,
       legB: edgeRight,
       promptLines: [
-        `How far is it from ${hubName} to ${leftName}?`,
-        `How far is it from ${hubName} to ${rightName}?`,
-        `From ${hubName}, how much farther is it to ${farName} than to ${nearName}?`,
+        t("game.prompt.l3SubFromTo", { from: hubName, to: leftName }),
+        t("game.prompt.l3SubFromTo", { from: hubName, to: rightName }),
+        t("game.prompt.l3HowMuchFarther", { hub: hubName, far: farName, near: nearName }),
       ],
       subAnswers: [distA, distB, answer],
     });
@@ -250,7 +254,7 @@ export function generateLevelThreeQuestions(config: TrailConfig, count = 5): Tra
 
 // ─── Level 2: find the missing leg ───────────────────────────────────────────
 
-export function generateLevelTwoQuestions(config: TrailConfig, count = 5): TrailQuestion[] {
+export function generateLevelTwoQuestions(config: TrailConfig, count = 5, t: TFunction): TrailQuestion[] {
   const n = config.stops.length;
   const questions: TrailQuestion[] = [];
   const seen = new Set<string>();
@@ -285,7 +289,7 @@ export function generateLevelTwoQuestions(config: TrailConfig, count = 5): Trail
     questions.push({
       id: `q2-${questions.length + 1}`,
       route,
-      prompt: `The total distance from ${from} to ${to} is ${total.toFixed(1)} ${config.unit}. What is the missing distance from ${hidFrom} to ${hidTo}?`,
+      prompt: t("game.prompt.l2MissingLeg", { from, to, total: total.toFixed(1), unit: config.unit, hidFrom, hidTo }),
       answer: config.edges[hiddenEdge].distance,
       hiddenEdge,
       totalGiven: total,

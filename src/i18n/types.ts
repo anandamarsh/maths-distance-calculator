@@ -92,6 +92,26 @@ export type Translations = {
   "pdf.tip": string;
   "pdf.footer": string;
   "pdf.footerUrl": string;
+  "pdf.nswCurriculum": string;
+  "pdf.basicRound": string;
+  "pdf.basicRoundDesc": string;
+  "pdf.monsterRoundLabel": string;
+  "pdf.monsterRoundDesc": string;
+  "pdf.monsterBadge": string;
+  "pdf.answered": string;
+  "pdf.correctIn": string;
+  "pdf.tipAreas": string;
+  "pdf.areaAddingDistances": string;
+  "pdf.areaFindingMissing": string;
+  "pdf.areaComparingDistances": string;
+
+  // Question prompt templates
+  "game.prompt.l1TwoStop": string;
+  "game.prompt.l1MultiStop": string;
+  "game.prompt.l2MissingLeg": string;
+  "game.prompt.l3HowMuchFarther": string;
+  "game.prompt.l3SubFromTo": string;
+  "game.stopSeparator": string;
 
   // Email
   "email.subject": string;

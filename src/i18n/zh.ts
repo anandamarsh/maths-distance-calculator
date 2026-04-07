@@ -90,6 +90,26 @@ const zh: Translations = {
   "pdf.tip": "提示：回去再试试那些答错的题目。",
   "pdf.footer": "由 SeeMaths 生成",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.nswCurriculum": "NSW数学课程",
+  "pdf.basicRound": "基础关卡：",
+  "pdf.basicRoundDesc": "回答路线距离题目，赢取10个蛋。每题一张新地图。",
+  "pdf.monsterRoundLabel": "怪兽关卡：",
+  "pdf.monsterRoundDesc": "用10个蛋应对更难题目。答错失去一个蛋。",
+  "pdf.monsterBadge": "怪兽",
+  "pdf.answered": "作答：{value}",
+  "pdf.correctIn": "（正确：{value}）",
+  "pdf.tipAreas": "提示：下次多练习{areas}！",
+  "pdf.areaAddingDistances": "距离相加",
+  "pdf.areaFindingMissing": "寻找缺失距离",
+  "pdf.areaComparingDistances": "比较距离",
+
+  // Question prompt templates
+  "game.prompt.l1TwoStop": "{dino} 想从 {from} 去 {to}，应该走多远？",
+  "game.prompt.l1MultiStop": "{dino} 经过 {stops}，全程应该走多远？",
+  "game.prompt.l2MissingLeg": "{from} 到 {to} 的总距离是 {total} {unit}，从 {hidFrom} 到 {hidTo} 的缺失距离是多少？",
+  "game.prompt.l3HowMuchFarther": "从 {hub} 出发，到 {far} 比到 {near} 远多少？",
+  "game.prompt.l3SubFromTo": "从 {from} 到 {to} 有多远？",
+  "game.stopSeparator": " → ",
 
   // Email
   "email.subject": "{gameName} 报告",

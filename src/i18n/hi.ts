@@ -90,6 +90,26 @@ const hi: Translations = {
   "pdf.tip": "सुझाव: वापस जाएं और जो प्रश्न छूट गए उन्हें हल करें।",
   "pdf.footer": "SeeMaths द्वारा बनाया गया",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.nswCurriculum": "NSW गणित पाठ्यक्रम",
+  "pdf.basicRound": "बेसिक राउंड:",
+  "pdf.basicRoundDesc": "रास्ते की दूरियों के सवाल हल करके 10 अंडे जीतें। हर सवाल के लिए नया नक्शा।",
+  "pdf.monsterRoundLabel": "मॉन्स्टर राउंड:",
+  "pdf.monsterRoundDesc": "कठिन सवालों से 10 अंडे बचाएं। गलत जवाब देने पर एक अंडा चला जाएगा।",
+  "pdf.monsterBadge": "मॉन्स्टर",
+  "pdf.answered": "उत्तर: {value}",
+  "pdf.correctIn": "(सही: {value})",
+  "pdf.tipAreas": "सुझाव: अगली बार {areas} का अभ्यास करें!",
+  "pdf.areaAddingDistances": "दूरियाँ जोड़ना",
+  "pdf.areaFindingMissing": "लुप्त दूरी ढूंढना",
+  "pdf.areaComparingDistances": "दूरियों की तुलना करना",
+
+  // Question prompt templates
+  "game.prompt.l1TwoStop": "{dino} को {from} से {to} तक जाना है। {dino} को कितनी दूरी तय करनी चाहिए?",
+  "game.prompt.l1MultiStop": "{dino} {stops} से होकर जाता है। {dino} को कुल कितनी दूरी तय करनी चाहिए?",
+  "game.prompt.l2MissingLeg": "{from} से {to} तक की कुल दूरी {total} {unit} है। {hidFrom} से {hidTo} तक की लुप्त दूरी क्या है?",
+  "game.prompt.l3HowMuchFarther": "{hub} से {far} तक की दूरी, {near} की तुलना में कितनी अधिक है?",
+  "game.prompt.l3SubFromTo": "{from} से {to} तक की दूरी कितनी है?",
+  "game.stopSeparator": " → ",
 
   // Email
   "email.subject": "{gameName} रिपोर्ट",

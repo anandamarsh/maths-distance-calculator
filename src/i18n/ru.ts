@@ -90,6 +90,26 @@ const ru: Translations = {
   "pdf.tip": "Совет: Вернитесь и попробуйте вопросы, на которые ответили неверно.",
   "pdf.footer": "Создано SeeMaths",
   "pdf.footerUrl": "www.seemaths.com",
+  "pdf.nswCurriculum": "Учебная программа по математике NSW",
+  "pdf.basicRound": "Базовый раунд:",
+  "pdf.basicRoundDesc": "Зарабатывайте 10 яиц, отвечая на вопросы о расстояниях. Новая карта на каждый вопрос.",
+  "pdf.monsterRoundLabel": "Монстр-раунд:",
+  "pdf.monsterRoundDesc": "Защитите 10 яиц от сложных вопросов. Неверный ответ — минус одно яйцо.",
+  "pdf.monsterBadge": "МОНСТР",
+  "pdf.answered": "ответ: {value}",
+  "pdf.correctIn": "(правильно: {value})",
+  "pdf.tipAreas": "Совет: Потренируйтесь в следующий раз на {areas}!",
+  "pdf.areaAddingDistances": "сложение расстояний",
+  "pdf.areaFindingMissing": "поиск недостающего расстояния",
+  "pdf.areaComparingDistances": "сравнение расстояний",
+
+  // Question prompt templates
+  "game.prompt.l1TwoStop": "{dino} хочет доехать из {from} в {to}. Какое расстояние должен преодолеть {dino}?",
+  "game.prompt.l1MultiStop": "{dino} едет через {stops}. Какое общее расстояние должен преодолеть {dino}?",
+  "game.prompt.l2MissingLeg": "Общее расстояние от {from} до {to} равно {total} {unit}. Найдите недостающее расстояние от {hidFrom} до {hidTo}.",
+  "game.prompt.l3HowMuchFarther": "Из {hub}, насколько дальше до {far}, чем до {near}?",
+  "game.prompt.l3SubFromTo": "Какое расстояние от {from} до {to}?",
+  "game.stopSeparator": " → ",
 
   // Email
   "email.subject": "Отчёт {gameName}",
