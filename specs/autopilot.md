@@ -12,7 +12,8 @@
 Plays the game autonomously — dragging the dino along the route, typing decimal
 answers, sending the email report, and advancing to the next level — in a loop.
 Uses async/await with a run-ID cancellation pattern. Deliberately misses 20% of
-answers (5% in CI/automated browser environments).
+answers (5% in CI/automated browser environments) in continuous mode only. The
+single-question robot demo should always show the correct answer.
 
 Two modes:
 - **`"continuous"`** — plays indefinitely, loops back after final level
@@ -22,7 +23,7 @@ Two modes:
 
 ## Activation
 
-- Cheat code `198081` (on keyboard) → toggles continuous autopilot
+- Cheat code `198081` (hardware keyboard or on-screen keypad digits) → toggles continuous autopilot
 - Cheat code `197879` → shows and submits the correct answer once (not autopilot)
 - Robot button click when autopilot inactive → starts `"single-question"` mode
 - Robot button click when autopilot active → stops autopilot
@@ -88,6 +89,11 @@ function makeWrongAnswer(correctAnswer: string): string {
 
 Wrong answers are decimal offsets of ±0.1 to ±0.4 from the correct answer.
 These are genuine misses — logged in session, counted in accuracy, never self-corrected.
+
+Important:
+- Wrong-answer injection applies only to `"continuous"` mode.
+- `"single-question"` mode must always answer correctly because it is the child-facing
+  "show me how" action.
 
 ---
 
