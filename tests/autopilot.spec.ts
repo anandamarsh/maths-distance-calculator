@@ -28,6 +28,7 @@ test("198081 runs the full phantom autopilot flow", async ({ page }) => {
   });
 
   await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("reportName", "Alex"));
 
   const dino = page.getByTestId("dino-token").first();
   await expect(dino).toBeVisible();
@@ -41,10 +42,10 @@ test("198081 runs the full phantom autopilot flow", async ({ page }) => {
   expect(movedBox).not.toBeNull();
   expect(movedBox!.x !== startBox!.x || movedBox!.y !== startBox!.y).toBeTruthy();
 
-  await expect(page.getByText("Level 1 Complete!")).toBeVisible({
+  await expect(page.getByText("Level 1 Clear!")).toBeVisible({
     timeout: 180_000,
   });
-  await expect(page.getByText("Level 2 Complete!")).toBeVisible({
+  await expect(page.getByText("Level 2 Clear!")).toBeVisible({
     timeout: 240_000,
   });
   await expect(page.getByText("You Did It!")).toBeVisible({

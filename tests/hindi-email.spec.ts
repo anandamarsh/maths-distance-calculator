@@ -5,7 +5,10 @@ test("Hindi locale: autopilot sends real email report to amarsh.anand@gmail.com"
 
   // Set Hindi locale before navigating
   await page.goto("/");
-  await page.evaluate(() => localStorage.setItem("lang", "hi"));
+  await page.evaluate(() => {
+    localStorage.setItem("lang", "hi");
+    localStorage.setItem("reportName", "अर्जुन");
+  });
   await page.reload();
 
   // Verify locale was applied

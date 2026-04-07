@@ -58,17 +58,36 @@ function sanitize(text: string, useUnicode = false): string {
 
 function splitTextForPdf(text: string, doc: jsPDF, maxWidth: number): string[] {
   const hasDevanagari = /[\u0900-\u097F]/.test(text);
+  const hasCJK = /[\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/.test(text);
 
-  if (!hasDevanagari) {
+  if (!hasDevanagari && !hasCJK) {
     return doc.splitTextToSize(text, maxWidth);
   }
 
-  // jsPDF sums raw Unicode codepoint advance widths without Devanagari shaping.
-  // Matra and virama codepoints (ि ी ु ू े ै ो ौ ् etc.) are counted as full-width
-  // glyphs even though they combine visually with the preceding consonant.
-  // This causes ~1.5–1.8x overestimation of actual rendered line width.
-  // Compensating by passing a wider target to splitTextToSize gives correct wrapping.
-  return doc.splitTextToSize(text, maxWidth * 1.7);
+  // jsPDF cannot reliably measure glyph widths for complex/CJK scripts loaded
+  // as custom TTF fonts. Use character-count wrapping instead.
+  // Devanagari: ~50 Unicode codepoints per 89mm at 8.5pt (avg ~1.8mm/glyph).
+  // CJK: full-width glyphs ~3mm each at 8.5pt → ~30 chars per 89mm.
+  const baseChars = hasDevanagari ? 50 : 30;
+  const maxCharsPerLine = Math.round(baseChars * (maxWidth / 89));
+
+  const sentences = text.split(/(?<=[।?？。！!])\s*/).filter(s => s.trim().length > 0);
+  const result: string[] = [];
+  for (const sentence of sentences) {
+    const words = sentence.split(/\s+/);
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (candidate.length <= maxCharsPerLine || !line) {
+        line = candidate;
+      } else {
+        result.push(line);
+        line = word;
+      }
+    }
+    if (line) result.push(line);
+  }
+  return result.filter(s => s.trim().length > 0);
 }
 
 // ─── Font URL → locale mapping for non-Latin scripts ─────────────────────────
@@ -76,7 +95,7 @@ function splitTextForPdf(text: string, doc: jsPDF, maxWidth: number): string[] {
 const UNICODE_FONT_MAP: Partial<Record<string, string>> = {
   hi: "/fonts/NotoSansDevanagari-Regular.ttf",
   en: "/fonts/NotoSans-Regular.ttf",
-  zh: "/fonts/NotoSans-Regular.ttf",
+  zh: "/fonts/NotoSansSC-Regular.ttf",
 };
 
 async function loadFontBase64(locale: string): Promise<{ name: string; base64: string } | null> {
@@ -88,7 +107,8 @@ async function loadFontBase64(locale: string): Promise<{ name: string; base64: s
     const bytes = new Uint8Array(buf);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return { name: locale === "hi" ? "NotoSansDevanagari" : "NotoSans", base64: btoa(binary) };
+    const name = locale === "hi" ? "NotoSansDevanagari" : locale === "zh" ? "NotoSansSC" : "NotoSans";
+    return { name, base64: btoa(binary) };
   } catch {
     return null;
   }
@@ -282,7 +302,7 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   // HEADER BANNER — two columns: icon (left) | title + date (right)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const bannerH = 28;
+  const bannerH = 33;
   doc.setFillColor(COLORS.headerBg);
   doc.roundedRect(margin, curY, contentW, bannerH, 4, 4, "F");
   doc.setDrawColor(COLORS.headerBorder);
@@ -325,6 +345,14 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   doc.setTextColor(COLORS.textDark);
   doc.text(sanitize(t("pdf.sessionReport", { n: summary.level }), useUnicode), titleCX, line2Y, { align: "center" });
 
+  // Player name line
+  if (summary.playerName) {
+    doc.setFontSize(8);
+    doc.setFont(fontName, "normal");
+    doc.setTextColor(COLORS.textMuted);
+    doc.text(sanitize(summary.playerName, useUnicode), titleCX, line2Y + 7, { align: "center" });
+  }
+
   curY += bannerH + 14;   // clear section break before curriculum
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -366,9 +394,6 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   const stageDescW = contentW - pillW - 4;
   // Combine stage label and description into one wrapped block
   const stageAndDesc = sanitize(stageLabel, useUnicode) + " " + currDescription;
-  // Set correct font/size before measuring so splitTextToSize uses right metrics
-  doc.setFont(fontName, "normal");
-  doc.setFontSize(7.5);
   const stageDescWrapped = splitTextForPdf(stageAndDesc, doc, stageDescW);
 
   doc.setFontSize(7.5);
@@ -531,18 +556,10 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
   const textX = mapX + mapW + 4;
   const textW = cardRight - textX - 3;
 
-  // Set font/size to match actual render settings so splitTextToSize measures correctly
-  doc.setFont(fontName, "normal");
-  doc.setFontSize(8.5);
-
   for (const attempt of summary.attempts) {
-    doc.setFont(fontName, "bold");
-    doc.setFontSize(8.5);
     const promptLinesEstimate = splitTextForPdf(sanitize(attempt.prompt, useUnicode), doc, textW);
     let subAnswerHeightEstimate = 0;
     if (attempt.subAnswers && attempt.subAnswers.length > 0) {
-      doc.setFont(fontName, "normal");
-      doc.setFontSize(7.5);
       for (const sub of attempt.subAnswers) {
         const promptLines = splitTextForPdf(sanitize(sub.prompt, useUnicode), doc, textW - 8);
         subAnswerHeightEstimate += promptLines.length * 4.2 + 0.5 + 5.0; // prompt + answer line

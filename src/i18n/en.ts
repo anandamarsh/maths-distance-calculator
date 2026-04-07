@@ -31,6 +31,7 @@ const en: Translations = {
   "report.sendTitle": "Send the report by email",
   "report.enterEmail": "Enter an email address",
   "report.emailPlaceholder": "parent@example.com",
+  "report.namePlaceholder": "Your name",
   "report.subheading": "Monster Round Crushed!",
   "report.score": "Score",
   "report.accuracy": "Accuracy",
@@ -119,8 +120,8 @@ const en: Translations = {
   // Email
   "email.subject": "{gameName} Report",
   "email.greeting": "Hi there,",
-  "email.bodyIntro": "A player played {game} at {time} on {date} for {duration}. Score: {score}, Accuracy: {accuracy}.",
-  "email.curriculumIntro": "This game covers {stageLabel}: {curriculumCode} — {curriculumDescription}.",
+  "email.bodyIntro": "{playerName} played {game} at {time} on {date} for {duration}. Score: {score}, Accuracy: {accuracy}.",
+  "email.curriculumIntro": "This game covers {stageLabel}:",
   "email.regards": "Regards,",
   "email.invalidEmail": "Please enter a valid email address.",
   "email.missingPdf": "Report attachment is missing.",

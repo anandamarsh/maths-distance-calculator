@@ -214,8 +214,15 @@ export function useDistanceAutopilot({
 
     await waitMs(rand(AUTOPILOT_TIMING.BEFORE_SEND));
     callbacks.emailModalControls.current?.setEmail(autopilotEmail);
+
+    // Poll until the send button is enabled (React needs a render cycle after setEmail)
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const btn = getAutopilotElement("email-send") as HTMLButtonElement | null;
+      if (btn && !btn.disabled) break;
+      await waitMs(100);
+    }
+
     await clickElement("email-send");
-    await callbacks.emailModalControls.current?.triggerSend?.();
     await waitMs(POST_SEND_RESULT_PAUSE_MS);
 
     await waitMs(rand(AUTOPILOT_TIMING.AFTER_SEND));

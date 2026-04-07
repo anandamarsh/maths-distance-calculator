@@ -31,6 +31,7 @@ const hi: Translations = {
   "report.sendTitle": "ईमेल द्वारा रिपोर्ट भेजें",
   "report.enterEmail": "ईमेल पता दर्ज करें",
   "report.emailPlaceholder": "parent@example.com",
+  "report.namePlaceholder": "आपका नाम",
   "report.subheading": "मॉन्स्टर राउंड जीत लिया!",
   "report.score": "स्कोर",
   "report.accuracy": "सटीकता",
@@ -119,8 +120,8 @@ const hi: Translations = {
   // Email
   "email.subject": "{gameName} रिपोर्ट",
   "email.greeting": "नमस्ते,",
-  "email.bodyIntro": "एक खिलाड़ी ने {date} को {time} पर {game} खेला, {duration} के लिए। स्कोर: {score}, सटीकता: {accuracy}।",
-  "email.curriculumIntro": "यह गेम {stageLabel} को कवर करता है: {curriculumCode} — {curriculumDescription}।",
+  "email.bodyIntro": "{playerName} ने {date} को {time} पर {game} खेला, {duration} के लिए। स्कोर: {score}, सटीकता: {accuracy}।",
+  "email.curriculumIntro": "यह गेम {stageLabel} को कवर करता है:",
   "email.regards": "सादर,",
   "email.invalidEmail": "कृपया एक वैध ईमेल पता दर्ज करें।",
   "email.missingPdf": "रिपोर्ट अनुलग्नक गायब है।",

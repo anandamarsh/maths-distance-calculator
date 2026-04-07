@@ -31,6 +31,7 @@ const zh: Translations = {
   "report.sendTitle": "通过邮件发送报告",
   "report.enterEmail": "请输入邮箱地址",
   "report.emailPlaceholder": "parent@example.com",
+  "report.namePlaceholder": "您的姓名",
   "report.subheading": "怪兽关卡已通过！",
   "report.score": "得分",
   "report.accuracy": "正确率",
@@ -119,8 +120,8 @@ const zh: Translations = {
   // Email
   "email.subject": "{gameName} 报告",
   "email.greeting": "您好，",
-  "email.bodyIntro": "一位玩家于 {date} {time} 玩了 {game}，时长 {duration}。得分：{score}，正确率：{accuracy}。",
-  "email.curriculumIntro": "此游戏涵盖 {stageLabel}：{curriculumCode} — {curriculumDescription}。",
+  "email.bodyIntro": "{playerName} 于 {date} {time} 玩了 {game}，时长 {duration}。得分：{score}，正确率：{accuracy}。",
+  "email.curriculumIntro": "此游戏涵盖 {stageLabel}：",
   "email.regards": "此致，",
   "email.invalidEmail": "请输入有效的邮箱地址。",
   "email.missingPdf": "缺少报告附件。",

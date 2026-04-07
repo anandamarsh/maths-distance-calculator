@@ -98,6 +98,7 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
     emailSubject: t("email.subject", { gameName: GAME_NAME }),
     emailGreeting: t("email.greeting"),
     emailBodyIntro: t("email.bodyIntro", {
+      playerName: summary.playerName || "Explorer",
       game: GAME_NAME,
       time: sessionTime,
       date: sessionDate,
@@ -105,11 +106,7 @@ function getEmailMetadata(summary: SessionSummary, locale = "en") {
       score: scoreLine,
       accuracy,
     }),
-    emailCurriculumIntro: t("email.curriculumIntro", {
-      stageLabel,
-      curriculumCode: curriculum.code,
-      curriculumDescription,
-    }),
+    emailCurriculumIntro: t("email.curriculumIntro", { stageLabel }),
     emailRegards: t("email.regards"),
   };
 }

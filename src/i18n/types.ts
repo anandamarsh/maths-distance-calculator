@@ -33,6 +33,7 @@ export type Translations = {
   "report.sendTitle": string;
   "report.enterEmail": string;
   "report.emailPlaceholder": string;
+  "report.namePlaceholder": string;
   "report.subheading": string;
   "report.score": string;
   "report.accuracy": string;
