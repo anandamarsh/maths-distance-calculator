@@ -63,6 +63,12 @@ export default async function handler(req: any, res: any) {
         curriculumUrl?: string;
         curriculumIndexUrl?: string;
         reportFileName?: string;
+        // Pre-translated email body strings (optional — falls back to English)
+        emailSubject?: string;
+        emailGreeting?: string;
+        emailBodyIntro?: string;
+        emailCurriculumIntro?: string;
+        emailRegards?: string;
       }
     | null;
 
@@ -99,6 +105,15 @@ export default async function handler(req: any, res: any) {
     "https://www.educationstandards.nsw.edu.au/wps/portal/nesa/k-10/learning-areas/mathematics/mathematics-k-10";
   const curriculumText = `${curriculumCode} - ${curriculumDescription}`;
 
+  // Use pre-translated strings if provided, otherwise fall back to English plain text
+  const emailSubject = payload?.emailSubject || `${gameName} Report`;
+  const emailGreeting = payload?.emailGreeting || "Hi there,";
+  const emailBodyIntro = payload?.emailBodyIntro ||
+    `A player played ${gameName} at SeeMaths at ${sessionTime} on ${sessionDate} for ${durationText}. They scored ${scoreLine} and had an accuracy of ${accuracy}.`;
+  const emailCurriculumIntro = payload?.emailCurriculumIntro ||
+    `This game is equivalent to ${stageLabel} on topic ${curriculumText}.`;
+  const emailRegards = payload?.emailRegards || "Regards,";
+
   const resendResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -108,22 +123,13 @@ export default async function handler(req: any, res: any) {
     body: JSON.stringify({
       from: `${senderName} <${from}>`,
       to: [email],
-      subject: `${gameName} Report`,
+      subject: emailSubject,
       html: `
-        <p>Hi there,</p>
+        <p>${escapeHtml(emailGreeting)}</p>
+        <p>${escapeHtml(emailBodyIntro)}</p>
+        <p>${escapeHtml(emailCurriculumIntro)} <a href="${escapeHtml(curriculumUrl)}">${escapeHtml(curriculumText)}</a></p>
         <p>
-          A player played <strong>${escapeHtml(gameName)}</strong> at
-          <a href="${escapeHtml(siteUrl)}">SeeMaths</a>
-          at <strong>${escapeHtml(sessionTime)}</strong> on <strong>${escapeHtml(sessionDate)}</strong> for
-          <strong>${escapeHtml(durationText)}</strong>. They scored <strong>${escapeHtml(scoreLine)}</strong>
-          and had an accuracy of <strong>${escapeHtml(accuracy)}</strong>.
-        </p>
-        <p>
-          This game is equivalent to <a href="${escapeHtml(curriculumIndexUrl)}"><strong>${escapeHtml(stageLabel)}</strong></a> on topic
-          <a href="${escapeHtml(curriculumUrl)}"><strong>${escapeHtml(curriculumText)}</strong></a>.
-        </p>
-        <p>
-          Regards,<br />
+          ${escapeHtml(emailRegards)}<br />
           ${escapeHtml(gameName)}<br />
           <a href="${escapeHtml(siteUrl)}">SeeMaths</a>
         </p>

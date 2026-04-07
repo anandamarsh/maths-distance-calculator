@@ -2,6 +2,7 @@
 
 import { generateSessionPdf } from "./generatePdf";
 import type { SessionSummary } from "./sessionLog";
+import { getT, getLocaleFormat } from "../i18n";
 
 const SITE_URL = "https://www.seemaths.com";
 const GAME_NAME = "Distance Calculator";
@@ -52,20 +53,23 @@ function getOrdinalSuffix(day: number): string {
   return "th";
 }
 
-function formatSessionDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const day = date.getDate();
-  const month = date.toLocaleDateString("en-AU", { month: "short" });
-  const weekday = date.toLocaleDateString("en-AU", { weekday: "short" });
-  return `${weekday} ${day}${getOrdinalSuffix(day)} ${month}`;
+function formatSessionDate(timestamp: number, intlLocale = "en-AU"): string {
+  // For English (en-AU), keep the existing ordinal format for familiarity
+  if (intlLocale.startsWith("en")) {
+    const date = new Date(timestamp);
+    const day = date.getDate();
+    const month = date.toLocaleDateString("en-AU", { month: "short" });
+    const weekday = date.toLocaleDateString("en-AU", { weekday: "short" });
+    return `${weekday} ${day}${getOrdinalSuffix(day)} ${month}`;
+  }
+  return new Date(timestamp).toLocaleDateString(intlLocale, {
+    weekday: "short", year: "numeric", month: "short", day: "numeric",
+  });
 }
 
-function formatSessionTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("en-AU", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function formatSessionTime(timestamp: number, intlLocale = "en-AU", timeOptions?: Intl.DateTimeFormatOptions): string {
+  const opts: Intl.DateTimeFormatOptions = timeOptions ?? { hour: "numeric", minute: "2-digit", hour12: true };
+  return new Date(timestamp).toLocaleTimeString(intlLocale, opts);
 }
 
 function formatDurationMinutes(startTime: number, endTime: number): string {
@@ -73,20 +77,44 @@ function formatDurationMinutes(startTime: number, endTime: number): string {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-function getEmailMetadata(summary: SessionSummary) {
+function getEmailMetadata(summary: SessionSummary, locale = "en") {
   const curriculum = CURRICULUM_BY_LEVEL[summary.level];
+  const fmt = getLocaleFormat(locale);
+  const t = getT(locale);
+  const sessionTime = formatSessionTime(summary.startTime, fmt.intlLocale, fmt.timeOptions);
+  const sessionDate = formatSessionDate(summary.startTime, fmt.intlLocale);
+  const durationText = formatDurationMinutes(summary.startTime, summary.endTime);
+  const scoreLine = `${summary.correctCount}/${summary.totalQuestions}`;
+  const accuracy = `${summary.accuracy}%`;
   return {
     gameName: GAME_NAME,
     senderName: SENDER_NAME,
     siteUrl: SITE_URL,
-    sessionTime: formatSessionTime(summary.startTime),
-    sessionDate: formatSessionDate(summary.startTime),
-    durationText: formatDurationMinutes(summary.startTime, summary.endTime),
+    sessionTime,
+    sessionDate,
+    durationText,
     stageLabel: curriculum.stageLabel,
     curriculumCode: curriculum.code,
     curriculumDescription: curriculum.description,
     curriculumUrl: curriculum.syllabusUrl,
     curriculumIndexUrl: CURRICULUM_INDEX_URL,
+    // Pre-translated email body strings
+    emailSubject: t("email.subject", { gameName: GAME_NAME }),
+    emailGreeting: t("email.greeting"),
+    emailBodyIntro: t("email.bodyIntro", {
+      game: GAME_NAME,
+      time: sessionTime,
+      date: sessionDate,
+      duration: durationText,
+      score: scoreLine,
+      accuracy,
+    }),
+    emailCurriculumIntro: t("email.curriculumIntro", {
+      stageLabel: curriculum.stageLabel,
+      curriculumCode: curriculum.code,
+      curriculumDescription: curriculum.description,
+    }),
+    emailRegards: t("email.regards"),
   };
 }
 
@@ -161,6 +189,7 @@ export async function shareReport(summary: SessionSummary): Promise<boolean> {
 export async function emailReport(
   summary: SessionSummary,
   email: string,
+  locale = "en",
 ): Promise<void> {
   const blob = await buildReportBlob(summary);
   const response = await fetch("/api/send-report", {
@@ -175,7 +204,7 @@ export async function emailReport(
       correctCount: summary.correctCount,
       totalQuestions: summary.totalQuestions,
       accuracy: summary.accuracy,
-      ...getEmailMetadata(summary),
+      ...getEmailMetadata(summary, locale),
       reportFileName: getReportFileName(summary),
     }),
   });

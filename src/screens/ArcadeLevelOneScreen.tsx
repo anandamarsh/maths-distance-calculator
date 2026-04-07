@@ -42,7 +42,7 @@ import { emailReport, shareReport } from "../report/shareReport";
 import AutopilotIcon from "../components/AutopilotIcon";
 import PhantomHand from "../components/PhantomHand";
 import LanguageSwitcher from "../components/LanguageSwitcher";
-import { useT } from "../i18n";
+import { useT, useLocale } from "../i18n";
 import { useCheatCodes } from "../hooks/useCheatCode";
 import {
   useDistanceAutopilot,
@@ -891,6 +891,7 @@ function LevelCompleteReportActions({
   autopilotControlsRef?: MutableRefObject<ModalAutopilotControls | null>;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const [generating, setGenerating] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [emailFeedback, setEmailFeedback] = useState<string | null>(null);
@@ -915,7 +916,7 @@ function LevelCompleteReportActions({
     setEmailFeedback(null);
     setEmailError(false);
     try {
-      await emailReport(summary, shareEmail);
+      await emailReport(summary, shareEmail, locale);
       setEmailFeedback(t("report.sendSuccess", { email: shareEmail.trim() }));
     } catch (error) {
       console.error("Email send failed:", error);
