@@ -68,7 +68,7 @@ export default function LanguageSwitcher() {
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-3 z-[100] w-[min(82vw,22rem)] rounded-[1.8rem] p-4"
+          className="absolute left-0 top-full mt-3 z-[100] w-[min(calc(100vw-1rem),22rem)] rounded-[1.8rem] p-4"
           style={{
             background: "rgba(15,23,42,0.985)",
             border: "4px solid rgba(36,127,186,0.78)",
