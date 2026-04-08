@@ -29,6 +29,9 @@ import {
   playMonsterVictory,
   playGameComplete,
   playKeyClick,
+  startRecordingSoundtrack,
+  fadeOutRecordingSoundtrack,
+  stopRecordingSoundtrack,
 } from "../sound";
 import { SocialComments, SocialShare, openCommentsComposer } from "../components/Social";
 import {
@@ -42,9 +45,11 @@ import { emailReport, shareReport } from "../report/shareReport";
 import AutopilotIcon from "../components/AutopilotIcon";
 import PhantomHand from "../components/PhantomHand";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import VudeoOverlay from "../components/VudeoOverlay";
 import { useT, useLocale } from "../i18n";
 import type { TFunction } from "../i18n/types";
 import { useCheatCodes } from "../hooks/useCheatCode";
+import { useVudeoRecorder } from "../hooks/useVudeoRecorder";
 import {
   useDistanceAutopilot,
   type DistanceAutopilotCallbacks,
@@ -285,6 +290,7 @@ const ANSWER_CHEAT_CODE = "197879";
 const AUTOPILOT_CHEAT_CODE = "198081";
 const AUTOPILOT_EMAIL =
   import.meta.env.VITE_AUTOPILOT_EMAIL ?? "amarsh.anand@gmail.com";
+const DEMO_RECORDING_EMAIL = "teacher@myschool.com";
 const IS_LOCALHOST_DEV =
   IS_DEV &&
   new Set(["localhost", "127.0.0.1", "::1"]).has(
@@ -302,6 +308,7 @@ function readInitialLevel(): 1 | 2 | 3 {
 /** Eggs to collect per phase (normal white → Monster Round golden). */
 const DEFAULT_EGGS_PER_LEVEL = 10;
 const AUTOPILOT_EGGS_PER_LEVEL = 5;
+const VUDEO_EGGS_PER_LEVEL = 2;
 const SUCCESS_ICON_DURATION_MS = 1100;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
@@ -1121,6 +1128,11 @@ export default function ArcadeLevelOneScreen() {
   const keypadToggleRef = useRef<(() => void) | null>(null);
   const keypadMinimizeRef = useRef<(() => void) | null>(null);
   const autopilotCallbacksRef = useRef<DistanceAutopilotCallbacks | null>(null);
+  const vudeoCallbacksRef = useRef({
+    onStartPlaying: () => {},
+    prepareAudio: () => {},
+    cleanup: () => {},
+  });
   const singleQuestionDemoRef = useRef(false);
   const modalControlsRef = useRef<ModalAutopilotControls | null>(null);
   const eggTargetRef = useRef(DEFAULT_EGGS_PER_LEVEL);
@@ -1155,6 +1167,14 @@ export default function ArcadeLevelOneScreen() {
   const keypadValueRef = useRef("");
   const handleKeypadChangeRef = useRef<(value: string) => void>(() => {});
   const submitAnswerRef = useRef(() => {});
+  const {
+    recordingPhase,
+    isRecording,
+    startRecording,
+    onIntroComplete,
+    showOutro,
+    onOutroComplete,
+  } = useVudeoRecorder(vudeoCallbacksRef);
 
   const { config, dino, dinoColor } = run;
   const checkpoints = getCheckpoints(config);
@@ -2303,15 +2323,20 @@ export default function ArcadeLevelOneScreen() {
       submitAnswer,
       goNextLevel: () => beginNewRun((level + 1) as 1 | 2 | 3, true),
       emailModalControls: modalControlsRef,
+      onAutopilotComplete: () => {
+        if (isRecording) showOutro();
+      },
     }),
     [
       beginNewRun,
       checkpoints,
       config,
       handleKeypadChange,
+      isRecording,
       isKeypadMinimized,
       level,
       moveRex,
+      showOutro,
       submitAnswer,
     ],
   );
@@ -2328,7 +2353,7 @@ export default function ArcadeLevelOneScreen() {
   } = useDistanceAutopilot({
     mode: autopilotMode,
     callbacksRef: autopilotCallbacksRef,
-    autopilotEmail: AUTOPILOT_EMAIL,
+    autopilotEmail: isRecording ? DEMO_RECORDING_EMAIL : AUTOPILOT_EMAIL,
     state: {
       screen,
       level,
@@ -2347,14 +2372,44 @@ export default function ArcadeLevelOneScreen() {
       hasNextLevel: screen === "won" && level < 3,
     },
   });
-  const eggsPerLevel = isAutopilot && autopilotMode === "continuous"
-    ? AUTOPILOT_EGGS_PER_LEVEL
-    : DEFAULT_EGGS_PER_LEVEL;
+  const eggsPerLevel =
+    isAutopilot && autopilotMode === "continuous"
+      ? isRecording
+        ? VUDEO_EGGS_PER_LEVEL
+        : AUTOPILOT_EGGS_PER_LEVEL
+      : DEFAULT_EGGS_PER_LEVEL;
   const eggIndices = Array.from({ length: eggsPerLevel }, (_, i) => i);
 
   useEffect(() => {
     eggTargetRef.current = eggsPerLevel;
   }, [eggsPerLevel]);
+
+  vudeoCallbacksRef.current = {
+    prepareAudio: () => {
+      if (!soundMuted) {
+        const nowMuted = toggleMute();
+        setSoundMuted(nowMuted);
+      }
+      startRecordingSoundtrack();
+    },
+    onStartPlaying: () => {
+      closeSocialDrawers();
+      clearSingleQuestionDemo();
+      if (isAutopilot) {
+        deactivateAutopilot();
+      }
+      setUnlockedLevel(1);
+      setAutopilotMode("continuous");
+      handleKeypadChange("");
+      beginNewRun(1);
+      activateAutopilot();
+    },
+    cleanup: () => {
+      clearSingleQuestionDemo();
+      deactivateAutopilot();
+      stopRecordingSoundtrack();
+    },
+  };
 
   function clearSingleQuestionDemo() {
     singleQuestionDemoRef.current = false;
@@ -2642,6 +2697,34 @@ export default function ArcadeLevelOneScreen() {
                   r="3.25"
                   stroke="white"
                   strokeWidth="1.9"
+                />
+              </svg>
+            </button>
+          )}
+          {IS_LOCALHOST_DEV && !isRecording && (
+            <button
+              type="button"
+              onClick={startRecording}
+              title="Record demo video"
+              aria-label="Record demo video"
+              className="social-launcher arcade-button"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                <rect
+                  x="3"
+                  y="6"
+                  width="11"
+                  height="12"
+                  rx="2"
+                  stroke="white"
+                  strokeWidth="1.9"
+                />
+                <path
+                  d="m20 8-4 2.6v2.8L20 16Z"
+                  stroke="white"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
             </button>
@@ -3480,7 +3563,7 @@ export default function ArcadeLevelOneScreen() {
                   text={currentQ.promptLineKeys ? t(currentQ.promptLineKeys[2] as Parameters<typeof t>[0], currentQ.promptLineVars?.[2]) : currentQ.promptLines[2]}
                   stopLabels={stopLabels}
                 />
-                {(IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
+                {!isRecording && (IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
                   <span
                     className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                     style={{
@@ -3531,7 +3614,7 @@ export default function ArcadeLevelOneScreen() {
                         stopLabels={stopLabels}
                         className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-[1.3125rem] leading-[1.6rem] md:text-[1.5rem] md:leading-[1.8rem]"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
                       />
-                      {(IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
+                      {!isRecording && (IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
                         <span
                           className="shrink-0 rounded px-1 text-[10px] font-black"
                           style={{
@@ -3577,7 +3660,7 @@ export default function ArcadeLevelOneScreen() {
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={t(currentQ.promptKey as Parameters<typeof t>[0], currentQ.promptVars)} stopLabels={stopLabels} />
-              {(IS_DEV || showCheatAnswer) && (
+              {!isRecording && (IS_DEV || showCheatAnswer) && (
                 <span
                   className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                   style={{
@@ -4119,6 +4202,38 @@ export default function ArcadeLevelOneScreen() {
       )}
 
       <PhantomHand pos={isAutopilot && dragging ? null : phantomPos} />
+
+      {recordingPhase === "intro-prompt" && (
+        <VudeoOverlay type="intro" isStatic />
+      )}
+      {recordingPhase === "intro" && (
+        <VudeoOverlay type="intro" onComplete={onIntroComplete} />
+      )}
+      {(recordingPhase === "outro" || recordingPhase === "stopping") && (
+        <VudeoOverlay
+          type="outro"
+          onComplete={onOutroComplete}
+          onFadeStart={() => fadeOutRecordingSoundtrack(1200)}
+        />
+      )}
+
+      {isRecording && recordingPhase === "playing" && (
+        <div
+          data-testid="vudeo-recording-indicator"
+          style={{
+            position: "fixed",
+            top: 14,
+            left: 14,
+            zIndex: 9998,
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            background: "#ef4444",
+            boxShadow: "0 0 8px rgba(239,68,68,0.7)",
+            animation: "autopilot-blink 1.5s ease-in-out infinite",
+          }}
+        />
+      )}
     </div>
   );
 }

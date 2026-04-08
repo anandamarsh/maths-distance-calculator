@@ -3,6 +3,7 @@ let footToggle = false;
 let musicMuted = import.meta.env.DEV;
 const MUSIC_VOLUME_SCALE = 0.25;
 const SFX_VOLUME_SCALE = 1;
+const RECORDING_SOUNDTRACK_SCALE = 0.11;
 
 function ac(): AudioContext {
   if (!ctx) ctx = new AudioContext();
@@ -28,6 +29,27 @@ function tone(
   osc.frequency.setValueAtTime(freq, start);
   const scaledVol = vol * (channel === "music" ? MUSIC_VOLUME_SCALE : SFX_VOLUME_SCALE);
   gain.gain.setValueAtTime(scaledVol, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+  osc.start(start);
+  osc.stop(start + dur + 0.01);
+}
+
+function toneToTarget(
+  freq: number,
+  start: number,
+  dur: number,
+  target: AudioNode,
+  vol = 0.08,
+  type: OscillatorType = "square",
+) {
+  const c = ac();
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.connect(gain);
+  gain.connect(target);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, start);
+  gain.gain.setValueAtTime(vol, start);
   gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
   osc.start(start);
   osc.stop(start + dur + 0.01);
@@ -233,6 +255,12 @@ let bgTimer: ReturnType<typeof setTimeout> | null = null;
 let musicOn = false;
 let step = 0;
 let currentPattern: MusicPattern = MUSIC_PATTERNS[0];
+let recordingTimer: ReturnType<typeof setTimeout> | null = null;
+let recordingFadeTimer: ReturnType<typeof setTimeout> | null = null;
+let recordingOn = false;
+let recordingStep = 0;
+let recordingPattern: MusicPattern = MUSIC_PATTERNS[0];
+let recordingMaster: GainNode | null = null;
 
 function tick() {
   if (!musicOn) return;
@@ -272,6 +300,103 @@ export function stopMusic() {
 
 export function isMusicOn() {
   return musicOn;
+}
+
+function getRecordingMaster(): GainNode {
+  const c = ac();
+  if (!recordingMaster) {
+    recordingMaster = c.createGain();
+    recordingMaster.gain.value = 0.0001;
+    recordingMaster.connect(c.destination);
+  }
+  return recordingMaster;
+}
+
+function recordingTick() {
+  if (!recordingOn) return;
+  const t = ac().currentTime;
+  const beat = 60 / recordingPattern.bpm;
+  const {
+    melody,
+    bass,
+    melodyVol = 0.05,
+    bassVol = 0.04,
+    melodyType = "square",
+    bassType = "triangle",
+  } = recordingPattern;
+  const target = getRecordingMaster();
+
+  if (melody[recordingStep]) {
+    toneToTarget(
+      melody[recordingStep],
+      t,
+      beat * 0.7,
+      target,
+      melodyVol * RECORDING_SOUNDTRACK_SCALE,
+      melodyType,
+    );
+  }
+  if (bass[recordingStep]) {
+    toneToTarget(
+      bass[recordingStep],
+      t,
+      beat * 0.9,
+      target,
+      bassVol * RECORDING_SOUNDTRACK_SCALE,
+      bassType,
+    );
+  }
+
+  recordingStep = (recordingStep + 1) % melody.length;
+  recordingTimer = setTimeout(recordingTick, beat * 1000);
+}
+
+export function startRecordingSoundtrack(fadeInMs = 1200) {
+  const c = ac();
+  const target = getRecordingMaster();
+  if (recordingFadeTimer) {
+    clearTimeout(recordingFadeTimer);
+    recordingFadeTimer = null;
+  }
+  recordingPattern = MUSIC_PATTERNS[Math.floor(Math.random() * MUSIC_PATTERNS.length)];
+  recordingStep = 0;
+  recordingOn = true;
+  target.gain.cancelScheduledValues(c.currentTime);
+  target.gain.setValueAtTime(0.0001, c.currentTime);
+  target.gain.linearRampToValueAtTime(1, c.currentTime + fadeInMs / 1000);
+  if (recordingTimer) clearTimeout(recordingTimer);
+  recordingTick();
+}
+
+export function fadeOutRecordingSoundtrack(fadeOutMs = 1200) {
+  if (!recordingMaster) return;
+  const c = ac();
+  recordingMaster.gain.cancelScheduledValues(c.currentTime);
+  recordingMaster.gain.setValueAtTime(
+    Math.max(recordingMaster.gain.value, 0.0001),
+    c.currentTime,
+  );
+  recordingMaster.gain.exponentialRampToValueAtTime(
+    0.0001,
+    c.currentTime + fadeOutMs / 1000,
+  );
+  if (recordingFadeTimer) clearTimeout(recordingFadeTimer);
+  recordingFadeTimer = setTimeout(() => {
+    stopRecordingSoundtrack();
+  }, fadeOutMs + 40);
+}
+
+export function stopRecordingSoundtrack() {
+  recordingOn = false;
+  if (recordingTimer) clearTimeout(recordingTimer);
+  if (recordingFadeTimer) clearTimeout(recordingFadeTimer);
+  recordingTimer = null;
+  recordingFadeTimer = null;
+  if (recordingMaster) {
+    const c = ac();
+    recordingMaster.gain.cancelScheduledValues(c.currentTime);
+    recordingMaster.gain.setValueAtTime(0.0001, c.currentTime);
+  }
 }
 
 // ─── Monster Round music & SFX ────────────────────────────────────────────────
