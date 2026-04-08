@@ -6,8 +6,13 @@ import type { Translations } from "../i18n/types";
 const FLAG_EMOJI: Record<string, string> = {
   en: "\u{1F1EC}\u{1F1E7}",
   zh: "\u{1F1E8}\u{1F1F3}",
-  es: "\u{1F1EA}\u{1F1F8}",
-  ru: "\u{1F1F7}\u{1F1FA}",
+  hi: "\u{1F1EE}\u{1F1F3}",
+};
+
+const FLAG_STYLE: React.CSSProperties = {
+  fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+  fontSize: "1.55rem",
+  lineHeight: 1,
 };
 
 export default function LanguageSwitcher() {
@@ -101,7 +106,7 @@ export default function LanguageSwitcher() {
         onClick={() => { setOpen(o => !o); setShowPrompt(false); setError(null); }}
         title={t("lang.label")}
         aria-label={t("lang.label")}
-        className="social-launcher arcade-button"
+        className="social-launcher arcade-button h-12 w-12 p-2 shadow-[0_14px_30px_rgba(2,6,23,0.42)]"
       >
         <svg viewBox="0 0 24 24" fill="none" className="w-full h-full" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -114,11 +119,11 @@ export default function LanguageSwitcher() {
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-1.5 z-[100] min-w-[180px] rounded-xl overflow-hidden"
+          className="absolute right-0 top-full mt-3 z-[100] w-[min(82vw,22rem)] rounded-[1.8rem] p-4"
           style={{
-            background: "rgba(15,23,42,0.97)",
-            border: "2px solid rgba(56,189,248,0.35)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 12px rgba(56,189,248,0.15)",
+            background: "rgba(15,23,42,0.985)",
+            border: "4px solid rgba(36,127,186,0.78)",
+            boxShadow: "0 22px 44px rgba(2,6,23,0.52)",
           }}
         >
           {!showPrompt ? (
@@ -132,31 +137,33 @@ export default function LanguageSwitcher() {
                     key={code}
                     type="button"
                     onClick={() => handleSelect(code)}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-sm leading-none transition-colors hover:bg-slate-700/60"
+                    className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-slate-800/55"
                     style={{
                       color: isActive ? "#67e8f9" : "#e2e8f0",
                       fontWeight: isActive ? 800 : 500,
+                      fontSize: "1rem",
                     }}
                   >
-                    <span className="text-base">{flag}</span>
-                    <span className="flex-1">{name}</span>
-                    {isActive && <span className="text-cyan-400">&#10003;</span>}
+                    <span aria-hidden="true" style={FLAG_STYLE}>{flag}</span>
+                    <span className="flex-1 font-i18n">{name}</span>
+                    {isActive && <span className="text-cyan-400 text-[2rem] leading-none">&#10003;</span>}
                   </button>
                 );
               })}
-              <div style={{ borderTop: "1px solid rgba(148,163,184,0.15)" }} />
+              <div style={{ borderTop: "1px solid rgba(148,163,184,0.15)", margin: "0.5rem 0" }} />
               <button
                 type="button"
                 onClick={() => setShowPrompt(true)}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-700/60 transition-colors"
+                className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left text-slate-300 transition-colors hover:bg-slate-800/55"
+                style={{ fontSize: "1rem" }}
               >
-                <span className="text-base">{"\u{1F310}"}</span>
-                <span>{t("lang.other")}</span>
+                <span aria-hidden="true" style={FLAG_STYLE}>{"\u{1F310}"}</span>
+                <span className="font-i18n">{t("lang.other")}</span>
               </button>
             </>
           ) : (
-            <div className="p-3.5 flex flex-col gap-2.5">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <div className="flex flex-col gap-2.5 p-1">
+              <div className="font-i18n text-xs font-bold uppercase tracking-wider text-slate-400">
                 {t("lang.promptTitle")}
               </div>
               <input
@@ -166,14 +173,14 @@ export default function LanguageSwitcher() {
                 onKeyDown={e => { if (e.key === "Enter") handleTranslate(); }}
                 placeholder={t("lang.promptPlaceholder")}
                 autoFocus
-                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-cyan-400"
+                className="font-i18n w-full rounded-xl border border-slate-600 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-cyan-400"
               />
-              {error && <div className="text-xs text-rose-400 font-semibold">{error}</div>}
+              {error && <div className="font-i18n text-xs font-semibold text-rose-400">{error}</div>}
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => { setShowPrompt(false); setError(null); }}
-                  className="flex-1 rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="font-i18n flex-1 rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-700"
                 >
                   {t("lang.cancel")}
                 </button>
@@ -181,7 +188,7 @@ export default function LanguageSwitcher() {
                   type="button"
                   onClick={handleTranslate}
                   disabled={translating || !langInput.trim()}
-                  className="flex-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="font-i18n flex-1 rounded-xl bg-cyan-500 px-3 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {translating ? t("lang.translating") : t("lang.translate")}
                 </button>
