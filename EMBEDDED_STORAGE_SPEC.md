@@ -8,7 +8,7 @@ standalone and timeout fallback.
 ## Migrations
 
 - `maths-distance-calculator:youtube-bubble-dismissed`
-  -> `interactive-maths:youtubeBubbleDismissed`
+  -> `interactive-maths:distance-calculator:youtubeBubbleDismissed`
 - `reportName`
   -> `interactive-maths:reportName`
 - `reportEmail`

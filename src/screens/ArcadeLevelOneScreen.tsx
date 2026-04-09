@@ -68,6 +68,8 @@ import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?u
 const fontDataUrlCache = new Map<string, Promise<string>>();
 const LEGACY_YOUTUBE_BUBBLE_DISMISSED_KEY =
   "maths-distance-calculator:youtube-bubble-dismissed";
+const LEGACY_SHARED_YOUTUBE_BUBBLE_DISMISSED_KEY =
+  "interactive-maths:youtubeBubbleDismissed";
 const LEGACY_REPORT_EMAIL_KEY = "reportEmail";
 const LEGACY_REPORT_NAME_KEY = "reportName";
 const YOUTUBE_ICON_URL = "/youtube-circle-logo-svgrepo-com.svg";
@@ -1140,7 +1142,10 @@ export default function ArcadeLevelOneScreen() {
     usePersistentBoolean(
       SHARED_STORAGE_KEYS.youtubeBubbleDismissed,
       false,
-      { legacyKeys: [LEGACY_YOUTUBE_BUBBLE_DISMISSED_KEY] },
+      {
+        legacyKeys: [LEGACY_YOUTUBE_BUBBLE_DISMISSED_KEY],
+        clearKeysOnSet: [LEGACY_SHARED_YOUTUBE_BUBBLE_DISMISSED_KEY],
+      },
     );
   const [reportPlayerName] = usePersistentString(
     SHARED_STORAGE_KEYS.reportName,
