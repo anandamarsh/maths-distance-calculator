@@ -2739,6 +2739,14 @@ export default function ArcadeLevelOneScreen() {
             </svg>
           </button>
           <LanguageSwitcher />
+          {isMobileLandscape && (
+            <AutopilotIcon
+              onClick={handleRobotButtonClick}
+              active={isRobotVisibleActive}
+              title={robotTitle}
+              ariaLabel={robotAriaLabel}
+            />
+          )}
           {IS_LOCALHOST_DEV && (
             <button
               type="button"
@@ -3773,12 +3781,14 @@ export default function ArcadeLevelOneScreen() {
       )}
       {!isFullScreenOverlayActive && (
         <div ref={rightControlsRef} className="social-launchers">
-          <AutopilotIcon
-            onClick={handleRobotButtonClick}
-            active={isRobotVisibleActive}
-            title={robotTitle}
-            ariaLabel={robotAriaLabel}
-          />
+          {!isMobileLandscape && (
+            <AutopilotIcon
+              onClick={handleRobotButtonClick}
+              active={isRobotVisibleActive}
+              title={robotTitle}
+              ariaLabel={robotAriaLabel}
+            />
+          )}
           <button
             type="button"
             onClick={toggleShareDrawer}
