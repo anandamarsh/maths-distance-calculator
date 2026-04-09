@@ -56,18 +56,21 @@ import {
   type DistanceAutopilotCallbacks,
   type ModalAutopilotControls,
 } from "../hooks/useDistanceAutopilot";
+import {
+  readStoredStringSync,
+  usePersistentBoolean,
+  usePersistentString,
+} from "../utils/embeddedStorage";
+import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
 const fontDataUrlCache = new Map<string, Promise<string>>();
-const YOUTUBE_BUBBLE_DISMISSED_KEY =
+const LEGACY_YOUTUBE_BUBBLE_DISMISSED_KEY =
   "maths-distance-calculator:youtube-bubble-dismissed";
+const LEGACY_REPORT_EMAIL_KEY = "reportEmail";
+const LEGACY_REPORT_NAME_KEY = "reportName";
 const YOUTUBE_ICON_URL = "/youtube-circle-logo-svgrepo-com.svg";
-
-function readYouTubeBubbleDismissed() {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(YOUTUBE_BUBBLE_DISMISSED_KEY) === "true";
-}
 
 function toYouTubeEmbedUrl(url: string): string | null {
   try {
@@ -925,12 +928,22 @@ function LevelCompleteReportActions({
   const t = useT();
   const { locale } = useLocale();
   const [generating, setGenerating] = useState(false);
-  const [shareEmail, setShareEmail] = useState(() => {
-    try { return localStorage.getItem("reportEmail") || ""; } catch { return ""; }
-  });
-  const [playerName, setPlayerName] = useState(() => {
-    try { return localStorage.getItem("reportName") || ""; } catch { return ""; }
-  });
+  const [shareEmail, setShareEmail] = usePersistentString(
+    SHARED_STORAGE_KEYS.reportEmail,
+    "",
+    {
+      legacyKeys: [LEGACY_REPORT_EMAIL_KEY],
+      removeWhen: (value) => value.trim() === "",
+    },
+  );
+  const [playerName, setPlayerName] = usePersistentString(
+    SHARED_STORAGE_KEYS.reportName,
+    "",
+    {
+      legacyKeys: [LEGACY_REPORT_NAME_KEY],
+      removeWhen: (value) => value.trim() === "",
+    },
+  );
   const [emailFeedback, setEmailFeedback] = useState<string | null>(null);
   const [emailError, setEmailError] = useState(false);
   const totalEggs = summary.normalEggs + summary.monsterEggs;
@@ -1037,9 +1050,7 @@ function LevelCompleteReportActions({
           type="text"
           value={playerName}
           onChange={(event) => {
-            const v = event.target.value;
-            setPlayerName(v);
-            try { localStorage.setItem("reportName", v); } catch { /* ignore */ }
+            setPlayerName(event.target.value);
           }}
           placeholder={t("report.namePlaceholder")}
           className="min-w-0 w-32 shrink-0 rounded-2xl border-2 border-slate-500 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-slate-300"
@@ -1049,9 +1060,7 @@ function LevelCompleteReportActions({
           value={shareEmail}
           data-autopilot-key="email-input"
           onChange={(event) => {
-            const v = event.target.value;
-            setShareEmail(v);
-            try { localStorage.setItem("reportEmail", v); } catch { /* ignore */ }
+            setShareEmail(event.target.value);
             if (emailFeedback) {
               setEmailFeedback(null);
               setEmailError(false);
@@ -1127,8 +1136,16 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
-  const [youtubeBubbleDismissed, setYoutubeBubbleDismissed] = useState(
-    readYouTubeBubbleDismissed,
+  const [youtubeBubbleDismissed, setYoutubeBubbleDismissed, youtubePrefsLoaded] =
+    usePersistentBoolean(
+      SHARED_STORAGE_KEYS.youtubeBubbleDismissed,
+      false,
+      { legacyKeys: [LEGACY_YOUTUBE_BUBBLE_DISMISSED_KEY] },
+    );
+  const [reportPlayerName] = usePersistentString(
+    SHARED_STORAGE_KEYS.reportName,
+    "",
+    { legacyKeys: [LEGACY_REPORT_NAME_KEY] },
   );
   const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string | null>(null);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
@@ -1221,12 +1238,6 @@ export default function ArcadeLevelOneScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem(
-      YOUTUBE_BUBBLE_DISMISSED_KEY,
-      youtubeBubbleDismissed ? "true" : "false",
-    );
-  }, [youtubeBubbleDismissed]);
   const gamePhaseRef = useRef<"normal" | "monster">("normal");
   const keypadValueRef = useRef("");
   const handleKeypadChangeRef = useRef<(value: string) => void>(() => {});
@@ -1289,6 +1300,7 @@ export default function ArcadeLevelOneScreen() {
     screen === "playing" &&
     !showMonsterAnnounce &&
     !hasDiscoveredMonsterKeypadDisplay;
+  const showYoutubeBubble = youtubePrefsLoaded && !youtubeBubbleDismissed;
   const tutorialHandScale = isCoarsePointer ? 1.5 : 1.125;
   const tutorialHandOffsetX = isCoarsePointer ? 5 : 20;
   const tutorialHandOffsetY = isCoarsePointer ? -40 : -25;
@@ -1992,9 +2004,11 @@ export default function ArcadeLevelOneScreen() {
   }
 
   function triggerSessionReport() {
-    const savedName = (() => { try { return localStorage.getItem("reportName") || ""; } catch { return ""; } })();
     const summary = buildSummary({
-      playerName: savedName || "Explorer",
+      playerName:
+        reportPlayerName ||
+        readStoredStringSync(SHARED_STORAGE_KEYS.reportName, [LEGACY_REPORT_NAME_KEY]) ||
+        "Explorer",
       level: level as 1 | 2 | 3,
       normalEggs: eggTargetRef.current * level,
       monsterEggs: eggTargetRef.current * level,
@@ -3863,7 +3877,7 @@ export default function ArcadeLevelOneScreen() {
           </button>
           {youtubeEmbedUrl && (
             <div className="social-video-cta">
-              {!youtubeBubbleDismissed && (
+              {showYoutubeBubble && (
                 <div
                   className="social-video-bubble"
                   role="complementary"

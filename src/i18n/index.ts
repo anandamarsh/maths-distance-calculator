@@ -7,6 +7,8 @@ import type { Translations, TranslationKey, TFunction } from "./types";
 import en from "./en";
 import zh from "./zh";
 import hi from "./hi";
+import { usePersistentString } from "../utils/embeddedStorage";
+import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
 
 // --- Built-in locale map ---
 
@@ -139,15 +141,16 @@ const I18nContext = createContext<I18nContextValue>({
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY) || "en"; } catch { return "en"; }
-  });
+  const [locale, setLocaleState, localeLoaded] = usePersistentString(
+    SHARED_STORAGE_KEYS.locale,
+    "en",
+    { legacyKeys: [STORAGE_KEY] },
+  );
   const [strings, setStrings] = useState<Translations>(() => getStringsForLocale(locale));
 
   const setLocale = useCallback((code: string) => {
     setLocaleState(code);
     setStrings(getStringsForLocale(code));
-    try { localStorage.setItem(STORAGE_KEY, code); } catch { /* ignore */ }
   }, []);
 
   // Re-derive strings when locale changes (handles cached translations becoming available)
@@ -162,6 +165,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     },
     [strings],
   );
+
+  if (!localeLoaded) return null;
 
   return createElement(I18nContext.Provider, { value: { locale, setLocale, t } }, children);
 }
