@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type { MutableRefObject } from "react";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   makeOneQuestion,
   generateTrailConfig,
@@ -59,6 +60,30 @@ import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.w
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
 const fontDataUrlCache = new Map<string, Promise<string>>();
+const YOUTUBE_BUBBLE_DISMISSED_KEY =
+  "maths-distance-calculator:youtube-bubble-dismissed";
+const YOUTUBE_ICON_URL = "/youtube-circle-logo-svgrepo-com.svg";
+
+function readYouTubeBubbleDismissed() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(YOUTUBE_BUBBLE_DISMISSED_KEY) === "true";
+}
+
+function toYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const videoId = parsed.hostname.includes("youtu.be")
+      ? parsed.pathname.replace(/^\/+/, "")
+      : (parsed.searchParams.get("v") ??
+        (parsed.pathname.startsWith("/shorts/")
+          ? parsed.pathname.split("/")[2]
+          : null));
+    if (!videoId) return null;
+    return `https://www.youtube.com/embed/${videoId}`;
+  } catch {
+    return null;
+  }
+}
 
 async function toDataUrl(url: string, mimeType: string) {
   let pending = fontDataUrlCache.get(url);
@@ -1102,6 +1127,11 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
+  const [youtubeBubbleDismissed, setYoutubeBubbleDismissed] = useState(
+    readYouTubeBubbleDismissed,
+  );
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string | null>(null);
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
   const [autopilotMode, setAutopilotMode] = useState<
     "continuous" | "single-question"
   >("continuous");
@@ -1163,6 +1193,40 @@ export default function ArcadeLevelOneScreen() {
   const maxKmRef = useRef(0);
   const odometerRef = useRef(0);
   const lastStepRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/manifest.json", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load manifest (${response.status})`);
+        }
+        return response.json() as Promise<{ videoUrl?: unknown }>;
+      })
+      .then((manifest) => {
+        if (cancelled) return;
+        const rawVideoUrl =
+          typeof manifest.videoUrl === "string" ? manifest.videoUrl.trim() : "";
+        setYoutubeEmbedUrl(rawVideoUrl ? toYouTubeEmbedUrl(rawVideoUrl) : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setYoutubeEmbedUrl(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      YOUTUBE_BUBBLE_DISMISSED_KEY,
+      youtubeBubbleDismissed ? "true" : "false",
+    );
+  }, [youtubeBubbleDismissed]);
   const gamePhaseRef = useRef<"normal" | "monster">("normal");
   const keypadValueRef = useRef("");
   const handleKeypadChangeRef = useRef<(value: string) => void>(() => {});
@@ -3787,7 +3851,86 @@ export default function ArcadeLevelOneScreen() {
             />
           </svg>
           </button>
+          {youtubeEmbedUrl && (
+            <div className="social-video-cta">
+              {!youtubeBubbleDismissed && (
+                <div
+                  className="social-video-bubble"
+                  role="complementary"
+                  aria-label="How to play video prompt"
+                >
+                  <button
+                    type="button"
+                    className="social-video-bubble-link"
+                    onClick={() => setYoutubeModalOpen(true)}
+                  >
+                    <span className="social-video-bubble-icon-shell">
+                      <img
+                        src={YOUTUBE_ICON_URL}
+                        alt="YouTube"
+                        className="social-launcher-icon social-launcher-image"
+                      />
+                    </span>
+                    <span className="social-video-bubble-copy">
+                      {t("social.youtubePrompt")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="social-video-bubble-dismiss"
+                    onClick={() => setYoutubeBubbleDismissed(true)}
+                  >
+                    {t("social.youtubeDismiss")}
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setYoutubeModalOpen(true)}
+                className={`social-video-button ${youtubeModalOpen ? "is-active" : ""}`}
+                aria-label="Watch how to play"
+                title="Watch how to play"
+              >
+                <img
+                  src={YOUTUBE_ICON_URL}
+                  alt="YouTube"
+                  className="social-launcher-icon social-launcher-image"
+                />
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {youtubeModalOpen && youtubeEmbedUrl && (
+        <>
+          <div
+            className="social-backdrop social-video-backdrop"
+            onClick={() => setYoutubeModalOpen(false)}
+          />
+          <div
+            className="social-video-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="How to play video"
+          >
+            <button
+              type="button"
+              className="social-video-modal-close"
+              aria-label="Close how to play video"
+              onClick={() => setYoutubeModalOpen(false)}
+            >
+              <CloseIcon className="social-video-modal-close-icon" aria-hidden="true" />
+            </button>
+            <iframe
+              src={youtubeEmbedUrl}
+              title="How to play video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
+          </div>
+        </>
       )}
 
       {isSocialDrawerOpen && (

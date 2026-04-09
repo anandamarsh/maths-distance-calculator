@@ -70,6 +70,8 @@ const zh: Translations = {
   // Social
   "social.shareTitle": "来玩 Distance Calculator — 免费数学游戏！",
   "social.commentsTitle": "评论",
+  "social.youtubePrompt": "第一次玩吗？先看一个如何玩的影片。",
+  "social.youtubeDismiss": "不再显示",
 
   // PDF
   "pdf.title": "Distance Calculator",

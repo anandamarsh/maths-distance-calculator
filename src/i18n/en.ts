@@ -70,6 +70,8 @@ const en: Translations = {
   // Social
   "social.shareTitle": "Play Distance Calculator — a free maths game!",
   "social.commentsTitle": "Comments",
+  "social.youtubePrompt": "First time? Look at a video on how to play.",
+  "social.youtubeDismiss": "Don't show again",
 
   // PDF report
   "pdf.title": "Distance Calculator",
