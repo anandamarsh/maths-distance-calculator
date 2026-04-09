@@ -9,7 +9,7 @@ const FLAG_EMOJI: Record<string, string> = {
 
 const FLAG_STYLE: React.CSSProperties = {
   fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-  fontSize: "1.55rem",
+  fontSize: "1.3rem",
   lineHeight: 1,
 };
 
@@ -68,7 +68,7 @@ export default function LanguageSwitcher() {
       {/* Dropdown */}
       {open && (
         <div
-          className="absolute left-0 top-full mt-3 z-[100] w-[min(calc(100vw-1rem),22rem)] rounded-[1.8rem] p-4"
+          className="absolute left-0 top-full mt-2 z-[100] w-max max-w-[calc(100vw-1rem)] rounded-[1.6rem] p-3"
           style={{
             background: "rgba(15,23,42,0.985)",
             border: "4px solid rgba(36,127,186,0.78)",
@@ -84,16 +84,16 @@ export default function LanguageSwitcher() {
                 key={code}
                 type="button"
                 onClick={() => handleSelect(code)}
-                className="w-full flex items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-slate-800/55"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-slate-800/55"
                 style={{
                   color: isActive ? "#67e8f9" : "#e2e8f0",
                   fontWeight: isActive ? 800 : 500,
-                  fontSize: "1rem",
+                  fontSize: "0.95rem",
                 }}
               >
                 <span aria-hidden="true" style={FLAG_STYLE}>{flag}</span>
-                <span className="flex-1 font-i18n">{name}</span>
-                {isActive && <span className="text-cyan-400">&#10003;</span>}
+                <span className="font-i18n whitespace-nowrap">{name}</span>
+                {isActive && <span className="ml-2 text-cyan-400">&#10003;</span>}
               </button>
             );
           })}
