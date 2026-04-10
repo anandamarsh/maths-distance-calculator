@@ -55,8 +55,16 @@ export function randomInt(min: number, max: number, random: () => number = Math.
   return Math.floor(random() * (max - min + 1)) + min;
 }
 
+export function normalize1dp(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+export function isExact1dpMatch(userAnswer: number, expected: number): boolean {
+  return normalize1dp(userAnswer) === normalize1dp(expected);
+}
+
 export function randomDecimal(min: number, max: number, random: () => number = Math.random): number {
-  return Number((Math.round((random() * (max - min) + min) * 10) / 10).toFixed(1));
+  return normalize1dp(random() * (max - min) + min);
 }
 
 export function shuffle<T>(arr: readonly T[], random: () => number = Math.random): T[] {
@@ -78,7 +86,7 @@ export function routeDistance(route: number[], edges: TrailEdge[]): number {
     const edgeIndex = Math.min(route[i - 1], route[i]);
     total += edges[edgeIndex].distance;
   }
-  return Number(total.toFixed(1));
+  return normalize1dp(total);
 }
 
 /**

@@ -61,6 +61,7 @@ import {
   usePersistentBoolean,
   usePersistentString,
 } from "../utils/embeddedStorage";
+import { isExact1dpMatch, normalize1dp } from "../calculations/shared";
 import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
 import { sendEmbeddedAnalyticsEvent } from "../utils/embeddedAnalytics";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
@@ -2161,7 +2162,9 @@ export default function ArcadeLevelOneScreen() {
           return;
         }
         if (isMobileLandscape) keypadMinimizeRef.current?.();
-        const ok = Math.abs(g - currentQ.subAnswers[2]) < 0.11;
+        const normalizedGuess = normalize1dp(g);
+        const normalizedExpected = normalize1dp(currentQ.subAnswers[2]);
+        const ok = isExact1dpMatch(normalizedGuess, normalizedExpected);
         if (!singleQuestionDemoRef.current) {
           logAttempt({
             config,
@@ -2170,8 +2173,8 @@ export default function ArcadeLevelOneScreen() {
             level: 3,
             routeStopNames: currentQ.route.map(i => config.stops[i].label),
             unit: config.unit,
-            correctAnswer: currentQ.subAnswers[2],
-            childAnswer: g,
+            correctAnswer: normalizedExpected,
+            childAnswer: normalizedGuess,
             isCorrect: ok,
             gamePhase,
             dinoName: dino.nickname,
@@ -2197,7 +2200,9 @@ export default function ArcadeLevelOneScreen() {
         return;
       }
       if (isMobileLandscape) keypadMinimizeRef.current?.();
-      const ok = Math.abs(g - currentQ.subAnswers[subStep]) < 0.11;
+      const normalizedGuess = normalize1dp(g);
+      const normalizedExpected = normalize1dp(currentQ.subAnswers[subStep]);
+      const ok = isExact1dpMatch(normalizedGuess, normalizedExpected);
 
       if (subStep < 2) {
         if (ok) {
@@ -2219,16 +2224,17 @@ export default function ArcadeLevelOneScreen() {
       // Final step (step 2)
       const isSingleQuestionDemoAttempt = singleQuestionDemoRef.current;
       if (!isSingleQuestionDemoAttempt) {
-        const subAttemptDetails = currentQ.promptLines!.map((prompt, idx) => ({
-          step: idx,
-          prompt,
-          correctAnswer: currentQ.subAnswers![idx],
-          childAnswer: parseFloat(subAnswers[idx]) || 0,
-          isCorrect:
-            Math.abs(
-              (parseFloat(subAnswers[idx]) || 0) - currentQ.subAnswers![idx],
-            ) < 0.11,
-        }));
+        const subAttemptDetails = currentQ.promptLines!.map((prompt, idx) => {
+          const childAnswer = normalize1dp(parseFloat(subAnswers[idx]) || 0);
+          const correctAnswer = normalize1dp(currentQ.subAnswers![idx]);
+          return {
+            step: idx,
+            prompt,
+            correctAnswer,
+            childAnswer,
+            isCorrect: isExact1dpMatch(childAnswer, correctAnswer),
+          };
+        });
         logAttempt({
           config,
           prompt: currentQ.promptLines![2],
@@ -2237,8 +2243,8 @@ export default function ArcadeLevelOneScreen() {
           level: 3,
           routeStopNames: currentQ.route.map(i => config.stops[i].label),
           unit: config.unit,
-          correctAnswer: currentQ.subAnswers![2],
-          childAnswer: parseFloat(subAnswers[2]) || 0,
+          correctAnswer: normalizedExpected,
+          childAnswer: normalizedGuess,
           subAnswers: subAttemptDetails,
           isCorrect: ok,
           gamePhase,

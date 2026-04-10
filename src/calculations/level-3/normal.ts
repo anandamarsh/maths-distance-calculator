@@ -1,5 +1,5 @@
 import type { TFunction } from "../../i18n/types.ts";
-import { createQuestionId, createSingleQuestion, randomInt } from "../shared.ts";
+import { createQuestionId, createSingleQuestion, normalize1dp, randomInt } from "../shared.ts";
 import type { TrailConfig, TrailQuestion } from "../types.ts";
 
 /**
@@ -46,7 +46,7 @@ export function createLevelThreeNormalQuestions(
       distA >= distB
         ? [leftName, rightName, distA, distB]
         : [rightName, leftName, distB, distA];
-    const answer = Number((farDist - nearDist).toFixed(1));
+    const answer = normalize1dp(farDist - nearDist);
 
     const promptVars = { hub: hubName, far: farName, near: nearName };
     const promptLineVars: [Record<string, string>, Record<string, string>, Record<string, string>] = [

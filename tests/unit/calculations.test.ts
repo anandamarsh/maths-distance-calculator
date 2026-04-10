@@ -5,7 +5,7 @@ import { createLevelOneMonsterQuestion } from "../../src/calculations/level-1/mo
 import { createLevelOneNormalQuestion } from "../../src/calculations/level-1/normal.ts";
 import { createLevelTwoNormalQuestion } from "../../src/calculations/level-2/normal.ts";
 import { createLevelThreeNormalQuestion } from "../../src/calculations/level-3/normal.ts";
-import { routeDistance } from "../../src/calculations/shared.ts";
+import { isExact1dpMatch, normalize1dp, routeDistance } from "../../src/calculations/shared.ts";
 import { generateTrailConfig } from "../../src/calculations/trailConfig.ts";
 import type { TrailConfig } from "../../src/calculations/types.ts";
 
@@ -101,6 +101,18 @@ describe("Trail Distances calculations", () => {
     assert.equal(question.hubStop, 2);
     assert.deepEqual(question.subAnswers, [3.5, 4.0, 0.5]);
     assert.equal(question.answer, 0.5);
+  });
+
+  it("matches Level 3 answers by exact one-decimal equality", () => {
+    assert.equal(isExact1dpMatch(4.6, 4.6), true);
+    assert.equal(isExact1dpMatch(4.7, 4.6), false);
+    assert.equal(isExact1dpMatch(4.4, 4.3), false);
+  });
+
+  it("normalizes floating point one-decimal answers consistently", () => {
+    const expected = normalize1dp(6.5 - 2.2);
+    assert.equal(expected, 4.3);
+    assert.equal(isExact1dpMatch(expected, 4.3), true);
   });
 
   it("builds trail configs with the documented structural rules", () => {
