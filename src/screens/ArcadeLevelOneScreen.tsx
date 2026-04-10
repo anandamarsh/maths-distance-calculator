@@ -62,6 +62,7 @@ import {
   usePersistentString,
 } from "../utils/embeddedStorage";
 import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
+import { sendEmbeddedAnalyticsEvent } from "../utils/embeddedAnalytics";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
@@ -1978,6 +1979,10 @@ export default function ArcadeLevelOneScreen() {
   function startMonsterRound() {
     const name = pickMonsterRoundName(locale);
     setMonsterRoundName(name);
+    sendEmbeddedAnalyticsEvent("monster_round_started", {
+      level,
+      roundName: name,
+    });
     setExtinctionL3ShowSteps(false);
     setExtinctionL3RecoveryMode(false);
     setGamePhase("monster");
@@ -2027,16 +2032,31 @@ export default function ArcadeLevelOneScreen() {
     const newGolden = monsterEggs + 1;
     if (newGolden === eggTargetRef.current) {
       setMonsterEggs(eggTargetRef.current);
+      sendEmbeddedAnalyticsEvent("monster_round_completed", {
+        level,
+        roundName: monsterRoundName,
+      });
       triggerSessionReport();
       if (level === 3) {
         // All levels complete — grand finale
         playGameComplete();
+        sendEmbeddedAnalyticsEvent("level_completed", {
+          level,
+          gamePhase: "monster",
+        });
+        sendEmbeddedAnalyticsEvent("game_completed", {
+          level,
+        });
         setScreen("gameover");
       } else {
         playMonsterVictory();
         if (!IS_DEV)
           setUnlockedLevel((u) => Math.max(u, level + 1) as 1 | 2 | 3);
         // gamePhase stays "monster" so won screen shows the right message
+        sendEmbeddedAnalyticsEvent("level_completed", {
+          level,
+          gamePhase: "monster",
+        });
         setScreen("won");
       }
       return;
@@ -2151,6 +2171,14 @@ export default function ArcadeLevelOneScreen() {
             gamePhase,
             dinoName: dino.nickname,
           });
+          sendEmbeddedAnalyticsEvent("question_answered", {
+            level: 3,
+            correct: ok,
+            gamePhase,
+            correctAnswer: currentQ.subAnswers[2],
+            childAnswer: g,
+            step: 3,
+          });
         }
         if (ok) {
           playCorrect();
@@ -2219,6 +2247,14 @@ export default function ArcadeLevelOneScreen() {
           gamePhase,
           dinoName: dino.nickname,
         });
+        sendEmbeddedAnalyticsEvent("question_answered", {
+          level: 3,
+          correct: ok,
+          gamePhase,
+          correctAnswer: currentQ.subAnswers![2],
+          childAnswer: parseFloat(subAnswers[2]) || 0,
+          step: 3,
+        });
       }
       if (ok) {
         playCorrect();
@@ -2261,6 +2297,13 @@ export default function ArcadeLevelOneScreen() {
         isCorrect: correct,
         gamePhase,
         dinoName: dino.nickname,
+      });
+      sendEmbeddedAnalyticsEvent("question_answered", {
+        level,
+        correct,
+        gamePhase,
+        correctAnswer: currentQ.answer,
+        childAnswer: guess,
       });
     }
     if (correct) {
