@@ -344,11 +344,16 @@ const SUCCESS_ICON_DURATION_MS = 1100;
 
 // ─── Question generator dispatcher ───────────────────────────────────────────
 
-function createRun(level: number, t: TFunction, locale: string) {
+function createRun(
+  level: number,
+  t: TFunction,
+  locale: string,
+  round: "normal" | "monster" = "normal",
+) {
   const config = generateTrailConfig(level, locale);
   const dino = randomDino(locale);
   const dinoColor = DINO_COLORS[Math.floor(Math.random() * DINO_COLORS.length)];
-  const firstQ = makeOneQuestion(config, level, dino.nickname, t);
+  const firstQ = makeOneQuestion(config, level, dino.nickname, t, round);
   return { config, firstQ, dino, dinoColor };
 }
 
@@ -1991,7 +1996,7 @@ export default function ArcadeLevelOneScreen() {
     playMonsterStart();
     switchToMonsterMusic();
     // Fresh run so the child gets a new map to think through without the odometer
-    const next = createRun(level, t, locale);
+    const next = createRun(level, t, locale, "monster");
     setRun(next);
     setCurrentQ(next.firstQ);
     startQuestionTimer();
@@ -2064,7 +2069,7 @@ export default function ArcadeLevelOneScreen() {
     setMonsterEggs(newGolden);
     playGoldenEgg();
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t, locale);
+      const next = createRun(level, t, locale, "monster");
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -2079,7 +2084,7 @@ export default function ArcadeLevelOneScreen() {
 
   function advanceMonsterQuestionWithoutEgg() {
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t, locale);
+      const next = createRun(level, t, locale, "monster");
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
@@ -2107,7 +2112,7 @@ export default function ArcadeLevelOneScreen() {
     }
     setEggsCollected(newEggs);
     queueNextQuestionAfterSuccessIcon(() => {
-      const next = createRun(level, t, locale);
+      const next = createRun(level, t, locale, "monster");
       setRun(next);
       setCurrentQ(next.firstQ);
       startQuestionTimer();
