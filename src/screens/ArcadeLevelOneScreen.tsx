@@ -61,7 +61,7 @@ import {
   usePersistentBoolean,
   usePersistentString,
 } from "../utils/embeddedStorage";
-import { isExact1dpMatch, normalize1dp } from "../calculations/shared";
+import { format1dp, isExact1dpMatch, normalize1dp } from "../calculations/shared";
 import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
 import { sendEmbeddedAnalyticsEvent } from "../utils/embeddedAnalytics";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
@@ -2361,8 +2361,10 @@ export default function ArcadeLevelOneScreen() {
       : null;
   const autopilotAnswer =
     l3KeypadIndex !== null
-      ? currentQ.subAnswers?.[l3KeypadIndex].toFixed(1) ?? "0.0"
-      : currentQ.answer.toFixed(1);
+      ? currentQ.subAnswers?.[l3KeypadIndex] != null
+        ? format1dp(currentQ.subAnswers[l3KeypadIndex])
+        : "0.0"
+      : format1dp(currentQ.answer);
   const autopilotAnswerStepKey =
     l3KeypadIndex !== null
       ? `${currentQ.id}:${l3ExtinctionSingleLineOnly ? "single" : subStep}`
@@ -3755,7 +3757,7 @@ export default function ArcadeLevelOneScreen() {
                         /* completed step — confirmed value */
                         <div className={`${isMobileLandscape ? "w-20" : "w-24 md:w-28"} flex items-center justify-end gap-1`}>
                           <span className={`whitespace-nowrap text-green-400 ${isMobileLandscape ? "text-[1rem]" : "text-[1.3125rem] md:text-[1.5rem]"} font-bold`}>
-                            {subAnswers[i]} {config.unit}
+                            {format1dp(Number(subAnswers[i]))} {config.unit}
                           </span>
                         </div>
                       ) : isCurrent ? (
