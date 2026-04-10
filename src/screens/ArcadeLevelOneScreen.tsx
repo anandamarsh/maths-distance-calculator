@@ -2276,7 +2276,9 @@ export default function ArcadeLevelOneScreen() {
       return;
     }
     if (isMobileLandscape) keypadMinimizeRef.current?.();
-    const correct = Math.abs(guess - currentQ.answer) < 0.11;
+    const normalizedGuess = normalize1dp(guess);
+    const normalizedExpected = normalize1dp(currentQ.answer);
+    const correct = isExact1dpMatch(normalizedGuess, normalizedExpected);
     const isSingleQuestionDemoAttempt = singleQuestionDemoRef.current;
     if (!isSingleQuestionDemoAttempt) {
       logAttempt({
@@ -2287,8 +2289,8 @@ export default function ArcadeLevelOneScreen() {
         hiddenEdgeIndex: currentQ.hiddenEdge,
         routeStopNames: currentQ.route.map(i => config.stops[i].label),
         unit: config.unit,
-        correctAnswer: currentQ.answer,
-        childAnswer: guess,
+        correctAnswer: normalizedExpected,
+        childAnswer: normalizedGuess,
         isCorrect: correct,
         gamePhase,
         dinoName: dino.nickname,

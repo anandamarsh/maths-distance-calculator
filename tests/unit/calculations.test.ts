@@ -5,7 +5,7 @@ import { createLevelOneMonsterQuestion } from "../../src/calculations/level-1/mo
 import { createLevelOneNormalQuestion } from "../../src/calculations/level-1/normal.ts";
 import { createLevelTwoNormalQuestion } from "../../src/calculations/level-2/normal.ts";
 import { createLevelThreeNormalQuestion } from "../../src/calculations/level-3/normal.ts";
-import { isExact1dpMatch, normalize1dp, routeDistance } from "../../src/calculations/shared.ts";
+import { format1dp, isExact1dpMatch, normalize1dp, routeDistance } from "../../src/calculations/shared.ts";
 import { generateTrailConfig } from "../../src/calculations/trailConfig.ts";
 import type { TrailConfig } from "../../src/calculations/types.ts";
 
@@ -109,10 +109,23 @@ describe("Trail Distances calculations", () => {
     assert.equal(isExact1dpMatch(4.4, 4.3), false);
   });
 
+  it("rejects one-tenth near misses for typed decimal answers", () => {
+    assert.equal(isExact1dpMatch(9.2, 9.3), false);
+    assert.equal(isExact1dpMatch(5.0, 4.9), false);
+    assert.equal(isExact1dpMatch(0.6, 0.5), false);
+    assert.equal(isExact1dpMatch(2.1, 2.0), false);
+  });
+
   it("normalizes floating point one-decimal answers consistently", () => {
     const expected = normalize1dp(6.5 - 2.2);
     assert.equal(expected, 4.3);
     assert.equal(isExact1dpMatch(expected, 4.3), true);
+  });
+
+  it("formats report values with one decimal place", () => {
+    assert.equal(format1dp(2), "2.0");
+    assert.equal(format1dp(2.04), "2.0");
+    assert.equal(format1dp(2.05), "2.1");
   });
 
   it("builds trail configs with the documented structural rules", () => {

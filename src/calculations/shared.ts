@@ -63,6 +63,10 @@ export function isExact1dpMatch(userAnswer: number, expected: number): boolean {
   return normalize1dp(userAnswer) === normalize1dp(expected);
 }
 
+export function format1dp(value: number): string {
+  return normalize1dp(value).toFixed(1);
+}
+
 export function randomDecimal(min: number, max: number, random: () => number = Math.random): number {
   return normalize1dp(random() * (max - min) + min);
 }

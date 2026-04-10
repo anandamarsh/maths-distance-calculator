@@ -1,6 +1,7 @@
 // src/report/generatePdf.ts
 
 import { jsPDF } from "jspdf";
+import { format1dp } from "../calculations/shared.ts";
 import type { SessionSummary, QuestionAttempt } from "./sessionLog";
 import type { TFunction } from "../i18n/types";
 
@@ -663,8 +664,8 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
 
         // Answer line — all on one line: prefix + colored value + suffix
         const answerPrefix = sanitize(t("pdf.answered", { value: "" }), useUnicode);
-        const answerValue = sanitize(String(sub.childAnswer));
-        const answerSuffix = sanitize(t("pdf.correctIn", { value: sub.correctAnswer }), useUnicode);
+        const answerValue = sanitize(format1dp(sub.childAnswer));
+        const answerSuffix = sanitize(t("pdf.correctIn", { value: format1dp(sub.correctAnswer) }), useUnicode);
 
         doc.setFontSize(7);
         doc.setTextColor(COLORS.textDark);
@@ -686,12 +687,13 @@ export async function generateSessionPdf(summary: SessionSummary, t: TFunction, 
 
       // "Given Answer" — darker green if correct, red if wrong
       doc.setTextColor(attempt.isCorrect ? COLORS.correctDark : COLORS.wrongBorder);
-      doc.text(sanitize(t("pdf.givenAnswer", { value: `${attempt.childAnswer ?? "-"} ${attempt.unit}` }), useUnicode), textX, textY);
+      const givenAnswerValue = attempt.childAnswer === null ? "-" : format1dp(attempt.childAnswer);
+      doc.text(sanitize(t("pdf.givenAnswer", { value: `${givenAnswerValue} ${attempt.unit}` }), useUnicode), textX, textY);
       textY += 4.5;
 
       // "Correct answer" — always dark
       doc.setTextColor(COLORS.textDark);
-      doc.text(sanitize(t("pdf.correctAnswer", { value: `${attempt.correctAnswer} ${attempt.unit}` }), useUnicode), textX, textY);
+      doc.text(sanitize(t("pdf.correctAnswer", { value: `${format1dp(attempt.correctAnswer)} ${attempt.unit}` }), useUnicode), textX, textY);
       textY += 4.5;
     }
 
