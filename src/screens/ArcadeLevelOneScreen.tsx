@@ -2171,14 +2171,6 @@ export default function ArcadeLevelOneScreen() {
             gamePhase,
             dinoName: dino.nickname,
           });
-          sendEmbeddedAnalyticsEvent("question_answered", {
-            level: 3,
-            correct: ok,
-            gamePhase,
-            correctAnswer: currentQ.subAnswers[2],
-            childAnswer: g,
-            step: 3,
-          });
         }
         if (ok) {
           playCorrect();
@@ -2247,14 +2239,6 @@ export default function ArcadeLevelOneScreen() {
           gamePhase,
           dinoName: dino.nickname,
         });
-        sendEmbeddedAnalyticsEvent("question_answered", {
-          level: 3,
-          correct: ok,
-          gamePhase,
-          correctAnswer: currentQ.subAnswers![2],
-          childAnswer: parseFloat(subAnswers[2]) || 0,
-          step: 3,
-        });
       }
       if (ok) {
         playCorrect();
@@ -2297,13 +2281,6 @@ export default function ArcadeLevelOneScreen() {
         isCorrect: correct,
         gamePhase,
         dinoName: dino.nickname,
-      });
-      sendEmbeddedAnalyticsEvent("question_answered", {
-        level,
-        correct,
-        gamePhase,
-        correctAnswer: currentQ.answer,
-        childAnswer: guess,
       });
     }
     if (correct) {
