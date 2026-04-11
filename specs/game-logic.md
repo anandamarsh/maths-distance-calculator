@@ -174,3 +174,18 @@ They verify:
 - generated trail configs respect documented structural rules
 
 Playwright continues to verify that the visible game still runs end to end.
+
+## Input and cheat-code contract
+
+Trail Distances uses keypad entry for the mathematical answer, so mobile parity
+is part of the game logic contract:
+
+- `198081` must work from the on-screen keypad and start continuous autopilot.
+- `197879` must work from the on-screen keypad and reveal/fill the correct
+  answer before submission.
+- The trigger digits must not remain in the keypad display after the cheat code
+  fires.
+
+The screen should achieve this by sharing one cheat buffer between:
+- the global `keydown` listener
+- the keypad `press(key)` path

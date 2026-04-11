@@ -7,8 +7,8 @@
 ## How it works
 
 A global `keydown` listener (capture phase) accumulates digit keypresses into a
-rolling buffer (max 12 characters). When the buffer ends with a registered code string,
-the handler fires and the buffer resets.
+rolling buffer (max 12 characters). The same buffer is also exposed through
+`processCheatKey(...)` so the in-game keypad can trigger codes on mobile.
 
 Non-digit keys (except modifier keys) reset the buffer.
 
@@ -18,7 +18,10 @@ const PASSTHROUGH_KEYS = new Set([
   "Shift", "Control", "Alt", "Meta", "CapsLock", "Tab", "NumLock",
 ]);
 
-export function useCheatCodes(handlers: Record<string, () => void>): void
+export function useCheatCodes(handlers: Record<string, () => void>): {
+  processCheatKey: (key: string) => boolean;
+  resetCheatBuffer: () => void;
+}
 ```
 
 `handlers` is a map from code string → callback. The hook uses a ref for `handlers`
@@ -26,6 +29,10 @@ so adding/removing codes during a render does not re-attach the listener.
 
 The listener uses `{ capture: true }` priority, and calls `e.stopImmediatePropagation()`
 when a code fires — preventing the triggering digit from reaching other listeners.
+
+`processCheatKey(key)` returns `true` when a code matched. Keypad components must
+check that first so the trigger digits do not stay visible in the on-screen
+display.
 
 ---
 
@@ -81,3 +88,13 @@ useCheatCodes({
 
 Codes can be any string of digits up to 12 characters.
 Shorter codes fire more easily — avoid codes that are substrings of others.
+
+## Required keypad integration
+
+Trail Distances uses an in-screen keypad, so cheat codes must work from:
+- hardware keyboards
+- on-screen keypad taps
+
+The keypad `press(key)` path must call `onKeyInput?.(key)` before appending the
+key to the answer field. If that returns `true`, the keypad must stop and leave
+the display blank/reset according to the cheat handler.
