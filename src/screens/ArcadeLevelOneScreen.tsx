@@ -2712,14 +2712,14 @@ export default function ArcadeLevelOneScreen() {
         <div
           className={`pointer-events-none absolute z-[44] flex ${
             isMobileLandscape
-              ? "hidden"
+              ? "left-2 right-2 top-2 justify-center"
               : "left-2 right-2 top-2 justify-center md:hidden"
           }`}
         >
           <div
             className={
               isMobileLandscape
-                ? "rounded-r-2xl rounded-l-none px-1.5 py-3 text-center text-base font-black uppercase"
+                ? "max-w-3xl rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
                 : "max-w-3xl rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
             }
             style={{
@@ -2728,8 +2728,6 @@ export default function ArcadeLevelOneScreen() {
               color: "#ffffff",
               boxShadow:
                 "0 0 24px rgba(96,165,250,0.38), 0 0 44px rgba(59,130,246,0.2)",
-              writingMode: isMobileLandscape ? "vertical-rl" : undefined,
-              textOrientation: isMobileLandscape ? "upright" : undefined,
             }}
           >
             Demo
