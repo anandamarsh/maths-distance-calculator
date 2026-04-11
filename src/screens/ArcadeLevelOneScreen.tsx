@@ -1021,8 +1021,11 @@ function LevelCompleteReportActions({
   return (
     <div className="mx-auto mt-5 w-full max-w-xl">
       {demoMode ? (
-        <div className="mb-4 rounded-2xl border border-yellow-300/30 bg-yellow-400/10 px-4 py-3 text-left text-sm text-yellow-100">
-          Demo mode is on. Answers are visible, the round target is shorter, and you should leave a comment and email this report to yourself before you exit.
+        <div
+          className="mb-4 rounded-2xl px-4 py-3 text-left text-sm font-bold text-white"
+          style={{ background: "#f97316", border: "1px solid #ea580c" }}
+        >
+          Enter your email to receive your report.
         </div>
       ) : null}
       {!isMobileLandscape && (
@@ -1088,7 +1091,9 @@ function LevelCompleteReportActions({
               setEmailError(false);
             }
           }}
-          placeholder={t("report.emailPlaceholder")}
+          placeholder={
+            demoMode ? "Enter your email to receive your report" : t("report.emailPlaceholder")
+          }
           className="min-w-0 flex-1 rounded-2xl border-2 border-cyan-300 bg-slate-900/80 px-4 py-3 text-base text-white outline-none transition-colors placeholder:text-slate-500 focus:border-cyan-200"
         />
         <button
@@ -2701,17 +2706,30 @@ export default function ArcadeLevelOneScreen() {
     >
       <div className="pointer-events-none absolute inset-0 arcade-grid opacity-20" />
       {demo.enabled && (
-        <div className="pointer-events-none absolute left-2 right-2 top-2 z-[44] flex justify-center">
+        <div
+          className={`pointer-events-none absolute z-[44] flex ${
+            isMobileLandscape
+              ? "bottom-20 left-0 top-0 w-14 items-center justify-start"
+              : "left-2 right-2 top-2 justify-center"
+          }`}
+        >
           <div
-            className="max-w-3xl rounded-2xl px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.16em]"
+            className={
+              isMobileLandscape
+                ? "rounded-r-2xl px-2 py-4 text-center text-2xl font-black uppercase"
+                : "max-w-3xl rounded-2xl px-4 py-2 text-center text-2xl font-black uppercase"
+            }
             style={{
-              background: "rgba(250,204,21,0.14)",
-              border: "1px solid rgba(250,204,21,0.42)",
-              color: "#fef08a",
-              boxShadow: "0 0 22px rgba(250,204,21,0.14)",
+              background: "#f97316",
+              border: "1px solid #ea580c",
+              color: "#ffffff",
+              boxShadow: "0 0 22px rgba(249,115,22,0.28)",
+              writingMode: isMobileLandscape ? "vertical-rl" : undefined,
+              textOrientation: isMobileLandscape ? "mixed" : undefined,
+              transform: isMobileLandscape ? "rotate(180deg)" : undefined,
             }}
           >
-            Demo Mode · {demo.targetEggs} eggs only · answers visible · please comment and email your report
+            Demo Mode
           </div>
         </div>
       )}
@@ -3724,7 +3742,7 @@ export default function ArcadeLevelOneScreen() {
                   text={currentQ.promptLineKeys ? t(currentQ.promptLineKeys[2] as Parameters<typeof t>[0], currentQ.promptLineVars?.[2]) : currentQ.promptLines[2]}
                   stopLabels={stopLabels}
                 />
-                {!isRecording && (IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
+              {!isRecording && (IS_DEV || cheatAnswerUnlocked) && currentQ.subAnswers && (
                   <span
                     className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                     style={{
@@ -3775,7 +3793,7 @@ export default function ArcadeLevelOneScreen() {
                         stopLabels={stopLabels}
                         className={`flex-1 ${isMobileLandscape ? "text-[1rem] leading-[1.25rem]" : "text-[1.3125rem] leading-[1.6rem] md:text-[1.5rem] md:leading-[1.8rem]"} font-bold ${i === 2 ? "text-white" : "text-slate-300"}`}
                       />
-                      {!isRecording && (IS_DEV || showCheatAnswer) && currentQ.subAnswers && (
+                      {!isRecording && (IS_DEV || cheatAnswerUnlocked) && currentQ.subAnswers && (
                         <span
                           className="shrink-0 rounded px-1 text-[10px] font-black"
                           style={{
@@ -3821,7 +3839,7 @@ export default function ArcadeLevelOneScreen() {
               onClick={() => keypadToggleRef.current?.()}
             >
               <ColoredPrompt text={t(currentQ.promptKey as Parameters<typeof t>[0], currentQ.promptVars)} stopLabels={stopLabels} />
-              {!isRecording && (IS_DEV || showCheatAnswer) && (
+              {!isRecording && (IS_DEV || cheatAnswerUnlocked) && (
                 <span
                   className="ml-1 shrink-0 rounded px-1.5 py-0.5 text-xs font-black"
                   style={{
@@ -3836,6 +3854,20 @@ export default function ArcadeLevelOneScreen() {
             </div>
           )}
           <div className="flex min-h-0 flex-col self-start">
+            {!isRecording && showCheatAnswer ? (
+              <div
+                className="arcade-panel rounded-b-none border-b-0 px-3 py-2 text-center text-[1rem] font-bold leading-tight text-white"
+                style={{
+                  background: "#f97316",
+                  borderColor: "#ea580c",
+                  color: "#ffffff",
+                }}
+              >
+                Answer: {currentQ.promptLines && currentQ.subAnswers
+                  ? currentQ.subAnswers[subStep].toFixed(1)
+                  : currentQ.answer.toFixed(1)}
+              </div>
+            ) : null}
             <NumericKeypad
               value={keypadValue}
               onChange={handleKeypadChange}
