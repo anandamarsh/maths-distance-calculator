@@ -2513,12 +2513,12 @@ export default function ArcadeLevelOneScreen() {
     },
   });
   const eggsPerLevel =
-    isAutopilot && autopilotMode === "continuous"
-      ? isRecording
-        ? VUDEO_EGGS_PER_LEVEL
-        : AUTOPILOT_EGGS_PER_LEVEL
-      : demo.enabled
-        ? demo.targetEggs
+    demo.enabled
+      ? demo.targetEggs
+      : isAutopilot && autopilotMode === "continuous"
+        ? isRecording
+          ? VUDEO_EGGS_PER_LEVEL
+          : AUTOPILOT_EGGS_PER_LEVEL
         : DEFAULT_EGGS_PER_LEVEL;
   const eggIndices = Array.from({ length: eggsPerLevel }, (_, i) => i);
 
@@ -2712,14 +2712,14 @@ export default function ArcadeLevelOneScreen() {
         <div
           className={`pointer-events-none absolute z-[44] flex ${
             isMobileLandscape
-              ? "bottom-20 left-2 top-0 w-12 items-center justify-start"
+              ? "bottom-20 left-0 top-0 w-12 items-center justify-start"
               : "left-2 right-2 top-2 justify-center"
           }`}
         >
           <div
             className={
               isMobileLandscape
-                ? "rounded-2xl px-1.5 py-3 text-center text-base font-black uppercase"
+                ? "rounded-r-2xl rounded-l-none px-1.5 py-3 text-center text-base font-black uppercase"
                 : "max-w-3xl rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
             }
             style={{
@@ -2731,7 +2731,7 @@ export default function ArcadeLevelOneScreen() {
               textOrientation: isMobileLandscape ? "upright" : undefined,
             }}
           >
-            Demo Mode
+            Demo
           </div>
         </div>
       )}
@@ -3858,11 +3858,13 @@ export default function ArcadeLevelOneScreen() {
           <div className="flex min-h-0 flex-col self-start">
             {!isRecording && showCheatAnswer ? (
               <div
-                className="arcade-panel rounded-b-none border-b-0 px-3 py-2 text-center text-[1rem] font-bold leading-tight text-white"
+                className="arcade-panel px-3 py-2 text-center text-[1rem] font-bold leading-tight"
                 style={{
-                  background: "#f97316",
-                  borderColor: "#ea580c",
-                  color: "#ffffff",
+                  background: "rgba(250,204,21,0.12)",
+                  borderColor: "#facc15",
+                  borderWidth: "3px",
+                  color: "#fde047",
+                  marginBottom: "2px",
                 }}
               >
                 Answer: {currentQ.promptLines && currentQ.subAnswers
