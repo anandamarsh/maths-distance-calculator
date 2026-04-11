@@ -2726,7 +2726,8 @@ export default function ArcadeLevelOneScreen() {
               background: "#09104c",
               border: "1px solid rgba(96, 165, 250, 0.75)",
               color: "#ffffff",
-              boxShadow: "0 0 18px rgba(59,130,246,0.22)",
+              boxShadow:
+                "0 0 24px rgba(96,165,250,0.38), 0 0 44px rgba(59,130,246,0.2)",
               writingMode: isMobileLandscape ? "vertical-rl" : undefined,
               textOrientation: isMobileLandscape ? "upright" : undefined,
             }}
