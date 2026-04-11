@@ -2713,7 +2713,7 @@ export default function ArcadeLevelOneScreen() {
           className={`pointer-events-none absolute z-[44] flex ${
             isMobileLandscape
               ? "bottom-20 left-0 top-0 w-12 items-center justify-start"
-              : "left-2 right-2 top-2 justify-center"
+              : "left-2 right-2 top-2 justify-center md:hidden"
           }`}
         >
           <div
@@ -2912,6 +2912,23 @@ export default function ArcadeLevelOneScreen() {
             </button>
           )}
         </div>
+
+        {demo.enabled && (
+          <div className="hidden md:flex shrink-0 items-center self-center pl-3">
+            <div
+              className="rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
+              style={{
+                background: "#09104c",
+                border: "1px solid rgba(96, 165, 250, 0.75)",
+                color: "#ffffff",
+                boxShadow:
+                  "0 0 24px rgba(96,165,250,0.38), 0 0 44px rgba(59,130,246,0.2)",
+              }}
+            >
+              Demo
+            </div>
+          </div>
+        )}
 
         {/* Landscape-only static odometer — docked between left icons and center panel */}
         {isMobileLandscape &&
