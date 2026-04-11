@@ -590,6 +590,7 @@ function StopMarker({
 function NumericKeypad({
   value,
   onChange,
+  onKeyInput,
   onSubmit,
   canSubmit,
   showDisplayHint = false,
@@ -603,6 +604,7 @@ function NumericKeypad({
 }: {
   value: string;
   onChange: (v: string) => void;
+  onKeyInput?: (key: string) => boolean;
   onSubmit: () => void;
   canSubmit: boolean;
   showDisplayHint?: boolean;
@@ -667,6 +669,9 @@ function NumericKeypad({
   function press(key: string) {
     playKeyClick();
     flashKey(key);
+    if (onKeyInput?.(key)) {
+      return;
+    }
     if (key === "⌫") {
       onChange(value.slice(0, -1));
       return;
@@ -2619,7 +2624,7 @@ export default function ArcadeLevelOneScreen() {
     window.setTimeout(() => submitAnswerRef.current(), 30);
   }
 
-  useCheatCodes({
+  const { processCheatKey } = useCheatCodes({
     [AUTOPILOT_CHEAT_CODE]: toggleContinuousAutopilot,
     [ANSWER_CHEAT_CODE]: () => {
       if (demoRetryPending) return;
@@ -2627,6 +2632,10 @@ export default function ArcadeLevelOneScreen() {
       fillCorrectAnswerAndSubmit();
     },
   });
+
+  function handleKeypadCheatInput(key: string): boolean {
+    return processCheatKey(key);
+  }
   const shouldShowDinoDragHint = showDinoDragHint && !isAutopilot;
   const shouldShowKeypadDisplayHint =
     showKeypadDisplayHint && !isAutopilot;
@@ -3804,6 +3813,7 @@ export default function ArcadeLevelOneScreen() {
             <NumericKeypad
               value={keypadValue}
               onChange={handleKeypadChange}
+              onKeyInput={handleKeypadCheatInput}
               onSubmit={submitAnswer}
               canSubmit={canKeypadSubmit}
               showDisplayHint={

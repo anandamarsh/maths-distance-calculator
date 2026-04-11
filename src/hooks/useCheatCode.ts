@@ -11,7 +11,7 @@ const PASSTHROUGH_KEYS = new Set([
   "NumLock",
 ]);
 
-export function useCheatCodes(handlers: Record<string, () => void>): void {
+export function useCheatCodes(handlers: Record<string, () => void>) {
   const handlersRef = useRef(handlers);
   const bufferRef = useRef("");
 
@@ -19,21 +19,27 @@ export function useCheatCodes(handlers: Record<string, () => void>): void {
     handlersRef.current = handlers;
   }, [handlers]);
 
+  function processCheatKey(key: string): boolean {
+    if (key >= "0" && key <= "9") {
+      bufferRef.current = (bufferRef.current + key).slice(-BUFFER_MAX);
+      for (const code of Object.keys(handlersRef.current)) {
+        if (bufferRef.current.endsWith(code)) {
+          bufferRef.current = "";
+          handlersRef.current[code]();
+          return true;
+        }
+      }
+    } else if (!PASSTHROUGH_KEYS.has(key)) {
+      bufferRef.current = "";
+    }
+    return false;
+  }
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key >= "0" && event.key <= "9") {
-        bufferRef.current = (bufferRef.current + event.key).slice(-BUFFER_MAX);
-        for (const code of Object.keys(handlersRef.current)) {
-          if (bufferRef.current.endsWith(code)) {
-            bufferRef.current = "";
-            event.stopImmediatePropagation();
-            event.preventDefault();
-            handlersRef.current[code]();
-            return;
-          }
-        }
-      } else if (!PASSTHROUGH_KEYS.has(event.key)) {
-        bufferRef.current = "";
+      if (processCheatKey(event.key)) {
+        event.stopImmediatePropagation();
+        event.preventDefault();
       }
     }
 
@@ -41,4 +47,11 @@ export function useCheatCodes(handlers: Record<string, () => void>): void {
     return () =>
       window.removeEventListener("keydown", onKeyDown, { capture: true });
   }, []);
+
+  return {
+    processCheatKey,
+    resetCheatBuffer: () => {
+      bufferRef.current = "";
+    },
+  };
 }
