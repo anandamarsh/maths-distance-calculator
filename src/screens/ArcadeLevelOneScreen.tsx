@@ -2914,7 +2914,7 @@ export default function ArcadeLevelOneScreen() {
         </div>
 
         {demo.enabled && !isMobileLandscape && (
-          <div className="hidden md:flex shrink-0 items-center self-center pl-3">
+          <div className="hidden md:flex shrink-0 items-center self-start pl-3 pt-1">
             <div
               className="rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
               style={{
