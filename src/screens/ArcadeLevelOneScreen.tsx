@@ -2712,7 +2712,7 @@ export default function ArcadeLevelOneScreen() {
         <div
           className={`pointer-events-none absolute z-[44] flex ${
             isMobileLandscape
-              ? "left-2 right-2 top-2 justify-center"
+              ? "hidden"
               : "left-2 right-2 top-2 justify-center md:hidden"
           }`}
         >
@@ -2910,6 +2910,23 @@ export default function ArcadeLevelOneScreen() {
             </button>
           )}
         </div>
+
+        {demo.enabled && isMobileLandscape && (
+          <div className="shrink-0 flex items-center self-start pl-3 pt-1">
+            <div
+              className="rounded-2xl px-5 py-1.5 text-center text-base font-black uppercase"
+              style={{
+                background: "#09104c",
+                border: "1px solid rgba(96, 165, 250, 0.75)",
+                color: "#ffffff",
+                boxShadow:
+                  "0 0 24px rgba(96,165,250,0.38), 0 0 44px rgba(59,130,246,0.2)",
+              }}
+            >
+              Demo
+            </div>
+          </div>
+        )}
 
         {demo.enabled && !isMobileLandscape && (
           <div className="hidden md:flex shrink-0 items-center self-start pl-3 pt-1">
