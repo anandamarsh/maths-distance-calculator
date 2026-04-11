@@ -2712,7 +2712,7 @@ export default function ArcadeLevelOneScreen() {
         <div
           className={`pointer-events-none absolute z-[44] flex ${
             isMobileLandscape
-              ? "bottom-20 left-0 top-0 w-12 items-center justify-start"
+              ? "hidden"
               : "left-2 right-2 top-2 justify-center md:hidden"
           }`}
         >
