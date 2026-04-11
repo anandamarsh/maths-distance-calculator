@@ -189,3 +189,20 @@ is part of the game logic contract:
 The screen should achieve this by sharing one cheat buffer between:
 - the global `keydown` listener
 - the keypad `press(key)` path
+
+## Demo mode contract
+
+Trail Distances follows the shared See Maths demo contract:
+
+- `?demo=1` enables demo mode and persists it in `localStorage`
+- `?demo=0` disables demo mode and clears the stored flag
+- if no query parameter is present, the game falls back to the stored flag so a
+  refresh or installed-PWA relaunch keeps the same mode
+- the shell is expected to forward `demo=1` from `seemaths.com`
+
+While demo mode is enabled:
+- the game shows a visible `Demo Mode` banner
+- the target is reduced to `2` eggs per level outside recording/autopilot flows
+- the correct answer is visible without requiring the answer cheat code
+- the report flow tells testers to leave a comment and email the report to
+  themselves

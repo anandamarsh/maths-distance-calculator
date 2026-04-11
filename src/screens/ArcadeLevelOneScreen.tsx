@@ -64,6 +64,7 @@ import {
 import { format1dp, isExact1dpMatch, normalize1dp } from "../calculations/shared";
 import { SHARED_STORAGE_KEYS } from "../utils/storageKeys";
 import { sendEmbeddedAnalyticsEvent } from "../utils/embeddedAnalytics";
+import { getDemoConfig } from "../demoMode";
 import dsegRegularWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Regular.woff2?url";
 import dsegBoldWoff2Url from "dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2?url";
 
@@ -933,10 +934,12 @@ function NumericKeypad({
 function LevelCompleteReportActions({
   summary,
   isMobileLandscape,
+  demoMode = false,
   autopilotControlsRef,
 }: {
   summary: SessionSummary;
   isMobileLandscape: boolean;
+  demoMode?: boolean;
   autopilotControlsRef?: MutableRefObject<ModalAutopilotControls | null>;
 }) {
   const t = useT();
@@ -1017,6 +1020,11 @@ function LevelCompleteReportActions({
 
   return (
     <div className="mx-auto mt-5 w-full max-w-xl">
+      {demoMode ? (
+        <div className="mb-4 rounded-2xl border border-yellow-300/30 bg-yellow-400/10 px-4 py-3 text-left text-sm text-yellow-100">
+          Demo mode is on. Answers are visible, the round target is shorter, and you should leave a comment and email this report to yourself before you exit.
+        </div>
+      ) : null}
       {!isMobileLandscape && (
         <div className="grid grid-cols-3 gap-2.5">
           <div className="rounded-2xl border border-emerald-300/20 bg-slate-800/70 px-3 py-3">
@@ -1114,6 +1122,7 @@ function LevelCompleteReportActions({
 export default function ArcadeLevelOneScreen() {
   const t = useT();
   const { locale } = useLocale();
+  const demo = getDemoConfig();
   const initialLevelRef = useRef<1 | 2 | 3>(readInitialLevel());
   const initialLevel = initialLevelRef.current;
   const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
@@ -2388,7 +2397,7 @@ export default function ArcadeLevelOneScreen() {
     l3KeypadIndex === null || l3ExtinctionSingleLineOnly || l3KeypadIndex === 2;
   const keypadValue =
     l3KeypadIndex !== null ? subAnswers[l3KeypadIndex] : answer;
-  const showCheatAnswer = cheatAnswerUnlocked;
+  const showCheatAnswer = cheatAnswerUnlocked || demo.showAnswers;
   const canKeypadSubmit =
     l3KeypadIndex !== null
       ? !isNaN(parseFloat(subAnswers[l3KeypadIndex]))
@@ -2500,7 +2509,9 @@ export default function ArcadeLevelOneScreen() {
       ? isRecording
         ? VUDEO_EGGS_PER_LEVEL
         : AUTOPILOT_EGGS_PER_LEVEL
-      : DEFAULT_EGGS_PER_LEVEL;
+      : demo.enabled
+        ? demo.targetEggs
+        : DEFAULT_EGGS_PER_LEVEL;
   const eggIndices = Array.from({ length: eggsPerLevel }, (_, i) => i);
 
   useEffect(() => {
@@ -2689,6 +2700,21 @@ export default function ArcadeLevelOneScreen() {
       }}
     >
       <div className="pointer-events-none absolute inset-0 arcade-grid opacity-20" />
+      {demo.enabled && (
+        <div className="pointer-events-none absolute left-2 right-2 top-2 z-[44] flex justify-center">
+          <div
+            className="max-w-3xl rounded-2xl px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.16em]"
+            style={{
+              background: "rgba(250,204,21,0.14)",
+              border: "1px solid rgba(250,204,21,0.42)",
+              color: "#fef08a",
+              boxShadow: "0 0 22px rgba(250,204,21,0.14)",
+            }}
+          >
+            Demo Mode · {demo.targetEggs} eggs only · answers visible · please comment and email your report
+          </div>
+        </div>
+      )}
       {/* Monster Round atmospheric tint overlay */}
       {gamePhase === "monster" && (
         <div
@@ -4255,6 +4281,7 @@ export default function ArcadeLevelOneScreen() {
               <LevelCompleteReportActions
                 summary={sessionSummary}
                 isMobileLandscape={isMobileLandscape}
+                demoMode={demo.enabled}
                 autopilotControlsRef={isAutopilot ? modalControlsRef : undefined}
               />
             )}
@@ -4383,6 +4410,7 @@ export default function ArcadeLevelOneScreen() {
               <LevelCompleteReportActions
                 summary={sessionSummary}
                 isMobileLandscape={isMobileLandscape}
+                demoMode={demo.enabled}
                 autopilotControlsRef={isAutopilot ? modalControlsRef : undefined}
               />
             )}

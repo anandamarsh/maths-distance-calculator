@@ -108,6 +108,17 @@ export function clearSession(): void
 export function getAttemptCount(): number
 ```
 
+## Demo mode expectations
+
+Demo mode does not change the report format or PDF/email transport, but it does
+change the report UX:
+
+- the level-complete modal must show a demo-mode callout
+- that callout must tell the tester that answers were visible and the target
+  was shortened
+- it must also ask the tester to leave a comment and email the report to
+  themselves before exiting
+
 ---
 
 ## PDF generation (`generatePdf.ts`)
