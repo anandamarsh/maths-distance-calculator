@@ -24,6 +24,26 @@
       "purpose": "maskable"
     }
   ],
+  "level-icons": [
+    {
+      "level": 1,
+      "src": "/level-icons/level-1.svg",
+      "sizes": "256x256",
+      "type": "image/svg+xml"
+    },
+    {
+      "level": 2,
+      "src": "/level-icons/level-2.svg",
+      "sizes": "256x256",
+      "type": "image/svg+xml"
+    },
+    {
+      "level": 3,
+      "src": "/level-icons/level-3.svg",
+      "sizes": "256x256",
+      "type": "image/svg+xml"
+    }
+  ],
   "screenshots": [
     "screenshots/distance-scene-2026-04-02T06-53-37-426Z.png",
     "screenshots/distance-scene-2026-04-02T06-54-10-831Z.png",
