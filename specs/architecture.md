@@ -238,7 +238,9 @@ const KEYPAD_DISPLAY_FONT_SIZE = "2.1rem";
 const ODOMETER_MAIN_WIDTH = "4ch";      // fixed width for DSEG7 readout
 ```
 
-`IS_LOCALHOST_DEV` enables a dev-only screenshot capture button.
+`IS_LOCALHOST_DEV` enables dev-only screenshot capture tools:
+- the existing full-scene capture button
+- a square snip tool that lets the developer drag and resize a square crop before capture
 
 ---
 

@@ -144,6 +144,14 @@ export function playButton() {
   tone(783.99, t + 0.04, 0.05, 0.045, "square");
 }
 
+export function playCameraShutter() {
+  const t = ac().currentTime;
+  noiseBurst(t, 1800, 0.12, 0.025);
+  noiseBurst(t + 0.018, 2600, 0.1, 0.02);
+  tone(1244.51, t, 0.028, 0.055, "square");
+  tone(830.61, t + 0.03, 0.04, 0.05, "triangle");
+}
+
 export function playKeyClick() {
   const t = ac().currentTime;
   noiseBurst(t, 2600, 0.14, 0.02);

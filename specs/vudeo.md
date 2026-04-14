@@ -38,6 +38,19 @@ the existing screenshot button.
 - Hidden while recording is active
 - Tooltip/title: `"Record demo video"`
 
+## Screenshot tools
+
+- localhost dev only
+- the existing camera button still downloads the full SVG map scene as a PNG
+- a second button appears beside it with a dotted square camera icon
+- pressing that button toggles a square snip overlay on top of the map
+- the overlay starts centred, can be dragged, and can be resized while staying a
+  square
+- a floating camera button on the selection’s top-left corner downloads exactly
+  the selected square crop as a PNG
+- a close button on the selection’s top-right corner, or pressing `Escape`,
+  closes the snip tool
+
 ---
 
 ## Recording flow

@@ -40,7 +40,10 @@ export function generateTrailConfig(
   const edges = Array.from({ length: stopCount - 1 }, (_, index) => ({
     from: stops[index].id,
     to: stops[index + 1].id,
-    distance: randomDecimal(1.5, unit === "km" ? 9.9 : 8.9, random),
+    distance:
+      level <= 2
+        ? randomInt(2, unit === "km" ? 9 : 8, random)
+        : randomDecimal(1.5, unit === "km" ? 9.9 : 8.9, random),
   }));
 
   return {

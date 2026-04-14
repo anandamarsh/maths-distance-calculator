@@ -46,7 +46,7 @@ export function createLevelTwoNormalQuestions(
     const to = config.stops[route[route.length - 1]].label;
     const hidFrom = config.stops[hiddenEdge].label;
     const hidTo = config.stops[hiddenEdge + 1].label;
-    const promptVars = { from, to, total: total.toFixed(1), unit: config.unit, hidFrom, hidTo };
+    const promptVars = { from, to, total: String(Math.round(total)), unit: config.unit, hidFrom, hidTo };
 
     questions.push({
       id: createQuestionId("q2", questions.length + 1),

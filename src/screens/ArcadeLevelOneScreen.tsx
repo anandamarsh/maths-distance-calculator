@@ -17,6 +17,7 @@ import {
 import { randomDino, type DinoSprite } from "../game/dinos";
 import {
   playButton,
+  playCameraShutter,
   playCorrect,
   playStep,
   playWrong,
@@ -257,6 +258,10 @@ function totalKm(config: TrailConfig) {
   return Number(config.edges.reduce((s, e) => s + e.distance, 0).toFixed(3));
 }
 
+function formatDistanceForLevel(level: number, value: number) {
+  return level <= 2 ? String(Math.round(value)) : format1dp(value);
+}
+
 function getCheckpoints(config: TrailConfig): number[] {
   let km = 0;
   const pts = [0];
@@ -329,6 +334,20 @@ const IS_LOCALHOST_DEV =
   new Set(["localhost", "127.0.0.1", "::1"]).has(
     globalThis.location?.hostname ?? "",
   );
+
+type SnipSelection = {
+  x: number;
+  y: number;
+  size: number;
+};
+
+type SnipDragState = {
+  mode: "move" | "resize";
+  pointerId: number;
+  startX: number;
+  startY: number;
+  initial: SnipSelection;
+};
 
 function readInitialLevel(): 1 | 2 | 3 {
   if (typeof window === "undefined") return 1;
@@ -1276,6 +1295,9 @@ export default function ArcadeLevelOneScreen() {
   const [showMonsterAnnounce, setShowMonsterAnnounce] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
+  const [snipMode, setSnipMode] = useState(false);
+  const [snipSelection, setSnipSelection] = useState<SnipSelection | null>(null);
+  const [captureFlashVisible, setCaptureFlashVisible] = useState(false);
   const [youtubeBubbleDismissed, setYoutubeBubbleDismissed, youtubePrefsLoaded] =
     usePersistentBoolean(
       SHARED_STORAGE_KEYS.youtubeBubbleDismissed,
@@ -1348,6 +1370,8 @@ export default function ArcadeLevelOneScreen() {
   } | null>(null);
   const draggingRef = useRef(false);
   const flashTimerRef = useRef<number | null>(null);
+  const snipDragRef = useRef<SnipDragState | null>(null);
+  const captureFlashTimerRef = useRef<number | null>(null);
   const posKmRef = useRef(0);
   const minKmRef = useRef(0);
   const maxKmRef = useRef(0);
@@ -1841,211 +1865,366 @@ export default function ArcadeLevelOneScreen() {
 
   async function handleCaptureQuestion() {
     if (!IS_LOCALHOST_DEV) return;
-    const svg = svgRef.current;
-    const map = mapContainerRef.current;
-    if (!svg || !map) {
-      showFlash("Capture failed", false);
-      return;
-    }
-
     try {
-      if (typeof document !== "undefined" && "fonts" in document) {
-        await document.fonts.ready;
-      }
-
-      const rect = map.getBoundingClientRect();
-      const width = Math.max(1, Math.ceil(rect.width));
-      const height = Math.max(1, Math.ceil(rect.height));
-      const clone = svg.cloneNode(true) as SVGSVGElement;
-      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-      clone.setAttribute("width", String(width));
-      clone.setAttribute("height", String(height));
-      clone.setAttribute("viewBox", tightViewBox);
-
-      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      bg.setAttribute("x", String(vbX));
-      bg.setAttribute("y", String(vbY));
-      bg.setAttribute("width", String(vbW));
-      bg.setAttribute("height", String(vbH));
-      bg.setAttribute("fill", phaseBg.bg);
-      clone.insertBefore(bg, clone.firstChild);
-
-      const defs =
-        clone.querySelector("defs") ??
-        clone.insertBefore(
-          document.createElementNS("http://www.w3.org/2000/svg", "defs"),
-          clone.firstChild,
-        );
-      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      const regularFontUrl = await toDataUrl(
-        new URL(dsegRegularWoff2Url, window.location.href).href,
-        "font/woff2",
-      );
-      const boldFontUrl = await toDataUrl(
-        new URL(dsegBoldWoff2Url, window.location.href).href,
-        "font/woff2",
-      );
-      style.textContent = `
-        @font-face {
-          font-family: 'DSEG7Classic';
-          src: url('${regularFontUrl}') format('woff2');
-          font-weight: 400;
-          font-style: normal;
-        }
-        @font-face {
-          font-family: 'DSEG7Classic';
-          src: url('${boldFontUrl}') format('woff2');
-          font-weight: 700;
-          font-style: normal;
-        }
-        text {
-          font-family: 'Courier New', 'Lucida Console', monospace;
-          letter-spacing: 0.06em;
-        }
-      `;
-      defs.appendChild(style);
-
-      const svgText = new XMLSerializer().serializeToString(clone);
-      const blob = new Blob([svgText], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-
-      const img = new Image();
-      const pngBlob = await new Promise<Blob>((resolve, reject) => {
-        img.onload = () => {
-          const scale = 2;
-          const canvas = document.createElement("canvas");
-          canvas.width = width * scale;
-          canvas.height = height * scale;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("Canvas context unavailable"));
-            return;
-          }
-          ctx.setTransform(scale, 0, 0, scale, 0, 0);
-          ctx.drawImage(img, 0, 0, width, height);
-
-          const odometerEl = isMobileLandscape
-            ? landscapeOdometerRef.current
-            : floatingOdometerRef.current;
-          if (odometerEl && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce) {
-            const mapRect = map.getBoundingClientRect();
-            const odometerRect = odometerEl.getBoundingClientRect();
-            const x = odometerRect.left - mapRect.left;
-            const y = odometerRect.top - mapRect.top;
-            const withinCapture =
-              odometerRect.right > mapRect.left &&
-              odometerRect.left < mapRect.right &&
-              odometerRect.bottom > mapRect.top &&
-              odometerRect.top < mapRect.bottom;
-
-            if (withinCapture) {
-              const panelX = Math.max(0, x);
-              const panelY = Math.max(0, y);
-              const panelW = Math.min(width - panelX, odometerRect.width);
-              const panelH = Math.min(height - panelY, odometerRect.height);
-
-              if (panelW > 0 && panelH > 0) {
-                ctx.save();
-                addRoundedRectPath(ctx, panelX, panelY, panelW, panelH, 16);
-                ctx.fillStyle = "rgba(2, 6, 23, 0.92)";
-                ctx.fill();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = "rgba(125, 211, 252, 0.9)";
-                ctx.stroke();
-
-                ctx.shadowColor = "rgba(56, 189, 248, 0.22)";
-                ctx.shadowBlur = 24;
-                ctx.strokeStyle = "rgba(56, 189, 248, 0.15)";
-                ctx.stroke();
-                ctx.shadowColor = "transparent";
-
-                const mainValue = odomKm.toFixed(1);
-                const secondaryValue =
-                  currentQ.totalGiven != null
-                    ? `Σ ${currentQ.totalGiven.toFixed(1)} ${config.unit}`
-                    : null;
-
-                ctx.fillStyle = "#ffffff";
-                ctx.textAlign = "right";
-                ctx.textBaseline = "top";
-                ctx.font = `700 ${KEYPAD_DISPLAY_FONT_SIZE} 'DSEG7Classic', 'Courier New', monospace`;
-                ctx.fillText(mainValue, panelX + panelW - 12, panelY + 10);
-
-                if (secondaryValue) {
-                  ctx.fillStyle = "#fde047";
-                  ctx.textAlign = "center";
-                  ctx.font = "900 16px 'Courier New', 'Lucida Console', monospace";
-                  ctx.fillText(secondaryValue, panelX + panelW / 2, panelY + panelH - 24);
-                }
-                ctx.restore();
-              }
-            }
-          }
-
-          canvas.toBlob((blobOut) => {
-            if (!blobOut) {
-              reject(new Error("Unable to encode PNG"));
-              return;
-            }
-            resolve(blobOut);
-          }, "image/png");
-        };
-        img.onerror = () => reject(new Error("Unable to render scene snapshot"));
-        img.src = url;
-      });
-      URL.revokeObjectURL(url);
-
+      const pngBlob = await renderQuestionPngBlob();
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `distance-scene-${stamp}.png`;
-      const nav = navigator as Navigator & {
-        share?: (data: ShareData) => Promise<void>;
-        canShare?: (data?: ShareData) => boolean;
-        standalone?: boolean;
-      };
-      const file = new File([pngBlob], fileName, { type: "image/png" });
-      const shareData: ShareData = {
-        files: [file],
-        title: "Distance Calculator scene",
-        text: "Save or share this Distance Calculator scene.",
-      };
-      const looksMobileOrPwa =
-        window.matchMedia?.("(display-mode: standalone)").matches ||
-        !!nav.standalone ||
-        navigator.maxTouchPoints > 0;
-
-      if (
-        looksMobileOrPwa &&
-        typeof nav.share === "function" &&
-        (!nav.canShare || nav.canShare(shareData))
-      ) {
-        try {
-          await nav.share(shareData);
-          showFlash("Image ready to share", true);
-          return;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-        }
-      }
-
-      const pngUrl = URL.createObjectURL(pngBlob);
-      const link = document.createElement("a");
-      link.href = pngUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(pngUrl);
-      showFlash("Scene captured", true);
+      await shareOrDownloadPng(
+        pngBlob,
+        `distance-scene-${stamp}.png`,
+        "Distance Calculator scene",
+        "Save or share this Distance Calculator scene.",
+        "Scene captured",
+      );
     } catch (error) {
       console.error("Scene capture failed", error);
       showFlash("Capture failed", false);
     }
   }
+
+  async function renderQuestionPngBlob(scale = 2) {
+    const svg = svgRef.current;
+    const map = mapContainerRef.current;
+    if (!svg || !map) {
+      throw new Error("Capture failed");
+    }
+    if (typeof document !== "undefined" && "fonts" in document) {
+      await document.fonts.ready;
+    }
+
+    const rect = map.getBoundingClientRect();
+    const width = Math.max(1, Math.ceil(rect.width));
+    const height = Math.max(1, Math.ceil(rect.height));
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+    clone.setAttribute("width", String(width));
+    clone.setAttribute("height", String(height));
+    clone.setAttribute("viewBox", tightViewBox);
+
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("x", String(vbX));
+    bg.setAttribute("y", String(vbY));
+    bg.setAttribute("width", String(vbW));
+    bg.setAttribute("height", String(vbH));
+    bg.setAttribute("fill", phaseBg.bg);
+    clone.insertBefore(bg, clone.firstChild);
+
+    const defs =
+      clone.querySelector("defs") ??
+      clone.insertBefore(
+        document.createElementNS("http://www.w3.org/2000/svg", "defs"),
+        clone.firstChild,
+      );
+    const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    const regularFontUrl = await toDataUrl(
+      new URL(dsegRegularWoff2Url, window.location.href).href,
+      "font/woff2",
+    );
+    const boldFontUrl = await toDataUrl(
+      new URL(dsegBoldWoff2Url, window.location.href).href,
+      "font/woff2",
+    );
+    style.textContent = `
+      @font-face { font-family: 'DSEG7Classic'; src: url('${regularFontUrl}') format('woff2'); font-weight: 400; font-style: normal; }
+      @font-face { font-family: 'DSEG7Classic'; src: url('${boldFontUrl}') format('woff2'); font-weight: 700; font-style: normal; }
+      text { font-family: 'Courier New', 'Lucida Console', monospace; letter-spacing: 0.06em; }
+    `;
+    defs.appendChild(style);
+
+    const svgText = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error("Canvas context unavailable"));
+          return;
+        }
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const odometerEl = isMobileLandscape
+          ? landscapeOdometerRef.current
+          : floatingOdometerRef.current;
+        if (odometerEl && screen === "playing" && gamePhase === "normal" && !showMonsterAnnounce) {
+          const mapRect = map.getBoundingClientRect();
+          const odometerRect = odometerEl.getBoundingClientRect();
+          const x = odometerRect.left - mapRect.left;
+          const y = odometerRect.top - mapRect.top;
+          const withinCapture =
+            odometerRect.right > mapRect.left &&
+            odometerRect.left < mapRect.right &&
+            odometerRect.bottom > mapRect.top &&
+            odometerRect.top < mapRect.bottom;
+
+          if (withinCapture) {
+            const panelX = Math.max(0, x);
+            const panelY = Math.max(0, y);
+            const panelW = Math.min(width - panelX, odometerRect.width);
+            const panelH = Math.min(height - panelY, odometerRect.height);
+            if (panelW > 0 && panelH > 0) {
+              ctx.save();
+              addRoundedRectPath(ctx, panelX, panelY, panelW, panelH, 16);
+              ctx.fillStyle = "rgba(2, 6, 23, 0.92)";
+              ctx.fill();
+              ctx.lineWidth = 4;
+              ctx.strokeStyle = "rgba(125, 211, 252, 0.9)";
+              ctx.stroke();
+              ctx.shadowColor = "rgba(56, 189, 248, 0.22)";
+              ctx.shadowBlur = 24;
+              ctx.strokeStyle = "rgba(56, 189, 248, 0.15)";
+              ctx.stroke();
+              ctx.shadowColor = "transparent";
+
+              const mainValue = formatDistanceForLevel(level, odomKm);
+              const secondaryValue =
+                currentQ.totalGiven != null
+                  ? `Σ ${formatDistanceForLevel(level, currentQ.totalGiven)} ${config.unit}`
+                  : null;
+
+              ctx.fillStyle = "#ffffff";
+              ctx.textAlign = "right";
+              ctx.textBaseline = "top";
+              ctx.font = `700 ${KEYPAD_DISPLAY_FONT_SIZE} 'DSEG7Classic', 'Courier New', monospace`;
+              ctx.fillText(mainValue, panelX + panelW - 12, panelY + 10);
+
+              if (secondaryValue) {
+                ctx.fillStyle = "#fde047";
+                ctx.textAlign = "center";
+                ctx.font = "900 16px 'Courier New', 'Lucida Console', monospace";
+                ctx.fillText(secondaryValue, panelX + panelW / 2, panelY + panelH - 24);
+              }
+              ctx.restore();
+            }
+          }
+        }
+
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blobOut) => {
+          if (!blobOut) {
+            reject(new Error("Unable to encode PNG"));
+            return;
+          }
+          resolve(blobOut);
+        }, "image/png");
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Unable to render scene snapshot"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function shareOrDownloadPng(
+    pngBlob: Blob,
+    fileName: string,
+    title: string,
+    text: string,
+    successMessage: string,
+  ) {
+    const nav = navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>;
+      canShare?: (data?: ShareData) => boolean;
+      standalone?: boolean;
+    };
+    const file = new File([pngBlob], fileName, { type: "image/png" });
+    const shareData: ShareData = { files: [file], title, text };
+    const looksMobileOrPwa =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      !!nav.standalone ||
+      navigator.maxTouchPoints > 0;
+
+    if (
+      looksMobileOrPwa &&
+      typeof nav.share === "function" &&
+      (!nav.canShare || nav.canShare(shareData))
+    ) {
+      try {
+        await nav.share(shareData);
+        showFlash("Image ready to share", true);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    const pngUrl = URL.createObjectURL(pngBlob);
+    const link = document.createElement("a");
+    link.href = pngUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(pngUrl);
+    showFlash(successMessage, true);
+  }
+
+  function makeDefaultSnipSelection() {
+    const rect = mapContainerRef.current?.getBoundingClientRect();
+    const width = rect?.width ?? Math.max(240, window.innerWidth * 0.6);
+    const height = rect?.height ?? Math.max(240, window.innerHeight * 0.5);
+    const size = Math.max(96, Math.min(Math.min(width, height) * 0.48, 220));
+    return { x: (width - size) / 2, y: (height - size) / 2, size } satisfies SnipSelection;
+  }
+
+  function clampSnipSelection(next: SnipSelection) {
+    const rect = mapContainerRef.current?.getBoundingClientRect();
+    if (!rect) return next;
+    const maxSize = Math.max(72, Math.min(rect.width, rect.height));
+    const size = Math.max(72, Math.min(next.size, maxSize));
+    return {
+      x: Math.min(Math.max(0, next.x), rect.width - size),
+      y: Math.min(Math.max(0, next.y), rect.height - size),
+      size,
+    };
+  }
+
+  function toggleSnipMode() {
+    if (!IS_LOCALHOST_DEV) return;
+    setSnipMode((active) => !active);
+  }
+
+  function closeSnipMode() {
+    snipDragRef.current = null;
+    setSnipMode(false);
+  }
+
+  function triggerCaptureFlash() {
+    playCameraShutter();
+    setCaptureFlashVisible(true);
+    if (captureFlashTimerRef.current) clearTimeout(captureFlashTimerRef.current);
+    captureFlashTimerRef.current = window.setTimeout(() => setCaptureFlashVisible(false), 180);
+  }
+
+  async function handleCaptureSnip() {
+    const activeSelection = snipSelection ?? makeDefaultSnipSelection();
+    if (!IS_LOCALHOST_DEV || !activeSelection) return;
+    try {
+      triggerCaptureFlash();
+      const fullBlob = await renderQuestionPngBlob(4);
+      const imageUrl = URL.createObjectURL(fullBlob);
+      const img = new Image();
+      const croppedBlob = await new Promise<Blob>((resolve, reject) => {
+        img.onload = () => {
+          const rect = mapContainerRef.current?.getBoundingClientRect();
+          if (!rect) {
+            URL.revokeObjectURL(imageUrl);
+            reject(new Error("Map bounds unavailable"));
+            return;
+          }
+          const sourceX = (activeSelection.x / rect.width) * img.width;
+          const sourceY = (activeSelection.y / rect.height) * img.height;
+          const sourceSize = (activeSelection.size / rect.width) * img.width;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(sourceSize));
+          canvas.height = canvas.width;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            URL.revokeObjectURL(imageUrl);
+            reject(new Error("Canvas context unavailable"));
+            return;
+          }
+          ctx.drawImage(img, sourceX, sourceY, sourceSize, sourceSize, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(imageUrl);
+          canvas.toBlob((blobOut) => {
+            if (!blobOut) {
+              reject(new Error("Unable to encode cropped PNG"));
+              return;
+            }
+            resolve(blobOut);
+          }, "image/png");
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl);
+          reject(new Error("Unable to render cropped snapshot"));
+        };
+        img.src = imageUrl;
+      });
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      await shareOrDownloadPng(
+        croppedBlob,
+        `distance-square-snip-${stamp}.png`,
+        "Distance Calculator square snip",
+        "Save or share this square Distance Calculator crop.",
+        "Square snip downloaded",
+      );
+      closeSnipMode();
+    } catch {
+      showFlash("Square snip failed", false);
+    }
+  }
+
+  useEffect(() => {
+    if (!snipMode) {
+      snipDragRef.current = null;
+      return;
+    }
+    if (!snipSelection) {
+      const initial = makeDefaultSnipSelection();
+      if (initial) {
+        setSnipSelection(initial);
+      }
+    }
+
+    function onMove(e: PointerEvent) {
+      const drag = snipDragRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (drag.mode === "move") {
+        setSnipSelection(clampSnipSelection({
+          ...drag.initial,
+          x: drag.initial.x + dx,
+          y: drag.initial.y + dy,
+        }));
+        return;
+      }
+      const delta = Math.max(dx, dy);
+      setSnipSelection(clampSnipSelection({
+        ...drag.initial,
+        size: drag.initial.size + delta,
+      }));
+    }
+
+    function onUp(e: PointerEvent) {
+      if (snipDragRef.current?.pointerId !== e.pointerId) return;
+      snipDragRef.current = null;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      closeSnipMode();
+    }
+
+    function onResize() {
+      setSnipSelection((current) => {
+        if (!current) return makeDefaultSnipSelection();
+        return clampSnipSelection(current);
+      });
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [snipMode, snipSelection]);
 
   function resetCurrentQuestion() {
     playButton();
@@ -2633,6 +2812,7 @@ export default function ArcadeLevelOneScreen() {
           : AUTOPILOT_EGGS_PER_LEVEL
         : DEFAULT_EGGS_PER_LEVEL;
   const eggIndices = Array.from({ length: eggsPerLevel }, (_, i) => i);
+  const activeSnipSelection = snipSelection ?? (snipMode ? makeDefaultSnipSelection() : null);
 
   useEffect(() => {
     eggTargetRef.current = eggsPerLevel;
@@ -2993,6 +3173,29 @@ export default function ArcadeLevelOneScreen() {
               </svg>
             </button>
           )}
+          {IS_LOCALHOST_DEV && (
+            <button
+              type="button"
+              onClick={toggleSnipMode}
+              title={snipMode ? "Hide square snip tool" : "Show square snip tool"}
+              aria-label={snipMode ? "Hide square snip tool" : "Show square snip tool"}
+              className="social-launcher arcade-button"
+              style={
+                snipMode
+                  ? {
+                      background: "linear-gradient(180deg,#0369a1,#075985)",
+                      borderColor: "#38bdf8",
+                    }
+                  : undefined
+              }
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                <rect x="4.5" y="4.5" width="15" height="15" rx="2" stroke="white" strokeWidth="2" strokeDasharray="2.5 2.5" />
+                <path d="M8.5 9.5h1.3l.8-1.4h2.8l.8 1.4h1.3a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-7a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5Z" stroke="white" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="13" r="1.9" stroke="white" strokeWidth="1.7" />
+              </svg>
+            </button>
+          )}
           {IS_LOCALHOST_DEV && !isRecording && (
             <button
               type="button"
@@ -3092,11 +3295,11 @@ export default function ArcadeLevelOneScreen() {
                         lineHeight: 1,
                       }}
                     >
-                      {odomKm.toFixed(1)}
+                      {formatDistanceForLevel(level, odomKm)}
                     </div>
                   </div>
                   <div className="mt-2 w-full whitespace-nowrap text-center text-base leading-none text-yellow-300">
-                    Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                    Σ {formatDistanceForLevel(level, currentQ.totalGiven)} {config.unit}
                   </div>
                 </>
               ) : (
@@ -3110,7 +3313,7 @@ export default function ArcadeLevelOneScreen() {
                     lineHeight: 1,
                   }}
                 >
-                  {odomKm.toFixed(1)}
+                  {formatDistanceForLevel(level, odomKm)}
                 </div>
               )}
             </button>
@@ -3461,7 +3664,7 @@ export default function ArcadeLevelOneScreen() {
                     strokeWidth={4}
                     paintOrder="stroke"
                   >
-                    {`${edge.distance.toFixed(1)} ${config.unit}`}
+                    {`${formatDistanceForLevel(level, edge.distance)} ${config.unit}`}
                   </text>
                 )}
                 {isHidden && (
@@ -3631,13 +3834,88 @@ export default function ArcadeLevelOneScreen() {
           )}
         </svg>
 
+        {IS_LOCALHOST_DEV && snipMode && activeSnipSelection && (
+          <div className="pointer-events-auto absolute inset-0 z-[82]">
+            <div className="absolute inset-0 bg-black/10" />
+            <div
+              className="absolute rounded-2xl"
+              style={{
+                left: activeSnipSelection.x,
+                top: activeSnipSelection.y,
+                width: activeSnipSelection.size,
+                height: activeSnipSelection.size,
+                border: "2px dashed rgba(255,255,255,0.95)",
+                boxShadow: "0 0 0 9999px rgba(2,6,23,0.22)",
+                background: "rgba(255,255,255,0.03)",
+              }}
+            >
+              <button
+                type="button"
+                title="Capture square snip"
+                onClick={handleCaptureSnip}
+                className="arcade-button absolute -left-3 -top-3 z-[2] h-10 w-10 p-1.5"
+              >
+                <svg viewBox="0 0 24 24" fill="none" className="h-full w-full">
+                  <path d="M7 7h2l1.2-2h3.6L15 7h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="12.5" r="3.25" stroke="white" strokeWidth="2" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label="Close square snip"
+                title="Close square snip"
+                onClick={closeSnipMode}
+                className="arcade-button absolute -right-3 -top-3 z-[2] flex h-10 w-10 items-center justify-center p-1.5"
+              >
+                <CloseIcon className="h-full w-full" sx={{ color: "#fff" }} />
+              </button>
+              <button
+                type="button"
+                aria-label="Move square snip"
+                title="Drag to move"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  snipDragRef.current = {
+                    mode: "move",
+                    pointerId: e.pointerId,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    initial: activeSnipSelection,
+                  };
+                }}
+                className="absolute inset-0 cursor-move rounded-2xl"
+                style={{ background: "transparent" }}
+              />
+              <button
+                type="button"
+                aria-label="Resize square snip"
+                title="Drag to resize"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  snipDragRef.current = {
+                    mode: "resize",
+                    pointerId: e.pointerId,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    initial: activeSnipSelection,
+                  };
+                }}
+                className="absolute -bottom-3 -right-3 z-[2] h-7 w-7 rounded-full border-2 border-white bg-sky-400/90"
+                style={{ boxShadow: "0 0 18px rgba(56,189,248,0.45)" }}
+              />
+            </div>
+          </div>
+        )}
+
         {odometerMapPos &&
           !isMobileLandscape &&
           screen === "playing" &&
           gamePhase === "normal" &&
           !showMonsterAnnounce &&
           (() => {
-            const s = odomKm.toFixed(1);
+            const s = formatDistanceForLevel(level, odomKm);
             return (
               <button
                 ref={floatingOdometerRef}
@@ -3677,7 +3955,7 @@ export default function ArcadeLevelOneScreen() {
                       </div>
                     </div>
                     <div className="mt-2 w-full whitespace-nowrap text-center text-base leading-none text-yellow-300 md:text-lg">
-                      Σ {currentQ.totalGiven.toFixed(1)} {config.unit}
+                      Σ {formatDistanceForLevel(level, currentQ.totalGiven)} {config.unit}
                     </div>
                   </>
                 ) : (
@@ -3872,8 +4150,9 @@ export default function ArcadeLevelOneScreen() {
                       })()}
                     </>
                   )}
-                </svg>
-              </div>
+        </svg>
+
+      </div>
             );
           })()}
 
@@ -3998,7 +4277,7 @@ export default function ArcadeLevelOneScreen() {
                     border: "1px solid rgba(250,204,21,0.35)",
                   }}
                 >
-                  {currentQ.answer.toFixed(1)}
+                  {formatDistanceForLevel(level, currentQ.answer)}
                 </span>
               )}
             </div>
@@ -4017,7 +4296,7 @@ export default function ArcadeLevelOneScreen() {
               >
                 Answer: {currentQ.promptLines && currentQ.subAnswers
                   ? currentQ.subAnswers[subStep].toFixed(1)
-                  : currentQ.answer.toFixed(1)}
+                  : formatDistanceForLevel(level, currentQ.answer)}
               </div>
             ) : null}
             <NumericKeypad
@@ -4382,6 +4661,17 @@ export default function ArcadeLevelOneScreen() {
             {flash.text}
           </div>
         ))}
+
+      {captureFlashVisible && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-[120]"
+          style={{
+            background:
+              "radial-gradient(circle at center, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.7) 22%, rgba(255,255,255,0.18) 52%, rgba(255,255,255,0) 78%)",
+          }}
+        />
+      )}
 
       {/* ── Game Over / All Levels Complete ── */}
       {screen === "gameover" && (
