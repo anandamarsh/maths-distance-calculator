@@ -1,4 +1,4 @@
-# Vudeo Recording
+# Video Recording
 
 **Files:**
 - `src/hooks/useVudeoRecorder.ts` — tab-capture recording state machine + `MediaRecorder`
@@ -11,8 +11,11 @@
 
 ## What it does
 
-Adds a localhost-only "vudeo" recorder for generating a full promo/demo capture of
+Adds a localhost-only video recorder for generating a full promo/demo capture of
 Trail Distances for YouTube uploads.
+
+The implementation still uses the legacy internal names `useVudeoRecorder` and
+`VudeoOverlay`. This spec uses the clearer user-facing term "video recording".
 
 The recorder:
 - switches to a dark holding screen before browser capture permission is requested

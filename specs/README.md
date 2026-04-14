@@ -21,7 +21,7 @@ Core features:
 - A **Monster Round** per level where the odometer is hidden, testing fluency
 - A **session report** emailed as a PDF at level completion
 - **Autopilot** for demos and end-to-end testing
-- **Vudeo recording** for localhost promo/demo capture
+- **Video recording** for localhost promo/demo capture
 - **i18n** — planned feature (see `specs/i18n.md`)
 - **Sound** synthesised with Web Audio API (no files needed)
 - **Social sharing** + embedded comments
@@ -113,7 +113,7 @@ Core features:
 | [Session Reporting](./session-reporting.md) | `specs/session-reporting.md` | `report/` |
 | [Sound System](./sound-system.md) | `specs/sound-system.md` | `sound/index.ts` |
 | [Autopilot](./autopilot.md) | `specs/autopilot.md` | `hooks/useDistanceAutopilot.ts`, `components/PhantomHand.tsx`, `components/AutopilotIcon.tsx` |
-| [Vudeo Recording](./vudeo.md) | `specs/vudeo.md` | `hooks/useVudeoRecorder.ts`, `components/VudeoOverlay.tsx`, `public/intro.html`, `public/outro.html` |
+| [Video Recording](./video.md) | `specs/video.md` | `hooks/useVudeoRecorder.ts`, `components/VudeoOverlay.tsx`, `public/intro.html`, `public/outro.html` |
 | [Cheat Codes](./cheat-codes.md) | `specs/cheat-codes.md` | `hooks/useCheatCode.ts` |
 | [i18n](./i18n.md) | `specs/i18n.md` | planned: `i18n/`, `components/LanguageSwitcher.tsx`, `api/translate.ts` |
 | [Social & Comments](./social.md) | `specs/social.md` | `components/Social.jsx` |
