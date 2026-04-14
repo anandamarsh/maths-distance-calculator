@@ -1263,6 +1263,10 @@ export default function ArcadeLevelOneScreen() {
   const initialLevel = initialLevelRef.current;
   const [level, setLevel] = useState<1 | 2 | 3>(initialLevel);
   const [unlockedLevel, setUnlockedLevel] = useState<1 | 2 | 3>(initialLevel);
+  const levelLifecycleRef = useRef<{
+    level: 1 | 2 | 3;
+    finished: boolean;
+  } | null>(null);
   const [run, setRun] = useState(() => createRun(initialLevel, t, locale));
   const [screen, setScreen] = useState<"playing" | "won" | "gameover">(
     "playing",
@@ -1298,6 +1302,45 @@ export default function ArcadeLevelOneScreen() {
   const [snipMode, setSnipMode] = useState(false);
   const [snipSelection, setSnipSelection] = useState<SnipSelection | null>(null);
   const [captureFlashVisible, setCaptureFlashVisible] = useState(false);
+
+  const finishTrackedLevel = useCallback(
+    (endReason: string, payload: Record<string, unknown> = {}) => {
+      const current = levelLifecycleRef.current;
+      if (!current || current.finished) {
+        return;
+      }
+
+      current.finished = true;
+      sendEmbeddedAnalyticsEvent("level_finished", {
+        level: current.level,
+        endReason,
+        ...payload,
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    levelLifecycleRef.current = {
+      level,
+      finished: false,
+    };
+    sendEmbeddedAnalyticsEvent("level_started", { level });
+
+    return () => {
+      finishTrackedLevel("shell-exit");
+    };
+  }, [finishTrackedLevel, level]);
+
+  useEffect(() => {
+    if (screen === "playing") {
+      return;
+    }
+
+    finishTrackedLevel(screen === "won" ? "level-complete" : "game-complete", {
+      screen,
+    });
+  }, [finishTrackedLevel, screen]);
   const [youtubeBubbleDismissed, setYoutubeBubbleDismissed, youtubePrefsLoaded] =
     usePersistentBoolean(
       SHARED_STORAGE_KEYS.youtubeBubbleDismissed,
